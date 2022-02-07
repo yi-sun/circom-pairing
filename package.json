@@ -1,0 +1,27 @@
+{
+    "name": "circom-pairing",
+    "version": "0.0.1",
+    "description": "SNARKs for elliptic curve pairings in Circom",
+    "main": "index.js",
+    "scripts": {
+	"build": "cd ./scripts/dev && ./build_dev.sh",
+	"test": "NODE_OPTIONS='--max-old-space-size=56000' mocha -r ts-node/register 'test/**/*.ts'"
+    },
+    "repository": "git@github.com:yi-sun/circom-pairing.git",
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+	"circomlib": "^2.0.2",
+	"snarkjs": "^0.4.10"
+    },
+    "devDependencies": {
+	"@types/chai": "^4.3.0",
+	"@types/expect": "^24.3.0",
+	"@types/mocha": "^9.0.0",
+	"chai": "^4.3.4",
+	"circom_tester": "0.0.9",
+	"mocha": "^9.1.3",
+	"ts-node": "^10.4.0",
+	"typescript": "^4.5.4"
+    }
+}
