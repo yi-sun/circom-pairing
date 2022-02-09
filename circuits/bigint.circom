@@ -407,6 +407,42 @@ template BigMod(n, k) {
 
 // a[i], b[i] in 0... 2**n-1
 // represent a = a[0] + a[1] * 2**n + .. + a[k - 1] * 2**(n * k)
+// calculates (a+b)%p, where 0<= a,b < p 
+template BigAddModP(n, k){
+    assert(n <= 252);
+    signal input a[k];
+    signal input b[k];
+    signal input p[k];
+    signal output out[k];
+
+    component add = BigAdd(n,k);
+    for (var i = 0; i < k; i++) {
+        add.a[i] <== a[i];
+        add.b[i] <== b[i];
+    }
+    component lt = BigLessThan(n, k+1);
+    for (var i = 0; i < k; i++) {
+        lt.a[i] <== add.out[i];
+        lt.b[i] <== p[i];
+    }
+    lt.a[k] <== add.out[k];
+    lt.b[k] <== 0; 
+
+    component sub = BigSub(n,k+1);
+    for (var i = 0; i < k; i++) {
+        sub.a[i] <== add.out[i];
+        sub.b[i] <== lt.out * p[i];
+    }
+    sub.a[k] <== add.out[k];
+    sub.b[k] <== 0;
+    
+    sub.out[k] === 0;
+    for (var i = 0; i < k; i++) {
+        out[i] <== sub.out[i];
+    }
+}
+// a[i], b[i] in 0... 2**n-1
+// represent a = a[0] + a[1] * 2**n + .. + a[k - 1] * 2**(n * k)
 // assume a >= b
 template BigSub(n, k) {
     assert(n <= 252);
