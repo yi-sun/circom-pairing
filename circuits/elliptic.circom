@@ -243,7 +243,7 @@ template EllipticCurveDouble(n, k, a, q0, q1, q2) {
 
     signal output out[2][k];
 
-    // represent q = q0 + q1 * 2 + q2 * 2**2
+    // represent q = q0 + q1 * 2**n + q2 * 2**(2n)
     // not sure how I feel about this convention...
     var q[100];
     q[0] = q0;
