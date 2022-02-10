@@ -431,7 +431,7 @@ template BigAddModP(n, k){
     component sub = BigSub(n,k+1);
     for (var i = 0; i < k; i++) {
         sub.a[i] <== add.out[i];
-        sub.b[i] <== lt.out * p[i];
+        sub.b[i] <== (1-lt.out) * p[i];
     }
     sub.a[k] <== add.out[k];
     sub.b[k] <== 0;

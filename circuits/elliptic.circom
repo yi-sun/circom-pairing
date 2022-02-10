@@ -238,18 +238,20 @@ template EllipticCurveAddUnequal4Reg(n, q0, q1, q2, q3) {
 // lamb =  (3 * in[0] ** 2 + a) / (2 * in[1]) % q
 // out[0] = lamb ** 2 - 2 * in[0] % q
 // out[1] = lamb * (in[0] - out[0]) - in[1] % q
-template EllipticCurveDouble(n, k, a, q0, q1, q2) {
+template EllipticCurveDouble(n, k, a, q0, q1, q2, q3) {
     signal input in[2][k];
 
     signal output out[2][k];
 
-    // represent q = q0 + q1 * 2**n + q2 * 2**(2n)
+    // assuming q < 2**(4n) 
+    // represent q = q0 + q1 * 2**n + q2 * 2**(2n) + q3 * 2**(3n)
     // not sure how I feel about this convention...
     var q[100];
     q[0] = q0;
     q[1] = q1;
     q[2] = q2;
-    for (var idx = 3; idx < 100; idx++) {
+    q[3] = q3;
+    for (var idx = 4; idx < 100; idx++) {
 	    q[idx] = 0;
     }
 
@@ -257,7 +259,7 @@ template EllipticCurveDouble(n, k, a, q0, q1, q2) {
     var long_a[100];
     long_a[0] = a;
     for (var i = 1; i < 100; i++) {
-        a[i] = 0;   
+        long_a[i] = 0;   
     }
 
     component in0_sq = BigMultModP(n, k);
