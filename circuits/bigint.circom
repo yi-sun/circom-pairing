@@ -20,6 +20,25 @@ template ModSum(n) {
     sum <== a + b - carry * (1 << n);
 }
 
+// check if k-register variables a, b are equal everywhere
+template BigIsEqual(k) {
+    signal input a[k];
+    signal input b[k];
+    signal output out;
+
+    component isEquals[k];
+    var total = k;
+    for (var i = 0; i < k; i ++) {
+        isEquals[i] = IsEqual();
+        isEquals[i].in[0] <== a[i];
+        isEquals[i].in[1] <== b[i];
+        total -= isEquals[i].out;
+    }
+    component checkZero = IsZero();
+    checkZero.in <== total;
+    out <== checkZero.out;
+}
+
 // a - b
 template ModSub(n) {
     assert(n <= 252);
