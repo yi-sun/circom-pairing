@@ -88,5 +88,98 @@ template BigMultShortLong2D(n, k, l) {
     }
 }
 
-// TODO: aggregate results from BigMultShortLong2D into shorts. 
-// then reduce in Fq^l using the minimal polynomial
+
+// take a polynomial expression a[0] + omega^1 a[1] + ... + omega^(2l-2) a[2l-2]
+// reduce it to degree l-1 using omega^l + omega^(l-1) poly[l-1] + ... + poly[0] = 0
+// WARNING: can produce negative coefficients. unsure how to handle yet
+template PolynomialReduce(l) {
+    signal input a[2*l-1];
+    signal input poly[l];
+    signal output out[l];
+
+    var residue[2*l-1];
+    signal quotient[l-1];
+    for (var i = 0; i < 2*l-1; i++) {
+        residue[i] = a[i];
+    }
+    for (var i = l-2; i >= 0; i --) {
+        for (var j = 0; j < l; j ++) {
+            residue[i + j] = residue[i + j] - residue[i + l] * poly[j];
+        }
+        quotient[i] <-- residue[i+l];
+        residue[i+l] = 0;
+    }
+    component mult = BigMultShortLong(1, l+1);
+    for (var i = 0; i < l-1; i ++) {
+        mult.a[i] <== quotient[i];
+        mult.b[i] <== poly[i];
+    }
+    mult.a[l-1] <== 0;
+    mult.a[l] <== 0;
+    mult.b[l-1] <== poly[l-1];
+    mult.b[l] <== 1;
+    signal a_out[2*l-1];
+    for (var i = 0; i < 2*l-1; i++) {
+        a_out[i] <== mult.out[i];
+    }
+    for (var i = 0; i < l; i ++ ) {
+        out[i] <-- residue[i];
+    }
+    for (var i = 0; i < l; i ++) {
+        a[i] === a_out[i] + out[i];
+    }
+    for (var i = l; i < 2*l-1; i ++) {
+        a[i] === a_out[i];
+    }
+}
+
+// does not work yet. correct flow, but 
+// need to fix signed outputs from PolynomialReduce first. 
+template FieldMultiply(n, k, l) {
+    signal input a[l][k];
+    signal input b[l][k];
+    signal input poly[l];
+    signal input p[k];
+    signal output c[l][k];
+
+    component mult = BigMultShortLong2D(n, k, l);
+    for (var i = 0; i < l; i ++) {
+        for (var j = 0; j < k; j ++) {
+            mult.a[i][j] <== a[i][j];
+            mult.b[i][j] <== b[i][j];
+        }
+    }
+
+    component polynomials[2*k-1];
+    for (var i = 0; i < 2*k-1; i ++) {
+        polynomials[i] = PolynomialReduce(l);
+        for (var j = 0; j < 2*l-1; j ++) {
+            polynomials[i].a[j] <== mult.out[j][i];
+        }
+        for (var j = 0; j < l; j ++) {
+            polynomials[i].poly[j] <== poly[j];
+        }
+    }
+    component longshorts[l];
+    for (var i = 0; i < l; i++) {
+        longshorts[i] = LongToShortNoEndCarry(n, 2*k-1);
+        for (var j = 0; j < 2*k-1; j ++) {
+            longshorts[i].in[j] <== polynomials[j].out[i];
+        }
+    }
+    component bigmods[l];
+    for (var i = 0; i < l; i ++) {
+        bigmods[i] = BigMod(n, k);
+        for (var j = 0; j < 2*k; j ++) {
+            bigmods[i].a[j] <== longshorts[i].out[j];
+        }
+        for (var j = 0; j < k; j ++) {
+            bigmods[i].b[j] <== p[j];
+        }
+    }
+    for (var i = 0; i < l; i ++) {
+        for (var j = 0; j < k; j ++) {
+            c[i][j] <== bigmods[i].mod[j];
+        }
+    }
+}
