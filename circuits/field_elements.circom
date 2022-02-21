@@ -133,12 +133,32 @@ template PolynomialReduce(l) {
     }
 }
 
-// does not work yet. correct flow, but 
-// need to fix signed outputs from PolynomialReduce first. 
-template FieldMultiply(n, k, l) {
+template GaussianPolynomialReduce(n, k) {
+    var l = 2;
+    signal input a[2*l-1][k];
+    var poly[2] = [1, 0]; // x^2 + 1 = 0
+    signal output out[l][k];
+    signal input p[k];
+
+    for (var i = 0; i < k; i ++) {
+        out[1][i] <== a[1][i];
+    }
+    component sub = BigSubModP(n, k);
+    for (var i = 0; i < k; i ++) {
+        sub.a[i] <== a[0][i];
+        sub.b[i] <== a[2][i];
+        sub.p[i] <== p[i];
+    }
+    for (var i = 0; i < k; i ++) {
+        out[0][i] <== sub.out[i];
+    }
+}
+ 
+template GaussianFieldMultiply(n, k) {
+    // l is always 2. poly is always [1, 0]
+    var l = 2;
     signal input a[l][k];
     signal input b[l][k];
-    signal input poly[l];
     signal input p[k];
     signal output c[l][k];
 
@@ -148,27 +168,16 @@ template FieldMultiply(n, k, l) {
             mult.a[i][j] <== a[i][j];
             mult.b[i][j] <== b[i][j];
         }
-    }
-
-    component polynomials[2*k-1];
-    for (var i = 0; i < 2*k-1; i ++) {
-        polynomials[i] = PolynomialReduce(l);
-        for (var j = 0; j < 2*l-1; j ++) {
-            polynomials[i].a[j] <== mult.out[j][i];
-        }
-        for (var j = 0; j < l; j ++) {
-            polynomials[i].poly[j] <== poly[j];
-        }
-    }
-    component longshorts[l];
-    for (var i = 0; i < l; i++) {
+    } // out: 2l-1 x 2k-1 array of longs
+    component longshorts[2*l-1];
+    for (var i = 0; i < 2*l-1; i++) {
         longshorts[i] = LongToShortNoEndCarry(n, 2*k-1);
         for (var j = 0; j < 2*k-1; j ++) {
-            longshorts[i].in[j] <== polynomials[j].out[i];
+            longshorts[i].in[j] <== mult.out[i][j];
         }
-    }
-    component bigmods[l];
-    for (var i = 0; i < l; i ++) {
+    } // out: 2l-1 x 2k array of shorts
+    component bigmods[2*l-1];
+    for (var i = 0; i < 2*l-1; i ++) {
         bigmods[i] = BigMod(n, k);
         for (var j = 0; j < 2*k; j ++) {
             bigmods[i].a[j] <== longshorts[i].out[j];
@@ -176,10 +185,19 @@ template FieldMultiply(n, k, l) {
         for (var j = 0; j < k; j ++) {
             bigmods[i].b[j] <== p[j];
         }
-    }
-    for (var i = 0; i < l; i ++) {
+    } // out: 2l-1 x k array of shorts
+    component reduce = GaussianPolynomialReduce(n, k);
+    for (var i = 0; i < 2*l-1; i ++) {
         for (var j = 0; j < k; j ++) {
-            c[i][j] <== bigmods[i].mod[j];
+            reduce.a[i][j] <== bigmods[i].mod[j];
         }
+    } // out: l x k array of shorts
+    for (var j = 0; j < k; j ++) {
+        reduce.p[j] <== p[j];
     }
+    for (var i = 0; i < l; i++) {
+        for (var j = 0; j < k; j++) {
+            c[i][j] <== reduce.out[i][j];
+        }
+    } // out: l x k array of shorts
 }
