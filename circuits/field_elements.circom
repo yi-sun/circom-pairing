@@ -5,7 +5,7 @@ include "bigint.circom";
 // a, b are elements of Fp^l
 // a[i] represents a[i][0] + a[i][1] * 2**n + ... + a[i][l-1] * 2**(n*(k-1))
 // compute a+b in Fp^l
-template FieldAdd(n, k, l) {
+template FieldAdd2D(n, k, l) {
     signal input a[l][k];
     signal input b[l][k];
     signal input p[k];
@@ -91,7 +91,7 @@ template BigMultShortLong2D(n, k, l) {
 
 // take a polynomial expression a[0] + omega^1 a[1] + ... + omega^(2l-2) a[2l-2]
 // reduce it to degree l-1 using omega^l + omega^(l-1) poly[l-1] + ... + poly[0] = 0
-// WARNING: can produce negative coefficients. unsure how to handle yet
+// WARNING: can produce incorrectly handled negative coefficients. only here for reference; do not use
 template PolynomialReduce(l) {
     signal input a[2*l-1];
     signal input poly[l];
@@ -133,7 +133,7 @@ template PolynomialReduce(l) {
     }
 }
 
-template GaussianPolynomialReduce(n, k) {
+template Fp2PolynomialReduce(n, k) {
     var l = 2;
     signal input a[2*l-1][k];
     var poly[2] = [1, 0]; // x^2 + 1 = 0
@@ -153,8 +153,11 @@ template GaussianPolynomialReduce(n, k) {
         out[0][i] <== sub.out[i];
     }
 }
- 
-template GaussianFieldMultiply(n, k) {
+
+// A similar circuit can do multiplication in different fields. 
+// The only difference is that Fp2PolynomialReduce (which reduces quadratics by x^2+1) 
+// must be replaced with a different circuit specialized to the minimal polynomial
+template Fp2Multiply(n, k) {
     // l is always 2. poly is always [1, 0]
     var l = 2;
     signal input a[l][k];
@@ -186,7 +189,7 @@ template GaussianFieldMultiply(n, k) {
             bigmods[i].b[j] <== p[j];
         }
     } // out: 2l-1 x k array of shorts
-    component reduce = GaussianPolynomialReduce(n, k);
+    component reduce = Fp2PolynomialReduce(n, k);
     for (var i = 0; i < 2*l-1; i ++) {
         for (var j = 0; j < k; j ++) {
             reduce.a[i][j] <== bigmods[i].mod[j];

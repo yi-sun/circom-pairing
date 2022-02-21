@@ -18,13 +18,13 @@ function bigint_to_array(n: number, k: number, x: bigint) {
     return ret;
 }
 
-describe("GaussianFieldMultiply n = 4, k = 2", function() {
+describe("Fp2Multiply n = 4, k = 2", function() {
     this.timeout(1000 * 1000);
 
     // runs circom compilation
     let circuit: any;
     before(async function () {
-        circuit = await wasm_tester(path.join(__dirname, "circuits", "test_gaussian_multiply_42.circom"));
+        circuit = await wasm_tester(path.join(__dirname, "circuits", "test_fp2_multiply_42.circom"));
     });
 
     // a0, a1, b0, b1, p, c0, c1
