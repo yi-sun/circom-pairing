@@ -507,7 +507,23 @@ template Fp2invert(n, k){
     }
 }
 
+// input: a+b u
+// output: a-b u
 // aka Fp2frobeniusMap(n, k)
 template F2pconjugate(n, k){
-
+    signal input in[2][k]; 
+    signal input p[k];
+    signal output out[2][k];
+    
+    component neg1 = BigSub(n, k);
+    for(var i=0; i<k; i++){
+        neg1.a[i] <== p[i];
+        neg1.b[i] <== in[1][i];
+    }
+    for(var i=0; i<k; i++){
+        out[0][i] <== in[0][i];
+        out[1][i] <== neg1.out[i];
+    }
 }
+
+
