@@ -424,6 +424,77 @@ template BigMod(n, k) {
     lt.out === 1;
 }
 
+// copied from BigMod to allow a to have m registers and use long_div2
+template BigMod2(n, k, m) {
+    assert(n <= 126);
+    signal input a[m];
+    signal input b[k];
+
+    signal output div[m - k + 1];
+    signal output mod[k];
+
+    var longdiv[2][100] = long_div2(n, k, m-k, a, b);
+    for (var i = 0; i < k; i++) {
+        mod[i] <-- longdiv[1][i];
+    }
+    for (var i = 0; i <= m-k; i++) {
+        div[i] <-- longdiv[0][i];
+    }
+    component range_checks[m - k + 1];
+    for (var i = 0; i <= m-k; i++) {
+        range_checks[i] = Num2Bits(n);
+        range_checks[i].in <== div[i];
+    }
+
+    component mul = BigMult(n, m-k + 1);
+    // this might need to be optimized since b has less registers than div
+    for (var i = 0; i < k; i++) {
+        mul.a[i] <== div[i];
+        mul.b[i] <== b[i];
+    }
+    for (var i = k; i <= m-k; i++) {
+        mul.a[k] <== div[i];
+        mul.b[k] <== 0;
+    }
+
+    for (var i = 0; i < 2*(m-k)+2; i++) {
+        //log(mul.out[i]);
+    }
+
+    // mul shouldn't have more registers than a
+    for (var i = m; i < 2*(m-k)+2; i++) {
+        mul.out[i] === 0;
+    }
+
+    component add = BigAdd(n, m);
+    for (var i = 0; i < m; i++) {
+        add.a[i] <== mul.out[i];
+        if (i < k) {
+            add.b[i] <== mod[i];
+        } else {
+            add.b[i] <== 0;
+        }
+    }
+
+    for (var i = 0; i < m+1; i++) {
+        //log(add.out[i]);
+    }
+
+    for (var i = 0; i < m; i++) {
+        add.out[i] === a[i];
+    }
+    add.out[m] === 0;
+
+    component lt = BigLessThan(n, k);
+    for (var i = 0; i < k; i++) {
+        lt.a[i] <== mod[i];
+        lt.b[i] <== b[i];
+    }
+    lt.out === 1;
+}
+
+
+
 // a[i], b[i] in 0... 2**n-1
 // represent a = a[0] + a[1] * 2**n + .. + a[k - 1] * 2**(n * k)
 // calculates (a+b)%p, where 0<= a,b < p 
