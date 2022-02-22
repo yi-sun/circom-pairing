@@ -431,4 +431,83 @@ template Fp2invert(n, k){
 
     // lambda = 1/(in0**2 + in1**2) % p
     
+    component sq0 = BigMult(n, k);
+    component sq1 = BigMult(n, k);
+    for(var i=0; i<k; i++){
+        sq0.a[i] <== in[0][i];
+        sq0.b[i] <== in[0][i]; 
+        sq1.a[i] <== in[1][i];
+        sq1.b[i] <== in[1][i];
+    }
+    
+    component sq_sum = BigAdd(n, 2*k);
+    for(var i=0; i<2*k; i++){
+        sq_sum.a[i] <== sq0.out[i];
+        sq_sum.b[i] <== sq1.out[i];
+    }
+    // get sq_sum % p
+    component denom = BigMod2(n, k, 2*k+1);
+    for(var i=0; i<2*k+1; i++){
+        denom.a[i] <== sq_sum.out[i];
+        if(i<k){
+            denom.b[i] <== p[i];
+        }
+    }
+    var denom_inv[100] = mod_inv(n, k, denom.mod, p);
+    // lambda = 1/(sq_sum)%p
+    signal lambda[k]; 
+    for(var i=0; i<k; i++){
+        lambda[i] <-- denom_inv[i];
+    }
+    // constrain lambda so lambda * sq_sum % p = 1
+    component lt = BigLessThan(n, k);
+    for(var i=0; i<k; i++){
+        lt.a[i] <== lambda[i];
+        lt.b[i] <== p[i];
+    }
+    lt.out === 1;
+    component lambda_range_checks[k];
+    component lambda_check = BigMultModP(n,k);
+    for(var i=0; i<k; i++){
+        lambda_range_checks[i] = Num2Bits(n);
+        lambda_range_checks[i].in <== lambda[i];
+    
+        lambda_check.a[i] <== lambda[i];
+        lambda_check.b[i] <== denom.mod[i]; 
+        lambda_check.p[i] <== p[i];
+    }
+    lambda_check.out[0] === 1;
+    for(var i=1; i<k; i++){
+        lambda_check.out[i] === 0;
+    }
+    
+    component out0 = BigMultModP(n,k);
+    for(var i=0; i<k; i++){
+        out0.a[i] <== in[0][i];
+        out0.b[i] <== lambda[i];
+        out0.p[i] <== p[i];
+    }
+    for(var i=0; i<k; i++){
+        out[0][i] <== out0.out[i];
+    }
+
+    component out1_pre = BigSub(n,k);
+    for(var i=0; i<k; i++){
+        out1_pre.a[i] <== p[i];
+        out1_pre.b[i] <== in[1][i];
+    }
+    component out1 = BigMultModP(n,k);
+    for(var i=0; i<k; i++){
+        out1.a[i] <== out1_pre.out[i];
+        out1.b[i] <== lambda[i];
+        out1.p[i] <== p[i];
+    }
+    for(var i=0; i<k; i++){
+        out[1][i] <== out1.out[i];
+    }
+}
+
+// aka Fp2frobeniusMap(n, k)
+template F2pconjugate(n, k){
+
 }
