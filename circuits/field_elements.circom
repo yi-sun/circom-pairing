@@ -305,3 +305,130 @@ template Fp2multiply(n, k){
         c[1][i] <== ans.mod[i];
     }
 }
+
+// input: in[0] + in[1] u
+// output: (p-in[0]) + (p-in[1]) u
+// assume 0 <= in < p
+template Fp2negate(n, k){
+    signal input in[2][k]; 
+    signal input p[k];
+    signal output out[2][k];
+    
+    component neg0 = BigSub(n, k);
+    component neg1 = BigSub(n, k);
+    for(var i=0; i<k; i++){
+        neg0.a[i] <== p[i];
+        neg1.a[i] <== p[i];
+        neg0.b[i] <== in[0][i];
+        neg1.b[i] <== in[1][i];
+    }
+    for(var i=0; i<k; i++){
+        out[0][i] <== neg0.out[i];
+        out[1][i] <== neg1.out[i];
+    }
+}
+
+// input: a0 + a1 u, b0 + b1 u
+// output: (a0-b0) + (a1-b1)u
+template Fp2subtract(n, k){
+    signal input a[2][k];
+    signal input b[2][k];
+    signal input p[k];
+    signal output out[2][k];
+    
+    component sub0 = BigSubModP(n, k);
+    component sub1 = BigSubModP(n, k);
+    for(var i=0; i<k; i++){
+        sub0.a[i] <== a[0][i];
+        sub0.b[i] <== b[0][i];
+        sub1.a[i] <== a[1][i];
+        sub1.b[i] <== b[1][i];
+    }
+    for(var i=0; i<k; i++){
+        out[0][i] <== sub0.out[i];
+        out[1][i] <== sub1.out[i];
+    }
+}
+
+// squaring can be optimized to save 2 multiplication
+// (a**2-b**2) = (a+b)(a-b) 
+// (a+b u)**2 = (a+b)(a-b) + (a*b+a*b)u
+template Fp2square(n, k){
+    signal input in[2][k];
+    signal input p[k];
+    signal output out[2][k];
+    
+    component sum = BigAdd(n, k);
+    for(var i=0; i<k; i++){
+        sum.a[i] <== in[0][i];
+        sum.b[i] <== in[1][i];
+    }
+    component diff = BigSubModP(n, k);
+    for(var i=0; i<k; i++){
+        diff.a[i] <== in[0][i];
+        diff.b[i] <== in[1][i];
+        diff.p[i] <== p[i];
+    }
+    component prod = BigMult(n, k+1);
+    for(var i=0; i<k; i++){
+        prod.a[i] <== sum.out[i];
+        prod.b[i] <== diff.out[i];
+    }
+    prod.a[k] <== sum.out[k];
+    prod.b[k] <== 0;
+
+    component prod_mod = BigMod2(n, k, 2*k+2);
+    for(var i=0; i<2*k+2; i++){
+        prod_mod.a[i] <== prod.out[i];
+        if(i<k){
+            prod_mod.b[i] <== p[i];
+        }
+    }
+    for(var i=0; i<k; i++){
+        out[0][i] <== prod_mod.mod[i];
+    }
+    
+    component ab = BigMult(n, k);
+    for(var i=0; i<k; i++){
+        ab.a[i] <== in[0][i];
+        ab.b[i] <== in[1][i];
+    }
+    component two_ab = BigAdd(n, 2*k); 
+    for(var i=0; i<2*k; i++){
+        two_ab.a[i] <== ab.out[i];
+        two_ab.b[i] <== ab.out[i];
+    }
+    component two_ab_mod = BigMod2(n, k, 2*k+1);
+    for(var i=0; i<2*k+1; i++){
+        two_ab_mod.a[i] <== two_ab.out[i];
+        if(i < k){
+            two_ab_mod.b[i] <== p[i];
+        }
+    }
+    for(var i=0; i<k; i++){
+        out[1][i] <== two_ab_mod.mod[i];
+    }
+}
+
+// Src: https://github.com/paulmillr/noble-bls12-381/blob/23823d664b1767fb20c9c19c5800c66993b576a5/math.ts#L444
+// We wish to find the multiplicative inverse of a nonzero
+// element a + bu in Fp2. We leverage an identity
+//
+// (a + bu)(a - bu) = a² + b²
+//
+// which holds because u² = -1. This can be rewritten as
+//
+// (a + bu)(a - bu)/(a² + b²) = 1
+//
+// because a² + b² = 0 has no nonzero solutions for (a, b).
+// This gives that (a - bu)/(a² + b²) is the inverse
+// of (a + bu). Importantly, this can be computing using
+// only a single inversion in Fp.
+template Fp2invert(n, k){
+    signal input in[2][k];
+    signal input p[k];
+    signal output out[2][k];
+
+    // lambda = 1/(in0**2 + in1**2) % p
+    
+}

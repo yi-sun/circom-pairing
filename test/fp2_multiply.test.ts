@@ -62,3 +62,43 @@ describe("Fp2Multiply n = 4, k = 2", function() {
 
     test_cases.forEach(test_field_multiply_42);
 });
+
+describe("Fp2square n = 4, k = 2", function() {
+    this.timeout(1000 * 1000);
+
+    // runs circom compilation
+    let circuit: any;
+    before(async function () {
+        circuit = await wasm_tester(path.join(__dirname, "circuits", "test_fp2_square_42.circom"));
+    });
+
+    // a0, a1, p, c0, c1
+    var test_cases: Array<[bigint, bigint, bigint, bigint, bigint]> = [];
+    let p: bigint = 17n;
+    for (var a0 = 0n; a0 < p; a0 = a0 + 1n) {
+        for (var a1 = 0n; a1 < p; a1 = a1 + 1n) {
+		    var c0 = (a0 * a0 - a1 * a1 + p * p) % p;
+		    var c1 = (a0 * a1 + a1 * a0) % p;
+                    test_cases.push([a0, a1, p, c0, c1]);
+		}
+    }
+
+    var test_field_square_42 = function (x: [bigint, bigint, bigint, bigint, bigint]) {
+        const [a0, a1, p, c0, c1] = x;
+
+        var a0_array: bigint[] = bigint_to_array(4, 2, a0);
+        var a1_array: bigint[] = bigint_to_array(4, 2, a1);	
+	    var p_array: bigint[] = bigint_to_array(4, 2, p);
+        var c0_array: bigint[] = bigint_to_array(4, 2, c0);
+        var c1_array: bigint[] = bigint_to_array(4, 2, c1);
+
+        it('Testing a0: ' + a0 + ' a1: ' + a1 + ' p: ' + p + ' c0: ' + c0 + ' c1: ' + c1, async function() {
+            let witness = await circuit.calculateWitness({"in": [a0_array, a1_array], "p": p_array});
+	    await circuit.assertOut(witness, {"out": [c0_array, c1_array]});
+            await circuit.checkConstraints(witness);
+        });
+    }
+
+    test_cases.forEach(test_field_square_42);
+});
+
