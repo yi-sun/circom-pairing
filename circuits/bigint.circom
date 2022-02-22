@@ -453,8 +453,8 @@ template BigMod2(n, k, m) {
         mul.b[i] <== b[i];
     }
     for (var i = k; i <= m-k; i++) {
-        mul.a[k] <== div[i];
-        mul.b[k] <== 0;
+        mul.a[i] <== div[i];
+        mul.b[i] <== 0;
     }
 
     for (var i = 0; i < 2*(m-k)+2; i++) {

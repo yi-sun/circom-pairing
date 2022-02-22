@@ -208,73 +208,100 @@ template Fp2Multiply(n, k) {
 // more optimized multiplication specialized to Fp^2 
 // (a0 + a1 u)*(b0 + b1 u) = (a0*b0 - a1*b1) + (a0*b1 + a1*b0)u
 template Fp2multiply(n, k){
-    signal input a[l][k];
-    signal input b[l][k];
+    signal input a[2][k];
+    signal input b[2][k];
     signal input p[k];
-    signal output c[l][k];
+    signal output c[2][k];
 
-    var a0b0[100] = prod(n, k, a[0], b[0]);
-    var a1b1[100] = prod(n, k, a[1], b[1]);
-    var gt = long_gt(n, k, a0b0, a1b1);
-    // following is only good if a0b0 >= a1b1
-    var a0b0_minus_a1b1 = long_sub(n, 2*k, a0b0, a1b1); 
-    // following is only good if a1b1 >= a0b0
-    var a1b1_minus_a0b0 = long_sub(n, 2*k, a1b1, a0b0); 
-    // absolute value of a0*b0 - a1*b1:
-    var abs_diff[100];
+    component a0b0 = BigMult(n, k);
+    for(var i=0; i<k; i++){
+        a0b0.a[i] <== a[0][i];
+        a0b0.b[i] <== b[0][i];
+    }
+    component a1b1 = BigMult(n, k);
+    for(var i=0; i<k; i++){
+        a1b1.a[i] <== a[1][i];
+        a1b1.b[i] <== b[1][i];
+    }
+    component gt = BigLessThan(n, 2*k);
     for(var i=0; i<2*k; i++){
-        abs_diff[i] = gt*a0b0_minus_a1b1[i] + (1-gt)*a1b1_minus_a0b0[i];
+        gt.a[i] <== a1b1.out[i];
+        gt.b[i] <== a0b0.out[i];
     }
 
+    // following is only good if a0b0 >= a1b1
+    var a0b0_minus_a1b1[100] = long_sub(n, 2*k, a0b0.out, a1b1.out); 
+    // following is only good if a1b1 >= a0b0
+    var a1b1_minus_a0b0[100] = long_sub(n, 2*k, a1b1.out, a0b0.out); 
+
+    // absolute value of a0*b0 - a1*b1:
+    signal abs_diff[100];
+    for(var i=0; i<2*k; i++){
+        abs_diff[i] <-- gt.out * a0b0_minus_a1b1[i] + (1-gt.out)*a1b1_minus_a0b0[i];
+    }
+    component range_checks[2*k]; 
+    for(var i=0; i<2*k; i++){
+        range_checks[i] = Num2Bits(n);
+        range_checks[i].in <== abs_diff[i];
+    }
     // constraint is a0*b0 + (1-gt)*abs_diff = a1*b1 + gt*abs_diff 
     component a0b0_check = BigAdd(n, 2*k);
     component a1b1_check = BigAdd(n, 2*k);
     for(var i=0; i<2*k; i++){
-        a0b0_check.a[i] <== a0b0[i];
-        a0b0_check.b[i] <== (1-gt)*abs_diff[i];
-        a1b1_check.a[i] <== a1b1[i];
-        a1b1_check.b[i] <== gt*abs_diff[i];
+        a0b0_check.a[i] <== a0b0.out[i];
+        a0b0_check.b[i] <== (1-gt.out) * abs_diff[i];
+        a1b1_check.a[i] <== a1b1.out[i];
+        a1b1_check.b[i] <== gt.out * abs_diff[i];
     }
     for(var i=0; i<2*k+1; i++){
         a0b0_check.out[i] === a1b1_check.out[i];
     }
 
     // gives abs_diff % p 
-    component abs_ans = BigMod(n, k); 
+    component abs_diff_mod = BigMod(n, k); 
     for(var i=0; i<2*k; i++){
-        abs_ans.a[i] <== abs_diff[i];
+        abs_diff_mod.a[i] <== abs_diff[i];
     }
     for(var i=0; i<k; i++){
-        abs_ans.b[i] <== p[i];
+        abs_diff_mod.b[i] <== p[i];
     }
     
     // -abs_diff % p
-    component neg_abs = BigSubModP(n,k);
+    component neg = BigSubModP(n,k);
     for(var i=0; i<k; i++){
-        neg_abs.a[i] <== 0;
-        neg_abs.b[i] <== abs_ans.out[i];
-        neg_abs.p[i] <== p[i];
+        neg.a[i] <== 0;
+        neg.b[i] <== abs_diff_mod.mod[i];
+        neg.p[i] <== p[i];
     }
     
     for(var i=0; i<k; i++){
-        c[0][i] = gt*abs_ans.out[i] + (1-gt)*neg_abs.out[i];    
+        c[0][i] <== gt.out*(abs_diff_mod.mod[i]-neg.out[i]) + neg.out[i];    
     }
 
-    var a0b1[100] = prod(n, k, a[0], b[1]);
-    var a1b0[100] = prod(n, k, a[1], b[0]);
-    component a0b1_plus_a1b0 = BigAdd(n, 2*k);
+    
+    component a0b1 = BigMult(n, k);
+    for(var i=0; i<k; i++){
+        a0b1.a[i] <== a[0][i];
+        a0b1.b[i] <== b[1][i];
+    }
+    component a1b0 = BigMult(n, k);
+    for(var i=0; i<k; i++){
+        a1b0.a[i] <== a[1][i];
+        a1b0.b[i] <== b[0][i];
+    }
+    component sum = BigAdd(n, 2*k);
     for(var i=0; i<2*k; i++){
-        a0b1_plus_a1b0.a[i] <== a0b1[i];
-        a0b1_plus_a1b0.b[i] <== a1b0[i];
+        sum.a[i] <== a0b1.out[i];
+        sum.b[i] <== a1b0.out[i];
     }
     component ans = BigMod2(n, k, 2*k+1);
     for(var i=0; i<2*k+1; i++){
-        ans.a[i] <== a0b1_plus_a1b0.out[i];
+        ans.a[i] <== sum.out[i];
     }
     for(var i=0; i<k; i++){
         ans.b[i] <== p[i];
     }
     for(var i=0; i<k; i++){
-        c[1][i] <== ans.out[i];
+        c[1][i] <== ans.mod[i];
     }
 }
