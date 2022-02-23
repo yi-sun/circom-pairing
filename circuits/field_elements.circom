@@ -205,7 +205,7 @@ template Fp2Multiply(n, k) {
     } // out: l x k array of shorts
 }
 
-// more optimized multiplication specialized to Fp^2 
+// multiplication specialized to Fp^2 
 // (a0 + a1 u)*(b0 + b1 u) = (a0*b0 - a1*b1) + (a0*b1 + a1*b0)u
 template Fp2multiply(n, k){
     signal input a[2][k];
@@ -213,96 +213,69 @@ template Fp2multiply(n, k){
     signal input p[k];
     signal output c[2][k];
 
-    component a0b0 = BigMult(n, k);
+    // c[0] computation
+    component a0b0 = BigMultShortLong(n, k);
     for(var i=0; i<k; i++){
         a0b0.a[i] <== a[0][i];
         a0b0.b[i] <== b[0][i];
     }
-    component a1b1 = BigMult(n, k);
+    // -a1*b1 = (p-a1)*b1 mod p
+    component a1_neg = BigSub(n, k);
     for(var i=0; i<k; i++){
-        a1b1.a[i] <== a[1][i];
-        a1b1.b[i] <== b[1][i];
+        a1_neg.a[i] <== p[i];
+        a1_neg.b[i] <== a[1][i];
     }
-    component gt = BigLessThan(n, 2*k);
-    for(var i=0; i<2*k; i++){
-        gt.a[i] <== a1b1.out[i];
-        gt.b[i] <== a0b0.out[i];
+    component a1b1_neg = BigMultShortLong(n, k);
+    for(var i=0; i<k; i++){
+        a1b1_neg.a[i] <== a1_neg.out[i];
+        a1b1_neg.b[i] <== b[1][i];
     }
-
-    // following is only good if a0b0 >= a1b1
-    var a0b0_minus_a1b1[100] = long_sub(n, 2*k, a0b0.out, a1b1.out); 
-    // following is only good if a1b1 >= a0b0
-    var a1b1_minus_a0b0[100] = long_sub(n, 2*k, a1b1.out, a0b0.out); 
-
-    // absolute value of a0*b0 - a1*b1:
-    signal abs_diff[100];
-    for(var i=0; i<2*k; i++){
-        abs_diff[i] <-- gt.out * a0b0_minus_a1b1[i] + (1-gt.out)*a1b1_minus_a0b0[i];
+    component diff = LongToShortNoEndCarry(n, 2*k + 1);
+    for(var i=0; i<2*k-1; i++){
+        diff.in[i] <== a0b0.out[i] + a1b1_neg.out[i];
     }
-    component range_checks[2*k]; 
-    for(var i=0; i<2*k; i++){
-        range_checks[i] = Num2Bits(n);
-        range_checks[i].in <== abs_diff[i];
-    }
-    // constraint is a0*b0 + (1-gt)*abs_diff = a1*b1 + gt*abs_diff 
-    component a0b0_check = BigAdd(n, 2*k);
-    component a1b1_check = BigAdd(n, 2*k);
-    for(var i=0; i<2*k; i++){
-        a0b0_check.a[i] <== a0b0.out[i];
-        a0b0_check.b[i] <== (1-gt.out) * abs_diff[i];
-        a1b1_check.a[i] <== a1b1.out[i];
-        a1b1_check.b[i] <== gt.out * abs_diff[i];
-    }
+    diff.in[2*k-1] <== 0;
+    diff.in[2*k] <== 0;
+    
+    component diff_mod = BigMod2(n, k, 2*k+1);
     for(var i=0; i<2*k+1; i++){
-        a0b0_check.out[i] === a1b1_check.out[i];
+        diff_mod.a[i] <== diff.out[i];
+    }
+    for(var i=0; i<k; i++){
+        diff_mod.b[i] <== p[i];
+    }
+    for(var i=0; i<k; i++){
+        c[0][i] <== diff_mod.mod[i];
     }
 
-    // gives abs_diff % p 
-    component abs_diff_mod = BigMod(n, k); 
-    for(var i=0; i<2*k; i++){
-        abs_diff_mod.a[i] <== abs_diff[i];
-    }
-    for(var i=0; i<k; i++){
-        abs_diff_mod.b[i] <== p[i];
-    }
-    
-    // -abs_diff % p
-    component neg = BigSubModP(n,k);
-    for(var i=0; i<k; i++){
-        neg.a[i] <== 0;
-        neg.b[i] <== abs_diff_mod.mod[i];
-        neg.p[i] <== p[i];
-    }
-    
-    for(var i=0; i<k; i++){
-        c[0][i] <== gt.out*(abs_diff_mod.mod[i]-neg.out[i]) + neg.out[i];    
-    }
 
-    
-    component a0b1 = BigMult(n, k);
+    // now for c[1] computation
+    component a0b1 = BigMultShortLong(n, k);
     for(var i=0; i<k; i++){
         a0b1.a[i] <== a[0][i];
         a0b1.b[i] <== b[1][i];
     }
-    component a1b0 = BigMult(n, k);
+    component a1b0 = BigMultShortLong(n, k);
     for(var i=0; i<k; i++){
         a1b0.a[i] <== a[1][i];
         a1b0.b[i] <== b[0][i];
     }
-    component sum = BigAdd(n, 2*k);
-    for(var i=0; i<2*k; i++){
-        sum.a[i] <== a0b1.out[i];
-        sum.b[i] <== a1b0.out[i];
+    component sum = LongToShortNoEndCarry(n, 2*k + 1);
+    for(var i=0; i<2*k-1; i++){
+        sum.in[i] <== a0b1.out[i] + a1b0.out[i];
     }
-    component ans = BigMod2(n, k, 2*k+1);
+    sum.in[2*k-1] <== 0;
+    sum.in[2*k] <== 0;
+    
+    component sum_mod = BigMod2(n, k, 2*k+1);
     for(var i=0; i<2*k+1; i++){
-        ans.a[i] <== sum.out[i];
+        sum_mod.a[i] <== sum.out[i];
     }
     for(var i=0; i<k; i++){
-        ans.b[i] <== p[i];
+        sum_mod.b[i] <== p[i];
     }
     for(var i=0; i<k; i++){
-        c[1][i] <== ans.mod[i];
+        c[1][i] <== sum_mod.mod[i];
     }
 }
 
@@ -508,7 +481,8 @@ template Fp2invert(n, k){
 }
 
 // input: a+b u
-// output: a-b u
+// output: a-b u 
+// IF p = 3 mod 4 THEN a - b u = (a+b u)^p <-- Frobenius map 
 // aka Fp2frobeniusMap(n, k)
 template F2pconjugate(n, k){
     signal input in[2][k]; 
