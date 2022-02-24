@@ -374,9 +374,10 @@ template Fp12Add(n, k) {
 }
 
 // a = sum w^i u^j a_ij for w^6=u+1, u^2=-1. similarly for b
-// we first write a = A + Bi, b = C + Di and compute ab = (AC + B(p-D)) + (AD+BC)i
+// we first write a = A + Bu, b = C + Du and compute ab = (AC + B(p-D)) + (AD+BC)u
 // with deg(w) = 10, deg(u) = 1 and then simplify the representation
 // first using w^6 = u + 1 to get deg(w) = 5, deg (u) = 2
+// in addition to computing AD+BC we also compute A(p-D) + B(p-C) to avoid subtraction
 // and then using u^2 = -1 to get deg(w) = 5, deg(u) = 1
 template Fp12Multiply(n, k) {
     signal input a[6][2][k];
@@ -387,6 +388,8 @@ template Fp12Multiply(n, k) {
     component bd = BigMultShortLong2D(n, k, 6);
     component ad = BigMultShortLong2D(n, k, 6);
     component bc = BigMultShortLong2D(n, k, 6);
+    component neg_bc = BigMultShortLong2D(n, k, 6);
+    component neg_ad = BigMultShortLong2D(n, k, 6);
 
     signal p_minus_d[6][k];
     component p_subtract_d[6];
@@ -401,6 +404,19 @@ template Fp12Multiply(n, k) {
         }
     }
 
+    signal p_minus_c[6][k];
+    component p_subtract_c[6];
+    for (var i = 0; i < 6; i ++) {
+        p_subtract_c[i] = BigSub(n, k);
+        for (var m = 0; m < k; m ++) {
+            p_subtract_c[i].a[m] <== p[m];
+            p_subtract_c[i].b[m] <== b[i][0][m];
+        }
+        for (var m = 0; m < k; m ++) {
+            p_minus_c[i][m] <== p_subtract_c[i].out[m];
+        }
+    }
+
     for (var i = 0; i < 6; i ++) {
         for (var j = 0; j < k; j ++) {
             ac.a[i][j] <== a[i][0][j];
@@ -411,34 +427,36 @@ template Fp12Multiply(n, k) {
             ad.b[i][j] <== b[i][1][j];
             bc.a[i][j] <== a[i][1][j];
             bc.b[i][j] <== b[i][0][j];
+            neg_ad.a[i][j] <== a[i][0][j];
+            neg_ad.b[i][j] <== p_minus_d[i][j];
+            neg_bc.a[i][j] <== a[i][1][j];
+            neg_bc.b[i][j] <== p_minus_c[i][j];
         }
     }
     // ac + bd, ad + bc would both be 11 x (2k-1)
-    signal long_result[6][3][2*k-1];
+    signal long_result[6][2][2*k-1];
     for (var i = 0; i < 5; i ++) {
         for (var j = 0; j < 2*k-1; j ++) {
-            long_result[i][0][j] <== ac.out[i][j] + bd.out[i][j] + ac.out[i+6][j] + bd.out[i+6][j];
+            long_result[i][0][j] <== ac.out[i][j] + bd.out[i][j] + ac.out[i+6][j] + bd.out[i+6][j] + neg_ad.out[i+6][j] + neg_bc.out[i+6][j];
             long_result[i][1][j] <== ad.out[i][j] + bc.out[i][j] + ac.out[i+6][j] + bd.out[i+6][j] + ad.out[i+6][j] + bc.out[i+6][j];
-            long_result[i][2][j] <== ad.out[i+6][j] + bc.out[i+6][j];
         }
     }
     for (var j = 0; j < 2*k-1; j ++) {
         long_result[5][0][j] <== ac.out[5][j] + bd.out[5][j];
         long_result[5][1][j] <== ad.out[5][j] + bc.out[5][j];
-        long_result[5][2][j] <== 0;
     }
-    component longshorts[6][3];
+    component longshorts[6][2];
     for (var i = 0; i < 6; i ++) {
-        for (var j = 0; j < 3; j ++) {
+        for (var j = 0; j < 2; j ++) {
             longshorts[i][j] = LongToShortNoEndCarry(n, 2*k-1);
             for (var m = 0; m < 2*k-1; m ++) {
                 longshorts[i][j].in[m] <== long_result[i][j][m];
             }
         }
     }
-    component bigmods[6][3];
+    component bigmods[6][2];
     for (var i = 0; i < 6; i ++) {
-        for (var j = 0; j < 3; j ++) {
+        for (var j = 0; j < 2; j ++) {
             bigmods[i][j] = BigMod(n, k);
             for (var m = 0; m < 2*k; m ++) {
                 bigmods[i][j].a[m] <== longshorts[i][j].out[m];
@@ -450,19 +468,8 @@ template Fp12Multiply(n, k) {
     }
     for (var i = 0; i < 6; i ++) {
         for (var j = 0; j < k; j ++) {
+            c[i][0][j] <== bigmods[i][0].mod[j];
             c[i][1][j] <== bigmods[i][1].mod[j];
-        }
-    }
-    component bigsubs[6];
-    for (var i = 0; i < 6; i ++) {
-        bigsubs[i] = BigSubModP(n, k);
-        for (var m = 0; m < k; m ++) {
-            bigsubs[i].a[m] <== bigmods[i][0].mod[m];
-            bigsubs[i].b[m] <== bigmods[i][2].mod[m];
-            bigsubs[i].p[m] <== p[m];
-        }
-        for (var m = 0; m < k; m ++) {
-            c[i][0][m] <== bigsubs[i].out[m];
         }
     }
 }
