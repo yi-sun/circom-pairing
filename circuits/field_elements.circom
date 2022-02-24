@@ -94,70 +94,107 @@ template Fp2multiply(n, k){
     signal input p[k];
     signal output c[2][k];
 
+    var LOGK = 3;
+    assert(k<7);
+    assert(2*n + 1 + LOGK<254);
+
     // c[0] computation
-    component a0b0 = BigMultShortLong(n, k);
-    for(var i=0; i<k; i++){
-        a0b0.a[i] <== a[0][i];
-        a0b0.b[i] <== b[0][i];
-    }
+    // solve for X and Y such that a0*b0 + (p-a1)*b1 = p*X + Y with Y in [0,p) 
     // -a1*b1 = (p-a1)*b1 mod p
-    component a1_neg = BigSub(n, k);
+    var a0b0_var[100] = prod(n, k, a[0], b[0]);
+    var a1_neg[100] = long_sub(n, k, p, a[1]); 
+    var a1b1_neg[100] = prod(n, k, a1_neg, b[1]);
+    var diff[100] = long_add(n, 2*k, a0b0_var, a1b1_neg); // 2*k+1 registers
+    var X_Y[2][100] = long_div2(n, k, k+1, diff, p); 
+    // X = X_Y[0] has k+2 registers, Y = X_Y[1] has k registers 
+    // c[0] = Y
+    for(var i=0; i<k; i++)
+        c[0][i] <-- X_Y[1][i];
+    component range_checks[k];
     for(var i=0; i<k; i++){
-        a1_neg.a[i] <== p[i];
-        a1_neg.b[i] <== a[1][i];
+        range_checks[i] = Num2Bits(n);
+        range_checks[i].in <== c[0][i]; 
     }
-    component a1b1_neg = BigMultShortLong(n, k);
-    for(var i=0; i<k; i++){
-        a1b1_neg.a[i] <== a1_neg.out[i];
-        a1b1_neg.b[i] <== b[1][i];
-    }
-    component diff = LongToShortNoEndCarry(n, 2*k + 1);
-    for(var i=0; i<2*k-1; i++){
-        diff.in[i] <== a0b0.out[i] + a1b1_neg.out[i];
-    }
-    diff.in[2*k-1] <== 0;
-    diff.in[2*k] <== 0;
     
-    component diff_mod = BigMod2(n, k, 2*k+1);
-    for(var i=0; i<2*k+1; i++){
-        diff_mod.a[i] <== diff.out[i];
-    }
+    // constrain by Carry( a0 *' b0 +' p *' b1 -' a1 *' b1 - p *' X - Y ) = 0 
+    // where all operations are performed without carry 
+    // each register is an overflow representation in the range (-(k+1)*2^{2n+1}-2^n, (k+1)*2^{2n + 1} )
+    //                                          which is inside (-2^{2n+1+LOGK}, 2^{2n+1+LOGK})
+    
+    component a0b0 = BigMultShortLong(n, k);
+    component a1b1 = BigMultShortLong(n, k);
+    component pb1 = BigMultShortLong(n, k); // 2*k-1 registers
+    component pX = BigMultShortLong(n, k+2); // 2*k+3 registers
     for(var i=0; i<k; i++){
-        diff_mod.b[i] <== p[i];
+        a0b0.a[i] <-- a[0][i];
+        a0b0.b[i] <-- b[0][i];
+
+        a1b1.a[i] <-- a[1][i];
+        a1b1.b[i] <-- b[1][i];
+
+        pb1.a[i] <-- p[i];
+        pb1.b[i] <-- b[1][i];
+
+        pX.a[i] <-- p[i];
+        pX.b[i] <-- X_Y[0][i];
     }
-    for(var i=0; i<k; i++){
-        c[0][i] <== diff_mod.mod[i];
+    for(var i=k; i<k+2; i++){
+        pX.a[i] <-- 0;
+        pX.b[i] <-- X_Y[0][i];
     }
 
+    component carry_check = CheckCarryToZero(n, 2*n+2+LOGK, 2*k+3); 
+    for(var i=0; i<k; i++)
+        carry_check.in[i] <-- a0b0.out[i] + pb1.out[i] - a1b1.out[i] - pX.out[i] - c[0][i]; 
+    for(var i=k; i<2*k-1; i++)
+        carry_check.in[i] <-- a0b0.out[i] + pb1.out[i] - a1b1.out[i] - pX.out[i]; 
+    for(var i=2*k-1; i<2*k+3; i++)
+        carry_check.in[i] <-- -pX.out[i];
 
     // now for c[1] computation
-    component a0b1 = BigMultShortLong(n, k);
+    // solve for Z and c[1] such that a0*b1 + a1*b0 = p*Z + c[1] with c[1] in [0,p) 
+    var a0b1_var[100] = prod(n, k, a[0], b[1]);
+    var a1b0_var[100] = prod(n, k, a[1], b[0]);
+    var sum[100] = long_add(n, 2*k, a0b1_var, a1b0_var); // output 2*k+1 registers
+    var sum_div[2][100] = long_div2(n, k, k+1, sum, p); 
+    // Z = sum_div[0] has k+2 registers 
+    for(var i=0; i<k; i++)
+        c[1][i] <-- sum_div[1][i];
+    component range_checks1[k];
     for(var i=0; i<k; i++){
-        a0b1.a[i] <== a[0][i];
-        a0b1.b[i] <== b[1][i];
+        range_checks1[i] = Num2Bits(n);
+        range_checks1[i].in <== c[1][i]; 
     }
+
+    // constrain by Carry( a0 *' b1 +' a1 *' b0 -' p *' Z - c[1]) = 0 
+    // each register is an overflow representation in the range (-(k+1)*2^{2n}-2^n, (k+1)*2^{2n + 1} )
+    //                                          which is inside (-2^{2n+1+LOGK}, 2^{2n+1+LOGK})
+
+    component a0b1 = BigMultShortLong(n, k); // 2*k-1 registers
     component a1b0 = BigMultShortLong(n, k);
+    component pZ = BigMultShortLong(n, k+2); // 2*k+3 registers
     for(var i=0; i<k; i++){
-        a1b0.a[i] <== a[1][i];
-        a1b0.b[i] <== b[0][i];
+        a0b1.a[i] <-- a[0][i];
+        a0b1.b[i] <-- b[1][i];
+
+        a1b0.a[i] <-- a[1][i];
+        a1b0.b[i] <-- b[0][i];
+        
+        pZ.a[i] <-- p[i];
+        pZ.b[i] <-- sum_div[0][i];
     }
-    component sum = LongToShortNoEndCarry(n, 2*k + 1);
-    for(var i=0; i<2*k-1; i++){
-        sum.in[i] <== a0b1.out[i] + a1b0.out[i];
+    for(var i=k; i<k+2; i++){
+        pZ.a[i] <-- 0;
+        pZ.b[i] <-- sum_div[0][i];
     }
-    sum.in[2*k-1] <== 0;
-    sum.in[2*k] <== 0;
     
-    component sum_mod = BigMod2(n, k, 2*k+1);
-    for(var i=0; i<2*k+1; i++){
-        sum_mod.a[i] <== sum.out[i];
-    }
-    for(var i=0; i<k; i++){
-        sum_mod.b[i] <== p[i];
-    }
-    for(var i=0; i<k; i++){
-        c[1][i] <== sum_mod.mod[i];
-    }
+    component carry_check1 = CheckCarryToZero(n, 2*n+2+LOGK, 2*k+3);
+    for(var i=0; i<k; i++)
+        carry_check1.in[i] <-- a0b1.out[i] + a1b0.out[i] - pZ.out[i] - c[1][i]; 
+    for(var i=k; i<2*k-1; i++)
+        carry_check1.in[i] <-- a0b1.out[i] + a1b0.out[i] - pZ.out[i]; 
+    for(var i=2*k-1; i<2*k+3; i++)
+        carry_check1.in[i] <-- -pZ.out[i];
 }
 
 // input: in[0] + in[1] u
@@ -287,15 +324,7 @@ template Fp2invert(n, k){
     
     var sq0[100] = prod(n, k, in[0], in[0]);
     var sq1[100] = prod(n, k, in[1], in[1]);
-    var sq_sum[100];
-    var carry[100];
-    carry[0] = 0;
-    for(var i=0; i<2*k; i++){
-        var sumAndCarry[2] = SplitFn(sq0[i] + sq1[i] + carry[i], n, n);
-        sq_sum[i] = sumAndCarry[0];
-        carry[i+1] = sumAndCarry[1];
-    }
-    sq_sum[2*k] = carry[2*k];
+    var sq_sum[100] = long_add(n, 2*k, sq0, sq1);
     var sq_sum_div[2][100] = long_div2(n, k, k+1, sq_sum, p);
     // lambda = 1/(sq_sum)%p
     var lambda[100] = mod_inv(n, k, sq_sum_div[1], p);
