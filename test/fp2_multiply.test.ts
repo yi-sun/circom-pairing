@@ -59,7 +59,7 @@ function invert(number: bigint, modulo: bigint): bigint {
     return mod(x, modulo);
 }
 
-describe("Fp2Multiply n = 4, k = 2", function() {
+describe("Fp2multiply n = 4, k = 2", function() {
     this.timeout(1000 * 1000);
 
     // runs circom compilation

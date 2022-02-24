@@ -2,4 +2,4 @@ pragma circom 2.0.2;
 
 include "../../circuits/field_elements.circom";
 
-component main {public [a, b, p]} = Fp2multiply(4, 2);
+component main {public [a, b, p]} = Fp12Multiply(3, 2);
