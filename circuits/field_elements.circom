@@ -115,6 +115,20 @@ template Fp2multiply(n, k){
         range_checks[i] = Num2Bits(n);
         range_checks[i].in <== c[0][i]; 
     }
+    component lt = BigLessThan(n, k);
+    for(var i=0; i<k; i++){
+        lt.a[i] <== c[0][i];
+        lt.b[i] <== p[i];
+    }
+    lt.out === 1;
+
+    signal X[k+2];
+    component X_range_checks[k+2];
+    for(var i=0; i<k+2; i++){
+        X[i] <-- X_Y[0][i];
+        X_range_checks[i] = Num2Bits(n);
+        X_range_checks[i].in <== X[i];
+    }
     
     // constrain by Carry( a0 *' b0 +' p *' b1 -' a1 *' b1 - p *' X - Y ) = 0 
     // where all operations are performed without carry 
@@ -126,30 +140,30 @@ template Fp2multiply(n, k){
     component pb1 = BigMultShortLong(n, k); // 2*k-1 registers
     component pX = BigMultShortLong(n, k+2); // 2*k+3 registers
     for(var i=0; i<k; i++){
-        a0b0.a[i] <-- a[0][i];
-        a0b0.b[i] <-- b[0][i];
+        a0b0.a[i] <== a[0][i];
+        a0b0.b[i] <== b[0][i];
 
-        a1b1.a[i] <-- a[1][i];
-        a1b1.b[i] <-- b[1][i];
+        a1b1.a[i] <== a[1][i];
+        a1b1.b[i] <== b[1][i];
 
-        pb1.a[i] <-- p[i];
-        pb1.b[i] <-- b[1][i];
+        pb1.a[i] <== p[i];
+        pb1.b[i] <== b[1][i];
 
-        pX.a[i] <-- p[i];
-        pX.b[i] <-- X_Y[0][i];
+        pX.a[i] <== p[i];
+        pX.b[i] <== X[i];
     }
     for(var i=k; i<k+2; i++){
-        pX.a[i] <-- 0;
-        pX.b[i] <-- X_Y[0][i];
+        pX.a[i] <== 0;
+        pX.b[i] <== X[i];
     }
 
     component carry_check = CheckCarryToZero(n, 2*n+2+LOGK, 2*k+3); 
     for(var i=0; i<k; i++)
-        carry_check.in[i] <-- a0b0.out[i] + pb1.out[i] - a1b1.out[i] - pX.out[i] - c[0][i]; 
+        carry_check.in[i] <== a0b0.out[i] + pb1.out[i] - a1b1.out[i] - pX.out[i] - c[0][i]; 
     for(var i=k; i<2*k-1; i++)
-        carry_check.in[i] <-- a0b0.out[i] + pb1.out[i] - a1b1.out[i] - pX.out[i]; 
+        carry_check.in[i] <== a0b0.out[i] + pb1.out[i] - a1b1.out[i] - pX.out[i]; 
     for(var i=2*k-1; i<2*k+3; i++)
-        carry_check.in[i] <-- -pX.out[i];
+        carry_check.in[i] <== -pX.out[i];
 
     // now for c[1] computation
     // solve for Z and c[1] such that a0*b1 + a1*b0 = p*Z + c[1] with c[1] in [0,p) 
@@ -165,6 +179,20 @@ template Fp2multiply(n, k){
         range_checks1[i] = Num2Bits(n);
         range_checks1[i].in <== c[1][i]; 
     }
+    component lt1 = BigLessThan(n, k);
+    for(var i=0; i<k; i++){
+        lt1.a[i] <== c[1][i];
+        lt1.b[i] <== p[i];
+    }
+    lt1.out === 1;
+
+    signal Z[k+2];
+    component Z_range_checks[k+2];
+    for(var i=0; i<k+2; i++){
+        Z[i] <-- sum_div[0][i];
+        Z_range_checks[i] = Num2Bits(n);
+        Z_range_checks[i].in <== Z[i];
+    }
 
     // constrain by Carry( a0 *' b1 +' a1 *' b0 -' p *' Z - c[1]) = 0 
     // each register is an overflow representation in the range (-(k+1)*2^{2n}-2^n, (k+1)*2^{2n + 1} )
@@ -174,27 +202,27 @@ template Fp2multiply(n, k){
     component a1b0 = BigMultShortLong(n, k);
     component pZ = BigMultShortLong(n, k+2); // 2*k+3 registers
     for(var i=0; i<k; i++){
-        a0b1.a[i] <-- a[0][i];
-        a0b1.b[i] <-- b[1][i];
+        a0b1.a[i] <== a[0][i];
+        a0b1.b[i] <== b[1][i];
 
-        a1b0.a[i] <-- a[1][i];
-        a1b0.b[i] <-- b[0][i];
+        a1b0.a[i] <== a[1][i];
+        a1b0.b[i] <== b[0][i];
         
-        pZ.a[i] <-- p[i];
-        pZ.b[i] <-- sum_div[0][i];
+        pZ.a[i] <== p[i];
+        pZ.b[i] <== Z[i];
     }
     for(var i=k; i<k+2; i++){
-        pZ.a[i] <-- 0;
-        pZ.b[i] <-- sum_div[0][i];
+        pZ.a[i] <== 0;
+        pZ.b[i] <== Z[i];
     }
     
     component carry_check1 = CheckCarryToZero(n, 2*n+2+LOGK, 2*k+3);
     for(var i=0; i<k; i++)
-        carry_check1.in[i] <-- a0b1.out[i] + a1b0.out[i] - pZ.out[i] - c[1][i]; 
+        carry_check1.in[i] <== a0b1.out[i] + a1b0.out[i] - pZ.out[i] - c[1][i]; 
     for(var i=k; i<2*k-1; i++)
-        carry_check1.in[i] <-- a0b1.out[i] + a1b0.out[i] - pZ.out[i]; 
+        carry_check1.in[i] <== a0b1.out[i] + a1b0.out[i] - pZ.out[i]; 
     for(var i=2*k-1; i<2*k+3; i++)
-        carry_check1.in[i] <-- -pZ.out[i];
+        carry_check1.in[i] <== -pZ.out[i];
 }
 
 // input: in[0] + in[1] u
