@@ -285,79 +285,50 @@ template Fp2invert(n, k){
 
     // lambda = 1/(in0**2 + in1**2) % p
     
-    component sq0 = BigMult(n, k);
-    component sq1 = BigMult(n, k);
-    for(var i=0; i<k; i++){
-        sq0.a[i] <== in[0][i];
-        sq0.b[i] <== in[0][i]; 
-        sq1.a[i] <== in[1][i];
-        sq1.b[i] <== in[1][i];
-    }
-    
-    component sq_sum = BigAdd(n, 2*k);
+    var sq0[100] = prod(n, k, in[0], in[0]);
+    var sq1[100] = prod(n, k, in[1], in[1]);
+    var sq_sum[100];
+    var carry[100];
+    carry[0] = 0;
     for(var i=0; i<2*k; i++){
-        sq_sum.a[i] <== sq0.out[i];
-        sq_sum.b[i] <== sq1.out[i];
+        var sumAndCarry[2] = SplitFn(sq0[i] + sq1[i] + carry[i], n, n);
+        sq_sum[i] = sumAndCarry[0];
+        carry[i+1] = sumAndCarry[1];
     }
-    // get sq_sum % p
-    component denom = BigMod2(n, k, 2*k+1);
-    for(var i=0; i<2*k+1; i++){
-        denom.a[i] <== sq_sum.out[i];
-        if(i<k){
-            denom.b[i] <== p[i];
-        }
-    }
-    var denom_inv[100] = mod_inv(n, k, denom.mod, p);
+    sq_sum[2*k] = carry[2*k];
+    var sq_sum_div[2][100] = long_div2(n, k, k+1, sq_sum, p);
     // lambda = 1/(sq_sum)%p
-    signal lambda[k]; 
-    for(var i=0; i<k; i++){
-        lambda[i] <-- denom_inv[i];
-    }
-    // constrain lambda so lambda * sq_sum % p = 1
-    component lt = BigLessThan(n, k);
-    for(var i=0; i<k; i++){
-        lt.a[i] <== lambda[i];
-        lt.b[i] <== p[i];
-    }
-    lt.out === 1;
-    component lambda_range_checks[k];
-    component lambda_check = BigMultModP(n,k);
-    for(var i=0; i<k; i++){
-        lambda_range_checks[i] = Num2Bits(n);
-        lambda_range_checks[i].in <== lambda[i];
+    var lambda[100] = mod_inv(n, k, sq_sum_div[1], p);
+    var out0[100] = prod(n, k, lambda, in[0]);
+    var out0_div[2][100] = long_div(n, k, out0, p);
+    for(var i=0; i<k; i++)
+        out[0][i] <-- out0_div[1][i];
     
-        lambda_check.a[i] <== lambda[i];
-        lambda_check.b[i] <== denom.mod[i]; 
-        lambda_check.p[i] <== p[i];
-    }
-    lambda_check.out[0] === 1;
-    for(var i=1; i<k; i++){
-        lambda_check.out[i] === 0;
-    }
-    
-    component out0 = BigMultModP(n,k);
-    for(var i=0; i<k; i++){
-        out0.a[i] <== in[0][i];
-        out0.b[i] <== lambda[i];
-        out0.p[i] <== p[i];
-    }
-    for(var i=0; i<k; i++){
-        out[0][i] <== out0.out[i];
+    var out1_pre[100] = long_sub(n, k, p, in[1]);
+    var out1[100] = prod(n, k, lambda, out1_pre);
+    var out1_div[2][100] = long_div(n, k, out1, p);
+    for(var i=0; i<k; i++)
+        out[1][i] <-- out1_div[1][i];
+
+    //range checks
+    component outRangeChecks[2][k];
+    for(var i=0; i<2; i++) for(var j=0; j<k; j++){
+        outRangeChecks[i][j] = Num2Bits(n);
+        outRangeChecks[i][j].in <== out[i][j];
     }
 
-    component out1_pre = BigSub(n,k);
-    for(var i=0; i<k; i++){
-        out1_pre.a[i] <== p[i];
-        out1_pre.b[i] <== in[1][i];
+    component in_out = Fp2multiply(n, k);
+    for(var i=0; i<2; i++)for(var j=0; j<k; j++){
+        in_out.a[i][j] <-- in[i][j];
+        in_out.b[i][j] <-- out[i][j];
     }
-    component out1 = BigMultModP(n,k);
-    for(var i=0; i<k; i++){
-        out1.a[i] <== out1_pre.out[i];
-        out1.b[i] <== lambda[i];
-        out1.p[i] <== p[i];
-    }
-    for(var i=0; i<k; i++){
-        out[1][i] <== out1.out[i];
+    for(var i=0; i<k; i++) in_out.p[i] <-- p[i];
+
+    for(var i=0; i<2; i++)for(var j=0; j<k; j++){
+        if(i == 0 && j == 0)
+            in_out.c[i][j] === 1;
+        else
+            in_out.c[i][j] === 0;
     }
 }
 
@@ -365,7 +336,7 @@ template Fp2invert(n, k){
 // output: a-b u 
 // IF p = 3 mod 4 THEN a - b u = (a+b u)^p <-- Frobenius map 
 // aka Fp2frobeniusMap(n, k)
-template F2pconjugate(n, k){
+template Fp2conjugate(n, k){
     signal input in[2][k]; 
     signal input p[k];
     signal output out[2][k];
