@@ -2,17 +2,15 @@ pragma circom 2.0.2;
 
 include "bigint.circom";
 
-// a, b are elements of Fp^l
-// a[i] represents a[i][0] + a[i][1] * 2**n + ... + a[i][l-1] * 2**(n*(k-1))
-// compute a+b in Fp^l
-template FieldAdd2D(n, k, l) {
-    signal input a[l][k];
-    signal input b[l][k];
+// add two elements in Fp2
+template Fp2Add(n, k) {
+    signal input a[2][k];
+    signal input b[2][k];
     signal input p[k];
-    signal output c[l][k];
+    signal output c[2][k];
 
-    component adders[l];
-    for (var i = 0; i < l; i++) {
+    component adders[2];
+    for (var i = 0; i < 2; i++) {
         adders[i] = BigAddModP(n, k);
         for (var j = 0; j < k; j++) {
             adders[i].a[j] <== a[i][j];
@@ -86,123 +84,6 @@ template BigMultShortLong2D(n, k, l) {
             out_poly[i][j] === a_poly[i][j] * b_poly[i][j];
         }
     }
-}
-
-
-// take a polynomial expression a[0] + omega^1 a[1] + ... + omega^(2l-2) a[2l-2]
-// reduce it to degree l-1 using omega^l + omega^(l-1) poly[l-1] + ... + poly[0] = 0
-// WARNING: can produce incorrectly handled negative coefficients. only here for reference; do not use
-template PolynomialReduce(l) {
-    signal input a[2*l-1];
-    signal input poly[l];
-    signal output out[l];
-
-    var residue[2*l-1];
-    signal quotient[l-1];
-    for (var i = 0; i < 2*l-1; i++) {
-        residue[i] = a[i];
-    }
-    for (var i = l-2; i >= 0; i --) {
-        for (var j = 0; j < l; j ++) {
-            residue[i + j] = residue[i + j] - residue[i + l] * poly[j];
-        }
-        quotient[i] <-- residue[i+l];
-        residue[i+l] = 0;
-    }
-    component mult = BigMultShortLong(1, l+1);
-    for (var i = 0; i < l-1; i ++) {
-        mult.a[i] <== quotient[i];
-        mult.b[i] <== poly[i];
-    }
-    mult.a[l-1] <== 0;
-    mult.a[l] <== 0;
-    mult.b[l-1] <== poly[l-1];
-    mult.b[l] <== 1;
-    signal a_out[2*l-1];
-    for (var i = 0; i < 2*l-1; i++) {
-        a_out[i] <== mult.out[i];
-    }
-    for (var i = 0; i < l; i ++ ) {
-        out[i] <-- residue[i];
-    }
-    for (var i = 0; i < l; i ++) {
-        a[i] === a_out[i] + out[i];
-    }
-    for (var i = l; i < 2*l-1; i ++) {
-        a[i] === a_out[i];
-    }
-}
-
-template Fp2PolynomialReduce(n, k) {
-    var l = 2;
-    signal input a[2*l-1][k];
-    var poly[2] = [1, 0]; // x^2 + 1 = 0
-    signal output out[l][k];
-    signal input p[k];
-
-    for (var i = 0; i < k; i ++) {
-        out[1][i] <== a[1][i];
-    }
-    component sub = BigSubModP(n, k);
-    for (var i = 0; i < k; i ++) {
-        sub.a[i] <== a[0][i];
-        sub.b[i] <== a[2][i];
-        sub.p[i] <== p[i];
-    }
-    for (var i = 0; i < k; i ++) {
-        out[0][i] <== sub.out[i];
-    }
-}
-
-// A similar circuit can do multiplication in different fields. 
-// The only difference is that Fp2PolynomialReduce (which reduces quadratics by x^2+1) 
-// must be replaced with a different circuit specialized to the minimal polynomial
-template Fp2Multiply(n, k) {
-    // l is always 2. poly is always [1, 0]
-    var l = 2;
-    signal input a[l][k];
-    signal input b[l][k];
-    signal input p[k];
-    signal output c[l][k];
-
-    component mult = BigMultShortLong2D(n, k, l);
-    for (var i = 0; i < l; i ++) {
-        for (var j = 0; j < k; j ++) {
-            mult.a[i][j] <== a[i][j];
-            mult.b[i][j] <== b[i][j];
-        }
-    } // out: 2l-1 x 2k-1 array of longs
-    component longshorts[2*l-1];
-    for (var i = 0; i < 2*l-1; i++) {
-        longshorts[i] = LongToShortNoEndCarry(n, 2*k-1);
-        for (var j = 0; j < 2*k-1; j ++) {
-            longshorts[i].in[j] <== mult.out[i][j];
-        }
-    } // out: 2l-1 x 2k array of shorts
-    component bigmods[2*l-1];
-    for (var i = 0; i < 2*l-1; i ++) {
-        bigmods[i] = BigMod(n, k);
-        for (var j = 0; j < 2*k; j ++) {
-            bigmods[i].a[j] <== longshorts[i].out[j];
-        }
-        for (var j = 0; j < k; j ++) {
-            bigmods[i].b[j] <== p[j];
-        }
-    } // out: 2l-1 x k array of shorts
-    component reduce = Fp2PolynomialReduce(n, k);
-    for (var i = 0; i < 2*l-1; i ++) {
-        for (var j = 0; j < k; j ++) {
-            reduce.a[i][j] <== bigmods[i].mod[j];
-        }
-    } // out: l x k array of shorts
-    for (var j = 0; j < k; j ++) {
-        reduce.p[j] <== p[j];
-    }
-    for (var i = 0; i < l; i++) {
-        for (var j = 0; j < k; j++) {
-            c[i][j] <== reduce.out[i][j];
-        }
-    } // out: l x k array of shorts
 }
 
 // multiplication specialized to Fp^2 
@@ -500,4 +381,117 @@ template F2pconjugate(n, k){
     }
 }
 
+template Fp12Add(n, k) {
+    signal input a[6][2][k];
+    signal input b[6][2][k];
+    signal input p[k];
+    signal output c[6][2][k];
+    component adders[6][2];
+    for (var i = 0; i < 6; i ++) {
+        for (var j = 0; j < 2; j ++) {
+            adders[i][j] = BigAddModP(n,k);
+            for (var m = 0; m < k; m ++) {
+                adders[i][j].a[m] <== a[i][j][m];
+                adders[i][j].b[m] <== b[i][j][m];
+                adders[i][j].p[m] <== p[m];
+            }
+            for (var m = 0; m < k; m ++) {
+                c[i][j][m] <== adders[i][j].out[m];
+            }
+        }
+    }
+}
 
+// a = sum w^i u^j a_ij for w^6=u+1, u^2=-1. similarly for b
+// we first write a = A + Bi, b = C + Di and compute ab = (AC + B(p-D)) + (AD+BC)i
+// with deg(w) = 10, deg(u) = 1 and then simplify the representation
+// first using w^6 = u + 1 to get deg(w) = 5, deg (u) = 2
+// and then using u^2 = -1 to get deg(w) = 5, deg(u) = 1
+template Fp12Multiply(n, k) {
+    signal input a[6][2][k];
+    signal input b[6][2][k];
+    signal input p[k];
+    signal output c[6][2][k];
+    component ac = BigMultShortLong2D(n, k, 6);
+    component bd = BigMultShortLong2D(n, k, 6);
+    component ad = BigMultShortLong2D(n, k, 6);
+    component bc = BigMultShortLong2D(n, k, 6);
+
+    signal p_minus_d[6][k];
+    component p_subtract_d[6];
+    for (var i = 0; i < 6; i ++) {
+        p_subtract_d[i] = BigSub(n, k);
+        for (var m = 0; m < k; m ++) {
+            p_subtract_d[i].a[m] <== p[m];
+            p_subtract_d[i].b[m] <== b[i][1][m];
+        }
+        for (var m = 0; m < k; m ++) {
+            p_minus_d[i][m] <== p_subtract_d[i].out[m];
+        }
+    }
+
+    for (var i = 0; i < 6; i ++) {
+        for (var j = 0; j < k; j ++) {
+            ac.a[i][j] <== a[i][0][j];
+            ac.b[i][j] <== b[i][0][j];
+            bd.a[i][j] <== a[i][1][j];
+            bd.b[i][j] <== p_minus_d[i][j];
+            ad.a[i][j] <== a[i][0][j];
+            ad.b[i][j] <== b[i][1][j];
+            bc.a[i][j] <== a[i][1][j];
+            bc.b[i][j] <== b[i][0][j];
+        }
+    }
+    // ac + bd, ad + bc would both be 11 x (2k-1)
+    signal long_result[6][3][2*k-1];
+    for (var i = 0; i < 5; i ++) {
+        for (var j = 0; j < 2*k-1; j ++) {
+            long_result[i][0][j] <== ac.out[i][j] + bd.out[i][j] + ac.out[i+6][j] + bd.out[i+6][j];
+            long_result[i][1][j] <== ad.out[i][j] + bc.out[i][j] + ac.out[i+6][j] + bd.out[i+6][j] + ad.out[i+6][j] + bc.out[i+6][j];
+            long_result[i][2][j] <== ad.out[i+6][j] + bc.out[i+6][j];
+        }
+    }
+    for (var j = 0; j < 2*k-1; j ++) {
+        long_result[5][0][j] <== ac.out[5][j] + bd.out[5][j];
+        long_result[5][1][j] <== ad.out[5][j] + bc.out[5][j];
+        long_result[5][2][j] <== 0;
+    }
+    component longshorts[6][3];
+    for (var i = 0; i < 6; i ++) {
+        for (var j = 0; j < 3; j ++) {
+            longshorts[i][j] = LongToShortNoEndCarry(n, 2*k-1);
+            for (var m = 0; m < 2*k-1; m ++) {
+                longshorts[i][j].in[m] <== long_result[i][j][m];
+            }
+        }
+    }
+    component bigmods[6][3];
+    for (var i = 0; i < 6; i ++) {
+        for (var j = 0; j < 3; j ++) {
+            bigmods[i][j] = BigMod(n, k);
+            for (var m = 0; m < 2*k; m ++) {
+                bigmods[i][j].a[m] <== longshorts[i][j].out[m];
+            }
+            for (var m = 0; m < k; m ++) {
+                bigmods[i][j].b[m] <== p[m];
+            }
+        }
+    }
+    for (var i = 0; i < 6; i ++) {
+        for (var j = 0; j < k; j ++) {
+            c[i][1][j] <== bigmods[i][1].mod[j];
+        }
+    }
+    component bigsubs[6];
+    for (var i = 0; i < 6; i ++) {
+        bigsubs[i] = BigSubModP(n, k);
+        for (var m = 0; m < k; m ++) {
+            bigsubs[i].a[m] <== bigmods[i][0].mod[m];
+            bigsubs[i].b[m] <== bigmods[i][2].mod[m];
+            bigsubs[i].p[m] <== p[m];
+        }
+        for (var m = 0; m < k; m ++) {
+            c[i][0][m] <== bigsubs[i].out[m];
+        }
+    }
+}
