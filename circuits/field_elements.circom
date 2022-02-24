@@ -241,66 +241,6 @@ template Fp2subtract(n, k){
     }
 }
 
-// squaring can be optimized to save 2 multiplication
-// (a**2-b**2) = (a+b)(a-b) 
-// (a+b u)**2 = (a+b)(a-b) + (a*b+a*b)u
-template Fp2square(n, k){
-    signal input in[2][k];
-    signal input p[k];
-    signal output out[2][k];
-    
-    component sum = BigAdd(n, k);
-    for(var i=0; i<k; i++){
-        sum.a[i] <== in[0][i];
-        sum.b[i] <== in[1][i];
-    }
-    component diff = BigSubModP(n, k);
-    for(var i=0; i<k; i++){
-        diff.a[i] <== in[0][i];
-        diff.b[i] <== in[1][i];
-        diff.p[i] <== p[i];
-    }
-    component prod = BigMult(n, k+1);
-    for(var i=0; i<k; i++){
-        prod.a[i] <== sum.out[i];
-        prod.b[i] <== diff.out[i];
-    }
-    prod.a[k] <== sum.out[k];
-    prod.b[k] <== 0;
-
-    component prod_mod = BigMod2(n, k, 2*k+2);
-    for(var i=0; i<2*k+2; i++){
-        prod_mod.a[i] <== prod.out[i];
-        if(i<k){
-            prod_mod.b[i] <== p[i];
-        }
-    }
-    for(var i=0; i<k; i++){
-        out[0][i] <== prod_mod.mod[i];
-    }
-    
-    component ab = BigMult(n, k);
-    for(var i=0; i<k; i++){
-        ab.a[i] <== in[0][i];
-        ab.b[i] <== in[1][i];
-    }
-    component two_ab = BigAdd(n, 2*k); 
-    for(var i=0; i<2*k; i++){
-        two_ab.a[i] <== ab.out[i];
-        two_ab.b[i] <== ab.out[i];
-    }
-    component two_ab_mod = BigMod2(n, k, 2*k+1);
-    for(var i=0; i<2*k+1; i++){
-        two_ab_mod.a[i] <== two_ab.out[i];
-        if(i < k){
-            two_ab_mod.b[i] <== p[i];
-        }
-    }
-    for(var i=0; i<k; i++){
-        out[1][i] <== two_ab_mod.mod[i];
-    }
-}
-
 // Src: https://github.com/paulmillr/noble-bls12-381/blob/23823d664b1767fb20c9c19c5800c66993b576a5/math.ts#L444
 // We wish to find the multiplicative inverse of a nonzero
 // element a + bu in Fp2. We leverage an identity
