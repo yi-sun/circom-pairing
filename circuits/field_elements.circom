@@ -1,6 +1,7 @@
 pragma circom 2.0.2;
 
 include "bigint.circom";
+include "field_elements_func.circom";
 
 // add two elements in Fp2
 template Fp2Add(n, k) {
@@ -92,13 +93,13 @@ template Fp2multiply(n, k){
     signal input a[2][k];
     signal input b[2][k];
     signal input p[k];
-    signal output c[2][k];
+    signal output out[2][k];
 
     var LOGK = 3;
     assert(k<7);
     assert(2*n + 1 + LOGK<254);
 
-    // c[0] computation
+    // out[0] computation
     // solve for X and Y such that a0*b0 + (p-a1)*b1 = p*X + Y with Y in [0,p) 
     // -a1*b1 = (p-a1)*b1 mod p
     var a0b0_var[100] = prod(n, k, a[0], b[0]);
@@ -107,17 +108,17 @@ template Fp2multiply(n, k){
     var diff[100] = long_add(n, 2*k, a0b0_var, a1b1_neg); // 2*k+1 registers
     var X_Y[2][100] = long_div2(n, k, k+1, diff, p); 
     // X = X_Y[0] has k+2 registers, Y = X_Y[1] has k registers 
-    // c[0] = Y
+    // out[0] = Y
     for(var i=0; i<k; i++)
-        c[0][i] <-- X_Y[1][i];
+        out[0][i] <-- X_Y[1][i];
     component range_checks[k];
     for(var i=0; i<k; i++){
         range_checks[i] = Num2Bits(n);
-        range_checks[i].in <== c[0][i]; 
+        range_checks[i].in <== out[0][i]; 
     }
     component lt = BigLessThan(n, k);
     for(var i=0; i<k; i++){
-        lt.a[i] <== c[0][i];
+        lt.a[i] <== out[0][i];
         lt.b[i] <== p[i];
     }
     lt.out === 1;
@@ -159,29 +160,29 @@ template Fp2multiply(n, k){
 
     component carry_check = CheckCarryToZero(n, 2*n+2+LOGK, 2*k+3); 
     for(var i=0; i<k; i++)
-        carry_check.in[i] <== a0b0.out[i] + pb1.out[i] - a1b1.out[i] - pX.out[i] - c[0][i]; 
+        carry_check.in[i] <== a0b0.out[i] + pb1.out[i] - a1b1.out[i] - pX.out[i] - out[0][i]; 
     for(var i=k; i<2*k-1; i++)
         carry_check.in[i] <== a0b0.out[i] + pb1.out[i] - a1b1.out[i] - pX.out[i]; 
     for(var i=2*k-1; i<2*k+3; i++)
         carry_check.in[i] <== -pX.out[i];
 
-    // now for c[1] computation
-    // solve for Z and c[1] such that a0*b1 + a1*b0 = p*Z + c[1] with c[1] in [0,p) 
+    // now for out[1] computation
+    // solve for Z and out[1] such that a0*b1 + a1*b0 = p*Z + out[1] with out[1] in [0,p) 
     var a0b1_var[100] = prod(n, k, a[0], b[1]);
     var a1b0_var[100] = prod(n, k, a[1], b[0]);
     var sum[100] = long_add(n, 2*k, a0b1_var, a1b0_var); // output 2*k+1 registers
     var sum_div[2][100] = long_div2(n, k, k+1, sum, p); 
     // Z = sum_div[0] has k+2 registers 
     for(var i=0; i<k; i++)
-        c[1][i] <-- sum_div[1][i];
+        out[1][i] <-- sum_div[1][i];
     component range_checks1[k];
     for(var i=0; i<k; i++){
         range_checks1[i] = Num2Bits(n);
-        range_checks1[i].in <== c[1][i]; 
+        range_checks1[i].in <== out[1][i]; 
     }
     component lt1 = BigLessThan(n, k);
     for(var i=0; i<k; i++){
-        lt1.a[i] <== c[1][i];
+        lt1.a[i] <== out[1][i];
         lt1.b[i] <== p[i];
     }
     lt1.out === 1;
@@ -194,7 +195,7 @@ template Fp2multiply(n, k){
         Z_range_checks[i].in <== Z[i];
     }
 
-    // constrain by Carry( a0 *' b1 +' a1 *' b0 -' p *' Z - c[1]) = 0 
+    // constrain by Carry( a0 *' b1 +' a1 *' b0 -' p *' Z - out[1]) = 0 
     // each register is an overflow representation in the range (-(k+1)*2^{2n}-2^n, (k+1)*2^{2n + 1} )
     //                                          which is inside (-2^{2n+1+LOGK}, 2^{2n+1+LOGK})
 
@@ -218,7 +219,7 @@ template Fp2multiply(n, k){
     
     component carry_check1 = CheckCarryToZero(n, 2*n+2+LOGK, 2*k+3);
     for(var i=0; i<k; i++)
-        carry_check1.in[i] <== a0b1.out[i] + a1b0.out[i] - pZ.out[i] - c[1][i]; 
+        carry_check1.in[i] <== a0b1.out[i] + a1b0.out[i] - pZ.out[i] - out[1][i]; 
     for(var i=k; i<2*k-1; i++)
         carry_check1.in[i] <== a0b1.out[i] + a1b0.out[i] - pZ.out[i]; 
     for(var i=2*k-1; i<2*k+3; i++)
@@ -323,9 +324,9 @@ template Fp2invert(n, k){
 
     for(var i=0; i<2; i++)for(var j=0; j<k; j++){
         if(i == 0 && j == 0)
-            in_out.c[i][j] === 1;
+            in_out.out[i][j] === 1;
         else
-            in_out.c[i][j] === 0;
+            in_out.out[i][j] === 0;
     }
 }
 
@@ -346,6 +347,91 @@ template Fp2conjugate(n, k){
     for(var i=0; i<k; i++){
         out[0][i] <== in[0][i];
         out[1][i] <== neg1.out[i];
+    }
+}
+
+// raises to q^power-th power 
+template Fp2frobeniusMap(n, k, power){
+    signal input in[2][k];
+    signal input p[k];
+    signal output out[2][k];
+    
+    var pow = power % 2;
+    component neg1 = BigSub(n,k);
+    if(pow == 0){
+        for(var i=0; i<k; i++){
+            out[0][i] <== in[0][i];
+            out[1][i] <== in[1][i];
+        }
+    }else{
+        for(var i=0; i<k; i++){
+            neg1.a[i] <== p[i];
+            neg1.b[i] <== in[1][i];
+        }
+        for(var i=0; i<k; i++){
+            out[0][i] <== in[0][i];
+            out[1][i] <== neg1.out[i];
+        }
+    }
+}
+
+template Fp12frobeniusMap(n, k, power){
+    signal input in[6][2][k];
+    signal input p[k];
+    signal output out[6][2][k];
+
+    var FP12_FROBENIUS_COEFFICIENTS[12][6][2][k] = get_Fp12_frobenius(n, k);
+    var pow = power % 12;
+    
+    // apply Frob to coefficients first
+    component in_frob[6]; 
+    for(var i=0; i<6; i++){
+        in_frob[i] = Fp2frobeniusMap(n, k, pow); 
+        for(var j=0; j<k; j++){
+            in_frob[i].in[0][j] <== in[i][0][j];
+            in_frob[i].in[1][j] <== in[i][1][j];
+            in_frob[i].p[j] <== p[j];
+        }
+    }
+    
+    // multiply in_frob[i] by FP12_FROBENIUS_COEFFICIENTS[pow][i] 
+    // if pow is even, then FP12_FROBENIUS_COEFFICIENTS[pow][i] is in Fp instead of Fp2, so can optimize 
+    component mult_odd[6];
+    component mult_even[6][2];
+    if( (pow % 2) == 0 ){
+        for(var i=0; i<6; i++){
+            mult_even[i][0] = BigMultModP(n, k);
+            mult_even[i][1] = BigMultModP(n, k);
+            for(var j=0; j<k; j++){
+                mult_even[i][0].a[j] <== in_frob[i].out[0][j];
+                mult_even[i][1].a[j] <== in_frob[i].out[1][j];
+
+                mult_even[i][0].b[j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][0][j];
+                mult_even[i][1].b[j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][0][j];
+                
+                mult_even[i][0].p[j] <== p[j];
+                mult_even[i][1].p[j] <== p[j];
+            }
+            for(var j=0; j<k; j++){
+                out[i][0][j] <== mult_even[i][0].out[j];
+                out[i][1][j] <== mult_even[i][1].out[j];
+            }
+        }
+    }else{
+        for(var i=0; i<6; i++){
+            mult_odd[i] = Fp2multiply(n, k);
+            for(var j=0; j<k; j++){
+                for(var eps=0; eps<2; eps++){
+                    mult_odd[i].a[eps][j] <== in_frob[i].out[eps][j];
+                    mult_odd[i].b[eps][j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][eps][j];
+                }
+                mult_odd[i].p[j] <== p[j];
+            }
+            for(var j=0; j<k; j++){
+                out[i][0][j] <== mult_odd[i].out[0][j];
+                out[i][1][j] <== mult_odd[i].out[1][j];
+            }
+        }
     }
 }
 
