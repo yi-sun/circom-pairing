@@ -35,6 +35,22 @@ function long_gt(n, k, a, b) {
 // n bits per register
 // a has k registers
 // b has k registers
+// output has k+1 registers
+function long_add(n, k, a, b){
+    var carry = 0;
+    var sum[100];
+    for(var i=0; i<k; i++){
+        var sumAndCarry[2] = SplitFn(a[i] + b[i] + carry, n, n);
+        sum[i] = sumAndCarry[0];
+        carry = sumAndCarry[1];
+    }
+    sum[k] = carry;
+    return sum;
+}
+
+// n bits per register
+// a has k registers
+// b has k registers
 // a >= b
 function long_sub(n, k, a, b) {
     var diff[100];
