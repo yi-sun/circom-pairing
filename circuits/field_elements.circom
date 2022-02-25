@@ -1,7 +1,7 @@
 pragma circom 2.0.2;
 
 include "bigint.circom";
-include "field_elements_func.circom";
+// include "field_elements_func.circom";
 
 // add two elements in Fp2
 template Fp2Add(n, k) {
@@ -375,65 +375,65 @@ template Fp2frobeniusMap(n, k, power){
     }
 }
 
-template Fp12frobeniusMap(n, k, power){
-    signal input in[6][2][k];
-    signal input p[k];
-    signal output out[6][2][k];
+// template Fp12frobeniusMap(n, k, power){
+//     signal input in[6][2][k];
+//     signal input p[k];
+//     signal output out[6][2][k];
 
-    var FP12_FROBENIUS_COEFFICIENTS[12][6][2][k] = get_Fp12_frobenius(n, k);
-    var pow = power % 12;
+//     var FP12_FROBENIUS_COEFFICIENTS[12][6][2][k] = get_Fp12_frobenius(n, k);
+//     var pow = power % 12;
     
-    // apply Frob to coefficients first
-    component in_frob[6]; 
-    for(var i=0; i<6; i++){
-        in_frob[i] = Fp2frobeniusMap(n, k, pow); 
-        for(var j=0; j<k; j++){
-            in_frob[i].in[0][j] <== in[i][0][j];
-            in_frob[i].in[1][j] <== in[i][1][j];
-            in_frob[i].p[j] <== p[j];
-        }
-    }
+//     // apply Frob to coefficients first
+//     component in_frob[6]; 
+//     for(var i=0; i<6; i++){
+//         in_frob[i] = Fp2frobeniusMap(n, k, pow); 
+//         for(var j=0; j<k; j++){
+//             in_frob[i].in[0][j] <== in[i][0][j];
+//             in_frob[i].in[1][j] <== in[i][1][j];
+//             in_frob[i].p[j] <== p[j];
+//         }
+//     }
     
-    // multiply in_frob[i] by FP12_FROBENIUS_COEFFICIENTS[pow][i] 
-    // if pow is even, then FP12_FROBENIUS_COEFFICIENTS[pow][i] is in Fp instead of Fp2, so can optimize 
-    component mult_odd[6];
-    component mult_even[6][2];
-    if( (pow % 2) == 0 ){
-        for(var i=0; i<6; i++){
-            mult_even[i][0] = BigMultModP(n, k);
-            mult_even[i][1] = BigMultModP(n, k);
-            for(var j=0; j<k; j++){
-                mult_even[i][0].a[j] <== in_frob[i].out[0][j];
-                mult_even[i][1].a[j] <== in_frob[i].out[1][j];
+//     // multiply in_frob[i] by FP12_FROBENIUS_COEFFICIENTS[pow][i] 
+//     // if pow is even, then FP12_FROBENIUS_COEFFICIENTS[pow][i] is in Fp instead of Fp2, so can optimize 
+//     component mult_odd[6];
+//     component mult_even[6][2];
+//     if( (pow % 2) == 0 ){
+//         for(var i=0; i<6; i++){
+//             mult_even[i][0] = BigMultModP(n, k);
+//             mult_even[i][1] = BigMultModP(n, k);
+//             for(var j=0; j<k; j++){
+//                 mult_even[i][0].a[j] <== in_frob[i].out[0][j];
+//                 mult_even[i][1].a[j] <== in_frob[i].out[1][j];
 
-                mult_even[i][0].b[j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][0][j];
-                mult_even[i][1].b[j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][0][j];
+//                 mult_even[i][0].b[j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][0][j];
+//                 mult_even[i][1].b[j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][0][j];
                 
-                mult_even[i][0].p[j] <== p[j];
-                mult_even[i][1].p[j] <== p[j];
-            }
-            for(var j=0; j<k; j++){
-                out[i][0][j] <== mult_even[i][0].out[j];
-                out[i][1][j] <== mult_even[i][1].out[j];
-            }
-        }
-    }else{
-        for(var i=0; i<6; i++){
-            mult_odd[i] = Fp2multiply(n, k);
-            for(var j=0; j<k; j++){
-                for(var eps=0; eps<2; eps++){
-                    mult_odd[i].a[eps][j] <== in_frob[i].out[eps][j];
-                    mult_odd[i].b[eps][j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][eps][j];
-                }
-                mult_odd[i].p[j] <== p[j];
-            }
-            for(var j=0; j<k; j++){
-                out[i][0][j] <== mult_odd[i].out[0][j];
-                out[i][1][j] <== mult_odd[i].out[1][j];
-            }
-        }
-    }
-}
+//                 mult_even[i][0].p[j] <== p[j];
+//                 mult_even[i][1].p[j] <== p[j];
+//             }
+//             for(var j=0; j<k; j++){
+//                 out[i][0][j] <== mult_even[i][0].out[j];
+//                 out[i][1][j] <== mult_even[i][1].out[j];
+//             }
+//         }
+//     }else{
+//         for(var i=0; i<6; i++){
+//             mult_odd[i] = Fp2multiply(n, k);
+//             for(var j=0; j<k; j++){
+//                 for(var eps=0; eps<2; eps++){
+//                     mult_odd[i].a[eps][j] <== in_frob[i].out[eps][j];
+//                     mult_odd[i].b[eps][j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][eps][j];
+//                 }
+//                 mult_odd[i].p[j] <== p[j];
+//             }
+//             for(var j=0; j<k; j++){
+//                 out[i][0][j] <== mult_odd[i].out[0][j];
+//                 out[i][1][j] <== mult_odd[i].out[1][j];
+//             }
+//         }
+//     }
+// }
 
 template Fp12Add(n, k) {
     signal input a[6][2][k];
@@ -457,102 +457,228 @@ template Fp12Add(n, k) {
 }
 
 // a = sum w^i u^j a_ij for w^6=u+1, u^2=-1. similarly for b
-// we first write a = A + Bu, b = C + Du and compute ab = (AC + B(p-D)) + (AD+BC)u
-// with deg(w) = 10, deg(u) = 1 and then simplify the representation
-// first using w^6 = u + 1 to get deg(w) = 5, deg (u) = 2
-// in addition to computing AD+BC we also compute A(p-D) + B(p-C) to avoid subtraction
-// and then using u^2 = -1 to get deg(w) = 5, deg(u) = 1
+// we first write a = A + Bi, b = C + Di and compute 
+// ab = (AC + B(p-D)) + (AD+BC)i, and then simplify the representation
 template Fp12Multiply(n, k) {
-    signal input a[6][2][k];
-    signal input b[6][2][k];
+    var l = 6;
+    signal input a[l][2][k];
+    signal input b[l][2][k];
     signal input p[k];
-    signal output c[6][2][k];
-    component ac = BigMultShortLong2D(n, k, 6);
-    component bd = BigMultShortLong2D(n, k, 6);
-    component ad = BigMultShortLong2D(n, k, 6);
-    component bc = BigMultShortLong2D(n, k, 6);
-    component neg_bc = BigMultShortLong2D(n, k, 6);
-    component neg_ad = BigMultShortLong2D(n, k, 6);
+    signal output out[l][2][k];
 
-    signal p_minus_d[6][k];
-    component p_subtract_d[6];
-    for (var i = 0; i < 6; i ++) {
-        p_subtract_d[i] = BigSub(n, k);
-        for (var m = 0; m < k; m ++) {
-            p_subtract_d[i].a[m] <== p[m];
-            p_subtract_d[i].b[m] <== b[i][1][m];
-        }
-        for (var m = 0; m < k; m ++) {
-            p_minus_d[i][m] <== p_subtract_d[i].out[m];
+
+    var LOGK = 3;
+    var LOGL = 4;
+    assert(l<15);
+    assert(k<7);
+    assert(2*n + 1 + LOGK + LOGL <254);
+
+    var a0[l][k];
+    var a1[l][k];
+    var b0[l][k];
+    var b1[l][k];
+    var neg_b0[l][100];
+    var neg_b1[l][100];
+    for (var i = 0; i < l; i ++) { 
+        for ( var j = 0; j < k; j ++) {
+            a0[i][j] = a[i][0][j];
+            a1[i][j] = a[i][1][j];
+            b0[i][j] = b[i][0][j];
+            b1[i][j] = b[i][1][j];
         }
     }
-
-    signal p_minus_c[6][k];
-    component p_subtract_c[6];
-    for (var i = 0; i < 6; i ++) {
-        p_subtract_c[i] = BigSub(n, k);
-        for (var m = 0; m < k; m ++) {
-            p_subtract_c[i].a[m] <== p[m];
-            p_subtract_c[i].b[m] <== b[i][0][m];
-        }
-        for (var m = 0; m < k; m ++) {
-            p_minus_c[i][m] <== p_subtract_c[i].out[m];
-        }
+    for ( var i = 0; i < l; i ++) {
+        neg_b0[i] = long_sub(n, k, p, b0[i]);
+        neg_b1[i] = long_sub(n, k, p, b1[i]);
     }
 
-    for (var i = 0; i < 6; i ++) {
+    var real_init[2*l-1][100];
+    var imag_init[2*l-1][100];
+    var imag_init_neg[2*l-1][100];
+    var real[l][2][100];
+    var imag[l][2][100];
+    // each product will be 2l-1 x 2k
+    var a0b0_var[100][100] = prod2D(n, k, l, a0, b0);
+    var a1b1_neg[100][100] = prod2D(n, k, l, a1, neg_b1);
+    var a0b1_var[100][100] = prod2D(n, k, l, a0, b1);
+    var a1b0_var[100][100] = prod2D(n, k, l, a1, b0);
+    var a0b1_neg[100][100] = prod2D(n, k, l, a0, neg_b1);
+    var a1b0_neg[100][100] = prod2D(n, k, l, a1, neg_b0);
+    for (var i = 0; i < 2*l - 1; i ++) { // compute initial rep (deg w = 10)
+        real_init[i] = long_add(n, 2*k, a0b0_var[i], a1b1_neg[i]); // 2*k+1 registers each
+        imag_init[i] = long_add(n, 2*k, a0b1_var[i], a1b0_var[i]);
+        imag_init_neg[i] = long_add(n, 2*k, a0b1_neg[i], a1b0_neg[i]);
+    }
+    var real_carry[l][100];
+    var imag_carry[l][100];
+    var real_final[l][100];
+    var imag_final[l][100];
+    var zeros[100]; // to balance register sizes
+    for (var i = 0; i < 100; i ++) {
+        zeros[i] = 0;
+    }
+    for (var i = 0; i < l; i ++) {
+        if (i == l - 1) {
+            real_carry[i] = long_add(n, 2*k+1, zeros, zeros);
+            imag_carry[i] = long_add(n, 2*k+1, zeros, zeros);
+        } else {
+            real_carry[i] = long_add(n, 2*k+1, real_init[i+l], imag_init_neg[i+l]); // now 2*k+2 registers
+            imag_carry[i] = long_add(n, 2*k+1, imag_init[i+l], real_init[i+l]);
+        }
+    }
+    for (var i = 0; i < l; i ++) {
+        real_final[i] = long_add_unequal(n, 2*k+2, 2*k+1, real_carry[i], real_init[i]); // now 2*k+3 registers
+        imag_final[i] = long_add_unequal(n, 2*k+2, 2*k+1, imag_carry[i], imag_init[i]);
+    }
+    var XYreal_temp[l][2][100];
+    var XYimag_temp[l][2][100];
+    signal XYreal[l][2][k+4];
+    signal XYimag[l][2][k+4];
+    for (var i = 0; i < l; i ++) {
+        XYreal_temp[i] = long_div2(n, k, k+3, real_final[i], p); // k+4 register quotient, k register remainder
+        XYimag_temp[i] = long_div2(n, k, k+3, imag_final[i], p);
+    }
+    for (var i = 0; i < l; i ++) {
+        for (var j = 0; j < k+4; j ++) {
+            XYreal[i][0][j] <-- XYreal_temp[i][0][j];
+            XYimag[i][0][j] <-- XYimag_temp[i][0][j];
+            if (j < k) {
+                XYreal[i][1][j] <-- XYreal_temp[i][1][j];
+                XYimag[i][1][j] <-- XYimag_temp[i][1][j];
+            } else {
+                XYreal[i][1][j] <== 0;
+                XYimag[i][1][j] <== 0;
+            }
+        }
+    }
+    for (var i = 0; i < l; i ++) {
         for (var j = 0; j < k; j ++) {
-            ac.a[i][j] <== a[i][0][j];
-            ac.b[i][j] <== b[i][0][j];
-            bd.a[i][j] <== a[i][1][j];
-            bd.b[i][j] <== p_minus_d[i][j];
-            ad.a[i][j] <== a[i][0][j];
-            ad.b[i][j] <== b[i][1][j];
-            bc.a[i][j] <== a[i][1][j];
-            bc.b[i][j] <== b[i][0][j];
-            neg_ad.a[i][j] <== a[i][0][j];
-            neg_ad.b[i][j] <== p_minus_d[i][j];
-            neg_bc.a[i][j] <== a[i][1][j];
-            neg_bc.b[i][j] <== p_minus_c[i][j];
+            out[i][0][j] <== XYreal[i][1][j];
+            out[i][1][j] <== XYimag[i][1][j];
         }
     }
-    // ac + bd, ad + bc would both be 11 x (2k-1)
-    signal long_result[6][2][2*k-1];
-    for (var i = 0; i < 5; i ++) {
-        for (var j = 0; j < 2*k-1; j ++) {
-            long_result[i][0][j] <== ac.out[i][j] + bd.out[i][j] + ac.out[i+6][j] + bd.out[i+6][j] + neg_ad.out[i+6][j] + neg_bc.out[i+6][j];
-            long_result[i][1][j] <== ad.out[i][j] + bc.out[i][j] + ac.out[i+6][j] + bd.out[i+6][j] + ad.out[i+6][j] + bc.out[i+6][j];
-        }
-    }
-    for (var j = 0; j < 2*k-1; j ++) {
-        long_result[5][0][j] <== ac.out[5][j] + bd.out[5][j];
-        long_result[5][1][j] <== ad.out[5][j] + bc.out[5][j];
-    }
-    component longshorts[6][2];
-    for (var i = 0; i < 6; i ++) {
+
+    component range_checks[l][2][k];
+    for(var i=0; i<l; i++){
         for (var j = 0; j < 2; j ++) {
-            longshorts[i][j] = LongToShortNoEndCarry(n, 2*k-1);
-            for (var m = 0; m < 2*k-1; m ++) {
-                longshorts[i][j].in[m] <== long_result[i][j][m];
-            }
-        }
-    }
-    component bigmods[6][2];
-    for (var i = 0; i < 6; i ++) {
-        for (var j = 0; j < 2; j ++) {
-            bigmods[i][j] = BigMod(n, k);
-            for (var m = 0; m < 2*k; m ++) {
-                bigmods[i][j].a[m] <== longshorts[i][j].out[m];
-            }
             for (var m = 0; m < k; m ++) {
-                bigmods[i][j].b[m] <== p[m];
+                range_checks[i][j][m] = Num2Bits(n);
+                range_checks[i][j][m].in <== out[i][j][m];
             }
         }
     }
-    for (var i = 0; i < 6; i ++) {
-        for (var j = 0; j < k; j ++) {
-            c[i][0][j] <== bigmods[i][0].mod[j];
-            c[i][1][j] <== bigmods[i][1].mod[j];
+    component lt[l][2];
+    for (var i = 0; i < l; i ++) {
+        for (var j = 0; j < 2; j ++) {
+            lt[i][j] = BigLessThan(n, k);
+            for (var m = 0; m < k; m ++) {
+                lt[i][j].a[m] <== out[i][j][m];
+                lt[i][j].b[m] <== p[m];
+            }
+            lt[i][j].out === 1;
         }
+    }
+
+    component X_range_checks[l][2][k+4];
+    for (var i = 0; i < l; i ++) {
+        for (var j = 0; j < k+4; j ++) {
+            X_range_checks[i][0][j] = Num2Bits(n);
+            X_range_checks[i][1][j] = Num2Bits(n);
+            X_range_checks[i][0][j].in <== XYreal[i][0][j];
+            X_range_checks[i][1][j].in <== XYimag[i][0][j];
+        }
+    }
+
+    // constrain by: 
+    // Carry( lower(a0 *' b0 +' p *' a1 -' a1 *' b1) + upper(a0 *' b0 +' p *' a1 -' a1 *' b1) 
+    //       + upper(a0 *' p -' a0 *' b1 + a1 *' p -' a1 *' b0) - p *' Xreal - Yreal ) = 0 
+    // Carry( lower(a0 *' p -' a0 *' b1 + a1 *' p -' a1 *' b0) + upper(a0 *' p -' a0 *' b1 + a1 *' p -' a1 *' b0)
+    //      + upper(a0 *' b0 +' p *' a1 -' a1 *' b1) - p *' Ximag - Yimag) = 0
+    // where all operations are performed without carry 
+    // lower() refers to the coefficients with deg(w) <= 5
+    // upper() refers to the coefficients with deg(w) >= 6
+    // each register is an overflow representation in the range (-kl*2^{2n+4}, kl*2^{2n + 4} )
+    
+    component a0b0 = BigMultShortLong2D(n, k, l);
+    component a1b1 = BigMultShortLong2D(n, k, l);
+    component pa1 = BigMultShortLong2D(n, k, l);
+    component pa0 = BigMultShortLong2D(n, k, l);
+    component a1b0 = BigMultShortLong2D(n, k, l);
+    component a0b1 = BigMultShortLong2D(n, k, l);
+    component pXreal[l];
+    component pXimag[l];
+    for (var i = 0; i < l; i ++) {
+        pXreal[i] = BigMultShortLong(n, k+4);
+        pXimag[i] = BigMultShortLong(n, k+4);
+        for (var j = 0; j < k; j ++) {
+            a0b0.a[i][j] <== a[i][0][j];
+            a0b0.b[i][j] <== b[i][0][j];
+
+            a1b1.a[i][j] <== a[i][1][j];
+            a1b1.b[i][j] <== b[i][1][j];
+
+            pa1.a[i][j] <== p[j];
+            pa0.a[i][j] <== p[j];
+
+            pa1.b[i][j] <== a[i][1][j];
+            pa0.b[i][j] <== a[i][0][j];
+
+            a1b0.a[i][j] <== a[i][1][j];
+            a1b0.b[i][j] <== b[i][0][j];
+
+            a0b1.a[i][j] <== a[i][0][j];
+            a0b1.b[i][j] <== b[i][1][j];
+
+            pXreal[i].a[j] <== p[j];
+            pXreal[i].b[j] <== XYreal[i][0][j];
+
+            pXimag[i].a[j] <== p[j];
+            pXimag[i].b[j] <== XYimag[i][0][j];
+        }
+        for (var j = k; j < k+4; j ++) {
+            pXreal[i].a[j] <== 0;
+            pXreal[i].b[j] <== XYreal[i][0][j];
+            pXimag[i].a[j] <== 0;
+            pXimag[i].b[j] <== XYimag[i][0][j];
+        }
+    }
+
+
+    component carry_check[l][2];
+    // Carry( lower(a0 *' b0 +' p *' a1 -' a1 *' b1) + upper(a0 *' b0 +' p *' a1 -' a1 *' b1) 
+    //       + upper(a0 *' p -' a0 *' b1 + a1 *' p -' a1 *' b0) - p *' Xreal - Yreal ) = 0 
+    // Carry( lower(a0 *' b1 + a1 *' b0) + upper(a0 *' b1 + a1 *' b0)
+    //      + upper(a0 *' b0 +' p *' a1 -' a1 *' b1) - p *' Ximag - Yimag) = 0
+    for (var i = 0; i < l-1; i ++) {
+        carry_check[i][0] = CheckCarryToZero(n, 2*n+4+LOGK+LOGL, 2*k+4);
+        carry_check[i][1] = CheckCarryToZero(n, 2*n+4+LOGK+LOGL, 2*k+4);
+        for (var j = 0; j < k; j ++) {
+            carry_check[i][0].in[j] <== (a0b0.out[i][j] + pa1.out[i][j] - a1b1.out[i][j]) + (a0b0.out[i+l][j] + pa1.out[i+l][j] - a1b1.out[i+l][j]) + (pa0.out[i+l][j] - a0b1.out[i+l][j] + pa1.out[i+l][j] - a1b0.out[i+l][j]) - pXreal[i].out[j] - out[i][0][j];
+            carry_check[i][1].in[j] <== (a0b1.out[i][j] + a1b0.out[i][j]) + (a0b1.out[i+l][j] + a1b0.out[i+l][j]) + (a0b0.out[i+l][j] + pa1.out[i+l][j] - a1b1.out[i+l][j]) - pXimag[i].out[j] - out[i][1][j];
+        }
+        for (var j = k; j < 2*k-1; j ++) {
+            carry_check[i][0].in[j] <== (a0b0.out[i][j] + pa1.out[i][j] - a1b1.out[i][j]) + (a0b0.out[i+l][j] + pa1.out[i+l][j] - a1b1.out[i+l][j]) + (pa0.out[i+l][j] - a0b1.out[i+l][j] + pa1.out[i+l][j] - a1b0.out[i+l][j]) - pXreal[i].out[j];
+            carry_check[i][1].in[j] <== (a0b1.out[i][j] + a1b0.out[i][j]) + (a0b1.out[i+l][j] + a1b0.out[i+l][j]) + (a0b0.out[i+l][j] + pa1.out[i+l][j] - a1b1.out[i+l][j]) - pXimag[i].out[j];
+        }
+        for (var j = 2*k-1; j < 2*k+4; j ++) {
+            carry_check[i][0].in[j] <== - pXreal[i].out[j];
+            carry_check[i][1].in[j] <== - pXimag[i].out[j];
+        }
+    }
+
+    carry_check[l-1][0] = CheckCarryToZero(n, 2*n+4+LOGK+LOGL, 2*k+4);
+    carry_check[l-1][1] = CheckCarryToZero(n, 2*n+4+LOGK+LOGL, 2*k+4);
+    // do the last part, less carries
+    for (var j = 0; j < k; j ++) {
+        carry_check[l-1][0].in[j] <== (a0b0.out[l-1][j] + pa1.out[l-1][j] - a1b1.out[l-1][j]) - pXreal[l-1].out[j] - out[l-1][0][j];
+        carry_check[l-1][1].in[j] <== (a0b1.out[l-1][j] + a1b0.out[l-1][j]) - pXimag[l-1].out[j] - out[l-1][1][j];
+    }
+    for (var j = k; j < 2*k-1; j ++) {
+        carry_check[l-1][0].in[j] <== (a0b0.out[l-1][j] + pa1.out[l-1][j] - a1b1.out[l-1][j]) - pXreal[l-1].out[j];
+        carry_check[l-1][1].in[j] <== (a0b1.out[l-1][j] + a1b0.out[l-1][j]) - pXimag[l-1].out[j];
+    }
+    for (var j = 2*k-1; j < 2*k+4; j ++) {
+        carry_check[l-1][0].in[j] <== - pXreal[l-1].out[j];
+        carry_check[l-1][1].in[j] <== - pXimag[l-1].out[j];
     }
 }

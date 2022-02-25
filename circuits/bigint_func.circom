@@ -49,6 +49,29 @@ function long_add(n, k, a, b){
 }
 
 // n bits per register
+// a has k1 registers
+// b has k2 registers
+// assume k1 > k2
+// output has k1+1 registers
+function long_add_unequal(n, k1, k2, a, b){
+    var carry = 0;
+    var sum[100];
+    for(var i=0; i<k1; i++){
+        if (i < k2) {
+            var sumAndCarry[2] = SplitFn(a[i] + b[i] + carry, n, n);
+            sum[i] = sumAndCarry[0];
+            carry = sumAndCarry[1];
+        } else {
+            var sumAndCarry[2] = SplitFn(a[i] + carry, n, n);
+            sum[i] = sumAndCarry[0];
+            carry = sumAndCarry[1];
+        }
+    }
+    sum[k1] = carry;
+    return sum;
+}
+
+// n bits per register
 // a has k registers
 // b has k registers
 // a >= b
@@ -101,16 +124,7 @@ function long_scalar_mult(n, k, a, b) {
 // implements algorithm of https://people.eecs.berkeley.edu/~fateman/282/F%20Wright%20notes/week4.pdf
 // b[k-1] must be nonzero!
 function long_div2(n, k, m, a, b){
-    //log(1111111111111111111111);
     var out[2][100];
-    //log(n);
-    //log(k);
-    for (var i = 0; i < k + m; i++) {
-    //    log(a[i]);
-    }
-    for (var i = 0; i < k; i++) {
-    //    log(b[i]);
-    }
 
     var remainder[200];
     for (var i = 0; i < m + k; i++) {
@@ -131,9 +145,7 @@ function long_div2(n, k, m, a, b){
             }
         }
 
-        //log(i);
         out[0][i] = short_div(n, k, dividend, b);
-        //log(out[0][i]);
 
         var mult_shift[100] = long_scalar_mult(n, k, out[0][i], b);
         var subtrahend[200];
@@ -151,13 +163,6 @@ function long_div2(n, k, m, a, b){
         out[1][i] = remainder[i];
     }
     out[1][k] = 0;
-
-    for (var i = 0; i <= m; i++) {
-        //log(out[0][i]);
-    }
-    for (var i = 0; i < k; i++) {
-        //log(out[1][i]);
-    }
     return out;
 }
 
@@ -263,6 +268,62 @@ function prod(n, k, a, b) {
         }
         out[2 * k - 1] = split[2*k-2][1] + split[2*k-3][2] + carry[2*k-2];
     }
+    return out;
+}
+
+
+// n bits per register
+// a and b both have l x k registers
+// out has length 2l - 1 x 2k
+// adapted from BigMultShortLong2D and LongToShortNoEndCarry2 witness computation
+function prod2D(n, k, l, a, b) {
+    // first compute the intermediate values. taken from BigMulShortLong
+    var prod_val[100][100]; // length is 2l - 1 by 2k - 1
+    for (var i = 0; i < 2 * k - 1; i++) {
+        for (var j = 0; j < 2 * l - 1; j ++) {
+            prod_val[j][i] = 0;
+        }
+    }
+    for (var i1 = 0; i1 < k; i1 ++) {
+        for (var i2 = 0; i2 < k; i2 ++) {
+            for (var j1 = 0; j1 < l; j1 ++) {
+                for (var j2 = 0; j2 < l; j2 ++) {
+                    prod_val[j1+j2][i1+i2] = prod_val[j1+j2][i1+i2] + a[j1][i1] * b[j2][i2];
+                }
+            }
+        }
+    }
+
+    // now do a bunch of carrying to make sure registers not overflowed. taken from LongToShortNoEndCarry2
+    var out[100][100]; // length is 2 * l by 2 * k
+
+    var split[100][100][3]; // second dimension has length 2 * k - 1
+    for (var j = 0; j < 2 * l - 1; j ++) {
+        for (var i = 0; i < 2 * k - 1; i++) {
+            split[j][i] = SplitThreeFn(prod_val[j][i], n, n, n);
+        }
+    }
+
+    var carry[100][100]; // length is 2l-1 x 2k
+    var sumAndCarry[100][2];
+    for ( var j = 0; j < 2 * l - 1; j ++) {
+        carry[j][0] = 0;
+        out[j][0] = split[j][0][0];
+        if (2 * k - 1 > 1) {
+            sumAndCarry[j] = SplitFn(split[j][0][1] + split[j][1][0], n, n);
+            out[j][1] = sumAndCarry[j][0];
+            carry[j][1] = sumAndCarry[j][1];
+        }
+        if (2 * k - 1 > 2) {
+            for (var i = 2; i < 2 * k - 1; i++) {
+                sumAndCarry[j] = SplitFn(split[j][i][0] + split[j][i-1][1] + split[j][i-2][2] + carry[j][i-1], n, n);
+                out[j][i] = sumAndCarry[j][0];
+                carry[j][i] = sumAndCarry[j][1];
+            }
+            out[j][2 * k - 1] = split[j][2*k-2][1] + split[j][2*k-3][2] + carry[j][2*k-2];
+        }
+    }
+
     return out;
 }
 
