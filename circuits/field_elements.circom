@@ -457,11 +457,8 @@ template Fp12Add(n, k) {
 }
 
 // a = sum w^i u^j a_ij for w^6=u+1, u^2=-1. similarly for b
-// we first write a = A + Bu, b = C + Du and compute ab = (AC + B(p-D)) + (AD+BC)u
-// with deg(w) = 10, deg(u) = 1 and then simplify the representation
-// first using w^6 = u + 1 to get deg(w) = 5, deg (u) = 2
-// in addition to computing AD+BC we also compute A(p-D) + B(p-C) to avoid subtraction
-// and then using u^2 = -1 to get deg(w) = 5, deg(u) = 1
+// we first write a = A + Bi, b = C + Di and compute 
+// ab = (AC + B(p-D)) + (AD+BC)i, and then simplify the representation
 template Fp12Multiply(n, k) {
     var l = 6;
     signal input a[l][2][k];
@@ -620,13 +617,8 @@ template Fp12Multiply(n, k) {
             a1b1.a[i][j] <== a[i][1][j];
             a1b1.b[i][j] <== b[i][1][j];
 
-            if (i == 0) {
-                pa1.a[i][j] <== p[j];
-                pa0.a[i][j] <== p[j];
-            } else {
-                pa1.a[i][j] <== 0;
-                pa0.a[i][j] <== 0;
-            }
+            pa1.a[i][j] <== p[j];
+            pa0.a[i][j] <== p[j];
 
             pa1.b[i][j] <== a[i][1][j];
             pa0.b[i][j] <== a[i][0][j];

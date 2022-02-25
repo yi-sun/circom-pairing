@@ -59,7 +59,7 @@ describe("Fp12Multiply n = 3, k = 2", function() {
         it('Testing a0: ' + a0 + ' a1: ' + a1 + ' b0: ' + b0 + ' b1: ' + b1 + ' p: ' + p + ' c0: ' + c0 + ' c1: ' + c1, async function() {
             let witness = await circuit.calculateWitness({"a": [[zero, zero], [zero, zero], [zero, zero], [a0_array, a1_array], [zero, zero], [a0_array, a1_array]], 
             "b": [[b0_array, b1_array], [zero, zero], [zero, zero], [b0_array, b1_array], [zero, zero], [zero, zero]], "p": p_array});
-	    await circuit.assertOut(witness, {"c": [[c0i_array, c1i_array], [zero, zero], [c0i_array, c1i_array ], 
+	    await circuit.assertOut(witness, {"out": [[c0i_array, c1i_array], [zero, zero], [c0i_array, c1i_array ], 
     [c0_array, c1_array], [zero, zero], [c0_array, c1_array]]});
             await circuit.checkConstraints(witness);
         });
