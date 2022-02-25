@@ -472,7 +472,7 @@ template Fp12Multiply(n, k) {
 
     var LOGK = 3;
     var LOGL = 4;
-    assert(l<15)
+    assert(l<15);
     assert(k<7);
     assert(2*n + 1 + LOGK + LOGL <254);
 
@@ -480,8 +480,8 @@ template Fp12Multiply(n, k) {
     var a1[l][k];
     var b0[l][k];
     var b1[l][k];
-    var neg_b0[l][k];
-    var neg_b1[l][k];
+    var neg_b0[l][100];
+    var neg_b1[l][100];
     for (var i = 0; i < l; i ++) { 
         for ( var j = 0; j < k; j ++) {
             a0[i][j] = a[i][0][j];
@@ -502,7 +502,7 @@ template Fp12Multiply(n, k) {
     var imag[l][2][100];
     // each product will be 2l-1 x 2k
     var a0b0_var[100][100] = prod2D(n, k, l, a0, b0);
-    var a1b1_neg[100][100] = prod2D(n, k, l, a1, meg_b1);
+    var a1b1_neg[100][100] = prod2D(n, k, l, a1, neg_b1);
     var a0b1_var[100][100] = prod2D(n, k, l, a0, b1);
     var a1b0_var[100][100] = prod2D(n, k, l, a1, b0);
     var a0b1_neg[100][100] = prod2D(n, k, l, a0, neg_b1);
@@ -533,14 +533,29 @@ template Fp12Multiply(n, k) {
         real_final[i] = long_add_unequal(n, 2*k+2, 2*k+1, real_carry[i], real_init[i]); // now 2*k+3 registers
         imag_final[i] = long_add_unequal(n, 2*k+2, 2*k+1, imag_carry[i], imag_init[i]);
     }
-    var XYreal[l][2][100];
-    var XYimag[l][2][100];
+    var XYreal_temp[l][2][100];
+    var XYimag_temp[l][2][100];
+    signal XYreal[l][2][k+4];
+    signal XYimag[l][2][k+4];
     for (var i = 0; i < l; i ++) {
-        XYreal[i] = long_div2(n, k, k+3, real_final[i], p); // k+4 register quotient, k register remainder
-        XYimag[i] = long_div2(n, k, k+3, imag_final[i], p);
+        XYreal_temp[i] = long_div2(n, k, k+3, real_final[i], p); // k+4 register quotient, k register remainder
+        XYimag_temp[i] = long_div2(n, k, k+3, imag_final[i], p);
     }
     for (var i = 0; i < l; i ++) {
-        for (var j = 0; j < k; i ++) {
+        for (var j = 0; j < k+4; j ++) {
+            XYreal[i][0][j] <-- XYreal_temp[i][0][j];
+            XYimag[i][0][j] <-- XYimag_temp[i][0][j];
+            if (j < k) {
+                XYreal[i][1][j] <-- XYreal_temp[i][1][j];
+                XYimag[i][1][j] <-- XYimag_temp[i][0][j];
+            } else {
+                XYreal[i][1][j] <== 0;
+                XYimag[i][1][j] <== 0;
+            }
+        }
+    }
+    for (var i = 0; i < l; i ++) {
+        for (var j = 0; j < k; j ++) {
             out[i][0][j] <== XYreal[i][1][j];
             out[i][1][j] <== XYimag[i][1][j];
         }
@@ -563,18 +578,17 @@ template Fp12Multiply(n, k) {
                 lt[i][j].a[m] <== out[i][j][m];
                 lt[i][j].b[m] <== p[m];
             }
+            lt[i][j].out === 1;
         }
-        lt[i][j].out === 1;
     }
 
-    signal X[l][2][k+4];
     component X_range_checks[l][2][k+4];
     for (var i = 0; i < l; i ++) {
-        for (var j = 0; j < 2; j ++) {
-            for (var m = 0; m < k+4; m ++) {
-                X_range_checks[i][j][m] = Num2Bits(n);
-                X_range_checks[i][j][m].in <== X[i][j][m];
-            }
+        for (var j = 0; j < k+4; j ++) {
+            X_range_checks[i][0][j] = Num2Bits(n);
+            X_range_checks[i][1][j] = Num2Bits(n);
+            X_range_checks[i][0][j].in <== XYreal[i][0][j];
+            X_range_checks[i][1][j].in <== XYimag[i][0][j];
         }
     }
 
@@ -621,7 +635,7 @@ template Fp12Multiply(n, k) {
             a1b0.b[i][j] <== b[i][0][j];
 
             a0b1.a[i][j] <== a[i][0][j];
-            a0b1.b[i][i] <== b[i][1][j];
+            a0b1.b[i][j] <== b[i][1][j];
 
             pXreal[i].a[j] <== p[j];
             pXreal[i].b[j] <== XYreal[i][0][j];
