@@ -1,7 +1,7 @@
 pragma circom 2.0.2;
 
 include "bigint.circom";
-include "field_elements_func.circom";
+// include "field_elements_func.circom";
 
 // add two elements in Fp2
 template Fp2Add(n, k) {
@@ -375,65 +375,65 @@ template Fp2frobeniusMap(n, k, power){
     }
 }
 
-template Fp12frobeniusMap(n, k, power){
-    signal input in[6][2][k];
-    signal input p[k];
-    signal output out[6][2][k];
+// template Fp12frobeniusMap(n, k, power){
+//     signal input in[6][2][k];
+//     signal input p[k];
+//     signal output out[6][2][k];
 
-    var FP12_FROBENIUS_COEFFICIENTS[12][6][2][k] = get_Fp12_frobenius(n, k);
-    var pow = power % 12;
+//     var FP12_FROBENIUS_COEFFICIENTS[12][6][2][k] = get_Fp12_frobenius(n, k);
+//     var pow = power % 12;
     
-    // apply Frob to coefficients first
-    component in_frob[6]; 
-    for(var i=0; i<6; i++){
-        in_frob[i] = Fp2frobeniusMap(n, k, pow); 
-        for(var j=0; j<k; j++){
-            in_frob[i].in[0][j] <== in[i][0][j];
-            in_frob[i].in[1][j] <== in[i][1][j];
-            in_frob[i].p[j] <== p[j];
-        }
-    }
+//     // apply Frob to coefficients first
+//     component in_frob[6]; 
+//     for(var i=0; i<6; i++){
+//         in_frob[i] = Fp2frobeniusMap(n, k, pow); 
+//         for(var j=0; j<k; j++){
+//             in_frob[i].in[0][j] <== in[i][0][j];
+//             in_frob[i].in[1][j] <== in[i][1][j];
+//             in_frob[i].p[j] <== p[j];
+//         }
+//     }
     
-    // multiply in_frob[i] by FP12_FROBENIUS_COEFFICIENTS[pow][i] 
-    // if pow is even, then FP12_FROBENIUS_COEFFICIENTS[pow][i] is in Fp instead of Fp2, so can optimize 
-    component mult_odd[6];
-    component mult_even[6][2];
-    if( (pow % 2) == 0 ){
-        for(var i=0; i<6; i++){
-            mult_even[i][0] = BigMultModP(n, k);
-            mult_even[i][1] = BigMultModP(n, k);
-            for(var j=0; j<k; j++){
-                mult_even[i][0].a[j] <== in_frob[i].out[0][j];
-                mult_even[i][1].a[j] <== in_frob[i].out[1][j];
+//     // multiply in_frob[i] by FP12_FROBENIUS_COEFFICIENTS[pow][i] 
+//     // if pow is even, then FP12_FROBENIUS_COEFFICIENTS[pow][i] is in Fp instead of Fp2, so can optimize 
+//     component mult_odd[6];
+//     component mult_even[6][2];
+//     if( (pow % 2) == 0 ){
+//         for(var i=0; i<6; i++){
+//             mult_even[i][0] = BigMultModP(n, k);
+//             mult_even[i][1] = BigMultModP(n, k);
+//             for(var j=0; j<k; j++){
+//                 mult_even[i][0].a[j] <== in_frob[i].out[0][j];
+//                 mult_even[i][1].a[j] <== in_frob[i].out[1][j];
 
-                mult_even[i][0].b[j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][0][j];
-                mult_even[i][1].b[j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][0][j];
+//                 mult_even[i][0].b[j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][0][j];
+//                 mult_even[i][1].b[j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][0][j];
                 
-                mult_even[i][0].p[j] <== p[j];
-                mult_even[i][1].p[j] <== p[j];
-            }
-            for(var j=0; j<k; j++){
-                out[i][0][j] <== mult_even[i][0].out[j];
-                out[i][1][j] <== mult_even[i][1].out[j];
-            }
-        }
-    }else{
-        for(var i=0; i<6; i++){
-            mult_odd[i] = Fp2multiply(n, k);
-            for(var j=0; j<k; j++){
-                for(var eps=0; eps<2; eps++){
-                    mult_odd[i].a[eps][j] <== in_frob[i].out[eps][j];
-                    mult_odd[i].b[eps][j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][eps][j];
-                }
-                mult_odd[i].p[j] <== p[j];
-            }
-            for(var j=0; j<k; j++){
-                out[i][0][j] <== mult_odd[i].out[0][j];
-                out[i][1][j] <== mult_odd[i].out[1][j];
-            }
-        }
-    }
-}
+//                 mult_even[i][0].p[j] <== p[j];
+//                 mult_even[i][1].p[j] <== p[j];
+//             }
+//             for(var j=0; j<k; j++){
+//                 out[i][0][j] <== mult_even[i][0].out[j];
+//                 out[i][1][j] <== mult_even[i][1].out[j];
+//             }
+//         }
+//     }else{
+//         for(var i=0; i<6; i++){
+//             mult_odd[i] = Fp2multiply(n, k);
+//             for(var j=0; j<k; j++){
+//                 for(var eps=0; eps<2; eps++){
+//                     mult_odd[i].a[eps][j] <== in_frob[i].out[eps][j];
+//                     mult_odd[i].b[eps][j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][eps][j];
+//                 }
+//                 mult_odd[i].p[j] <== p[j];
+//             }
+//             for(var j=0; j<k; j++){
+//                 out[i][0][j] <== mult_odd[i].out[0][j];
+//                 out[i][1][j] <== mult_odd[i].out[1][j];
+//             }
+//         }
+//     }
+// }
 
 template Fp12Add(n, k) {
     signal input a[6][2][k];

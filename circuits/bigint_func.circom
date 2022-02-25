@@ -274,11 +274,11 @@ function prod(n, k, a, b) {
 
 // n bits per register
 // a and b both have l x k registers
-// out has length 2 * l - 1 x 2 * k
+// out has length 2l - 1 x 2k
 // adapted from BigMultShortLong2D and LongToShortNoEndCarry2 witness computation
 function prod2D(n, k, l, a, b) {
     // first compute the intermediate values. taken from BigMulShortLong
-    var prod_val[100][100]; // length is 2 * l - 1 by 2 * k - 1
+    var prod_val[100][100]; // length is 2l - 1 by 2k - 1
     for (var i = 0; i < 2 * k - 1; i++) {
         for (var j = 0; j < 2 * l - 1; j ++) {
             prod_val[j][i] = 0;
@@ -316,7 +316,7 @@ function prod2D(n, k, l, a, b) {
         }
         if (2 * k - 1 > 2) {
             for (var i = 2; i < 2 * k - 1; i++) {
-                sumAndCarry[j][2] = SplitFn(split[j][i][0] + split[j][i-1][1] + split[j][i-2][2] + carry[j][i-1], n, n);
+                sumAndCarry[j] = SplitFn(split[j][i][0] + split[j][i-1][1] + split[j][i-2][2] + carry[j][i-1], n, n);
                 out[j][i] = sumAndCarry[j][0];
                 carry[j][i] = sumAndCarry[j][1];
             }
