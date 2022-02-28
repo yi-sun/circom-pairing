@@ -1,5 +1,36 @@
 pragma circom 2.0.2;
 
+// a[2][k] all registers in [0, 2**n)
+// b[2][k] all registers in [0, 2**n)
+// p[k]
+// consider a,b as elements of Fp2 
+// out[2][2][k] solving
+//      a0*b0 + (p-a1)*b1 = p * out[0][0] + out[0][1] with out[0][1] in [0,p) 
+//      a0*b1 + a1*b0 = p * out[1][0] + out[1][1] with out[1][1] in [0,p) 
+// out[i][0] has k+2 registers in short BigInt format [0, 2**n)
+// out[i][1] has k registers in short BigInt format
+// a * b = out[0][1] + out[1][1] * u in Fp2 
+function Fp2prod(n, k, a, b, p){
+    var out[2][2][100];
+    // solve for X and Y such that a0*b0 + (p-a1)*b1 = p*X + Y with Y in [0,p) 
+    // -a1*b1 = (p-a1)*b1 mod p
+    var a0b0_var[100] = prod(n, k, a[0], b[0]);
+    var a1_neg[100] = long_sub(n, k, p, a[1]); 
+    var a1b1_neg[100] = prod(n, k, a1_neg, b[1]);
+    var diff[100] = long_add(n, 2*k, a0b0_var, a1b1_neg); // 2*k+1 registers
+    out[0] = long_div2(n, k, k+1, diff, p); 
+    // X = out[0][0] has k+2 registers, Y = out[0][1] has k registers 
+    
+    // solve for X and Y such that a0*b1 + a1*b0 = p*X + Y with Y in [0,p) 
+    var a0b1_var[100] = prod(n, k, a[0], b[1]);
+    var a1b0_var[100] = prod(n, k, a[1], b[0]);
+    var sum[100] = long_add(n, 2*k, a0b1_var, a1b0_var); // output 2*k+1 registers
+    out[1] = long_div2(n, k, k+1, sum, p); 
+    // X = out[1][0] has k+2 registers, Y = out[1][1] has k registers 
+
+    return out;
+}
+
 function get_BLS12_381_parameter(){
     return 15132376222941642752;
 }

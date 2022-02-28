@@ -87,6 +87,46 @@ template BigMultShortLong2D(n, k, l) {
     }
 }
 
+// output (a0 + a1 u)*(b0 + b1 u) = (a0*b0 + (p-a1)*b1) + (a0*b1 + a1*b0)u 
+//      where no carries are performed 
+// out[0], out[1] have 2*k-1 registers 
+// out[0][i] in (-(k+1)*2^{2n}, (k+1)*2^{2n+1})
+// out[1][i] in [0, (k+1)*2^{2n+1}) 
+template Fp2multiplyNoCarry(n, k){
+    signal input a[2][k];
+    signal input b[2][k];
+    signal input p[k];
+    signal output out[2][2*k-1];
+    
+    component a0b0 = BigMultShortLong(n, k);
+    component a1b1 = BigMultShortLong(n, k);
+    component pb1 = BigMultShortLong(n, k); 
+    component a0b1 = BigMultShortLong(n, k); 
+    component a1b0 = BigMultShortLong(n, k);
+    
+    for(var i=0; i<k; i++){
+        a0b0.a[i] <== a[0][i];
+        a0b0.b[i] <== b[0][i];
+
+        a1b1.a[i] <== a[1][i];
+        a1b1.b[i] <== b[1][i];
+
+        pb1.a[i] <== p[i];
+        pb1.b[i] <== b[1][i];
+
+        a0b1.a[i] <== a[0][i];
+        a0b1.b[i] <== b[1][i];
+
+        a1b0.a[i] <== a[1][i];
+        a1b0.b[i] <== b[0][i];
+    }
+ 
+    for(var i=0; i<2*k-1; i++){
+        out[0][i] <== a0b0.out[i] + pb1.out[i] - a1b1.out[i];
+        out[1][i] <== a0b1.out[i] + a1b0.out[i];
+    }
+}
+
 // multiplication specialized to Fp^2 
 // (a0 + a1 u)*(b0 + b1 u) = (a0*b0 - a1*b1) + (a0*b1 + a1*b0)u
 template Fp2multiply(n, k){
@@ -99,131 +139,74 @@ template Fp2multiply(n, k){
     assert(k<7);
     assert(2*n + 1 + LOGK<254);
 
-    // out[0] computation
-    // solve for X and Y such that a0*b0 + (p-a1)*b1 = p*X + Y with Y in [0,p) 
-    // -a1*b1 = (p-a1)*b1 mod p
-    var a0b0_var[100] = prod(n, k, a[0], b[0]);
-    var a1_neg[100] = long_sub(n, k, p, a[1]); 
-    var a1b1_neg[100] = prod(n, k, a1_neg, b[1]);
-    var diff[100] = long_add(n, 2*k, a0b0_var, a1b1_neg); // 2*k+1 registers
-    var X_Y[2][100] = long_div2(n, k, k+1, diff, p); 
-    // X = X_Y[0] has k+2 registers, Y = X_Y[1] has k registers 
-    // out[0] = Y
-    for(var i=0; i<k; i++)
-        out[0][i] <-- X_Y[1][i];
-    component range_checks[k];
-    for(var i=0; i<k; i++){
-        range_checks[i] = Num2Bits(n);
-        range_checks[i].in <== out[0][i]; 
-    }
-    component lt = BigLessThan(n, k);
-    for(var i=0; i<k; i++){
-        lt.a[i] <== out[0][i];
-        lt.b[i] <== p[i];
-    }
-    lt.out === 1;
-
-    signal X[k+2];
-    component X_range_checks[k+2];
-    for(var i=0; i<k+2; i++){
-        X[i] <-- X_Y[0][i];
-        X_range_checks[i] = Num2Bits(n);
-        X_range_checks[i].in <== X[i];
-    }
+    var Xvar[2][2][100] = Fp2prod(n, k, a, b, p); 
+    component range_checks[2][k];
+    component lt[2];
+    signal X[2][k+2]; 
+    component X_range_checks[2][k+2];
     
+    for(var eps=0; eps<2; eps++){
+        lt[eps] = BigLessThan(n, k);
+        for(var i=0; i<k; i++){
+            out[eps][i] <-- Xvar[eps][1][i];
+            range_checks[eps][i] = Num2Bits(n);
+            range_checks[eps][i].in <== out[eps][i];
+            
+            lt[eps].a[i] <== out[eps][i];
+            lt[eps].b[i] <== p[i];
+        }
+        lt[eps].out === 1;
+        
+        for(var i=0; i<k+2; i++){
+            X[eps][i] <-- Xvar[eps][0][i];
+            X_range_checks[eps][i] = Num2Bits(n);
+            X_range_checks[eps][i].in <== X[eps][i];
+        }
+        
+    }
+
+    
+    // out[0] constraint: X = X[0], Y = out[0] 
     // constrain by Carry( a0 *' b0 +' p *' b1 -' a1 *' b1 - p *' X - Y ) = 0 
     // where all operations are performed without carry 
     // each register is an overflow representation in the range (-(k+1)*2^{2n+1}-2^n, (k+1)*2^{2n + 1} )
     //                                          which is inside (-2^{2n+1+LOGK}, 2^{2n+1+LOGK})
-    
-    component a0b0 = BigMultShortLong(n, k);
-    component a1b1 = BigMultShortLong(n, k);
-    component pb1 = BigMultShortLong(n, k); // 2*k-1 registers
-    component pX = BigMultShortLong(n, k+2); // 2*k+3 registers
-    for(var i=0; i<k; i++){
-        a0b0.a[i] <== a[0][i];
-        a0b0.b[i] <== b[0][i];
 
-        a1b1.a[i] <== a[1][i];
-        a1b1.b[i] <== b[1][i];
-
-        pb1.a[i] <== p[i];
-        pb1.b[i] <== b[1][i];
-
-        pX.a[i] <== p[i];
-        pX.b[i] <== X[i];
-    }
-    for(var i=k; i<k+2; i++){
-        pX.a[i] <== 0;
-        pX.b[i] <== X[i];
-    }
-
-    component carry_check = CheckCarryToZero(n, 2*n+2+LOGK, 2*k+3); 
-    for(var i=0; i<k; i++)
-        carry_check.in[i] <== a0b0.out[i] + pb1.out[i] - a1b1.out[i] - pX.out[i] - out[0][i]; 
-    for(var i=k; i<2*k-1; i++)
-        carry_check.in[i] <== a0b0.out[i] + pb1.out[i] - a1b1.out[i] - pX.out[i]; 
-    for(var i=2*k-1; i<2*k+3; i++)
-        carry_check.in[i] <== -pX.out[i];
-
-    // now for out[1] computation
-    // solve for Z and out[1] such that a0*b1 + a1*b0 = p*Z + out[1] with out[1] in [0,p) 
-    var a0b1_var[100] = prod(n, k, a[0], b[1]);
-    var a1b0_var[100] = prod(n, k, a[1], b[0]);
-    var sum[100] = long_add(n, 2*k, a0b1_var, a1b0_var); // output 2*k+1 registers
-    var sum_div[2][100] = long_div2(n, k, k+1, sum, p); 
-    // Z = sum_div[0] has k+2 registers 
-    for(var i=0; i<k; i++)
-        out[1][i] <-- sum_div[1][i];
-    component range_checks1[k];
-    for(var i=0; i<k; i++){
-        range_checks1[i] = Num2Bits(n);
-        range_checks1[i].in <== out[1][i]; 
-    }
-    component lt1 = BigLessThan(n, k);
-    for(var i=0; i<k; i++){
-        lt1.a[i] <== out[1][i];
-        lt1.b[i] <== p[i];
-    }
-    lt1.out === 1;
-
-    signal Z[k+2];
-    component Z_range_checks[k+2];
-    for(var i=0; i<k+2; i++){
-        Z[i] <-- sum_div[0][i];
-        Z_range_checks[i] = Num2Bits(n);
-        Z_range_checks[i].in <== Z[i];
-    }
-
-    // constrain by Carry( a0 *' b1 +' a1 *' b0 -' p *' Z - out[1]) = 0 
+    // out[1] constraint: X = X[1], Y = out[1]
+    // constrain by Carry( a0 *' b1 +' a1 *' b0 -' p *' X - Y) = 0 
     // each register is an overflow representation in the range (-(k+1)*2^{2n}-2^n, (k+1)*2^{2n + 1} )
     //                                          which is inside (-2^{2n+1+LOGK}, 2^{2n+1+LOGK})
-
-    component a0b1 = BigMultShortLong(n, k); // 2*k-1 registers
-    component a1b0 = BigMultShortLong(n, k);
-    component pZ = BigMultShortLong(n, k+2); // 2*k+3 registers
-    for(var i=0; i<k; i++){
-        a0b1.a[i] <== a[0][i];
-        a0b1.b[i] <== b[1][i];
-
-        a1b0.a[i] <== a[1][i];
-        a1b0.b[i] <== b[0][i];
-        
-        pZ.a[i] <== p[i];
-        pZ.b[i] <== Z[i];
-    }
-    for(var i=k; i<k+2; i++){
-        pZ.a[i] <== 0;
-        pZ.b[i] <== Z[i];
-    }
     
-    component carry_check1 = CheckCarryToZero(n, 2*n+2+LOGK, 2*k+3);
-    for(var i=0; i<k; i++)
-        carry_check1.in[i] <== a0b1.out[i] + a1b0.out[i] - pZ.out[i] - out[1][i]; 
-    for(var i=k; i<2*k-1; i++)
-        carry_check1.in[i] <== a0b1.out[i] + a1b0.out[i] - pZ.out[i]; 
-    for(var i=2*k-1; i<2*k+3; i++)
-        carry_check1.in[i] <== -pZ.out[i];
+    component ab = Fp2multiplyNoCarry(n, k); 
+    for(var i=0; i<k; i++){
+        ab.p[i] <== p[i];
+        ab.a[0][i] <== a[0][i];
+        ab.a[1][i] <== a[1][i];
+        ab.b[0][i] <== b[0][i];
+        ab.b[1][i] <== b[1][i];
+    }
+    component pX[2];
+    component carry_check[2];
+    for(var eps=0; eps<2; eps++){
+        pX[eps] = BigMultShortLong(n, k+2); // 2*k+3 registers
+        for(var i=0; i<k; i++){
+            pX[eps].a[i] <== p[i];
+            pX[eps].b[i] <== X[eps][i];
+        }
+        for(var i=k; i<k+2; i++){
+            pX[eps].a[i] <== 0;
+            pX[eps].b[i] <== X[eps][i];
+        }
+
+        carry_check[eps] = CheckCarryToZero(n, 2*n+2+LOGK, 2*k+3); 
+        for(var i=0; i<k; i++)
+            carry_check[eps].in[i] <== ab.out[eps][i] - pX[eps].out[i] - out[eps][i]; 
+        for(var i=k; i<2*k-1; i++)
+            carry_check[eps].in[i] <== ab.out[eps][i] - pX[eps].out[i]; 
+        for(var i=2*k-1; i<2*k+3; i++)
+            carry_check[eps].in[i] <== -pX[eps].out[i];
+    }
+
 }
 
 // input: in[0] + in[1] u
@@ -691,10 +674,70 @@ template Fp12Multiply(n, k) {
     }
 }
 
+// unoptimized squaring, just takes two elements of Fp12 and multiplies them
+template Fp12square(n, k) {
+    signal input in[6][2][k];
+    signal input p[k];
+    signal output out[6][2][k];
 
-// assume input is an element of Fp12 in the cyclotomic subgroup GΦ12
+    // for now just use plain multiplication, this can be optimized later
+    component square = Fp12Multiply(n, k);
+    for(var i=0; i<6; i++)for(var j=0; j<k; j++){
+        square.a[i][0][j] <== in[i][0][j];
+        square.a[i][1][j] <== in[i][1][j];
+    
+        square.b[i][0][j] <== in[i][0][j];
+        square.b[i][1][j] <== in[i][1][j];
+    }
+    for(var i=0; i<k; i++) square.p[i] <== p[i];
+
+    for(var i=0; i<6; i++)for(var j=0; j<k; j++){
+        out[i][0][j] <== square.out[i][0][j];
+        out[i][1][j] <== square.out[i][1][j];
+    }
+}
+
+
+// assume input is an element of Fp12 in the cyclotomic subgroup GΦ₁₂
 // A cyclotomic group is a subgroup of Fp^n defined by
 //   GΦₙ(p) = {α ∈ Fpⁿ : α^{Φₙ(p)} = 1}
+
+// below we implement compression and decompression for an element  GΦ₁₂ following Theorem 3.1 of https://www.ams.org/journals/mcom/2013-82-281/S0025-5718-2012-02625-1/S0025-5718-2012-02625-1.pdf
+// Fp4 = Fp2(w^3) where (w^3)^2 = 1+u 
+// Fp12 = Fp4(w) where w^3 = w^3 
+
+// in = g0 + g2 w + g4 w^2 + g1 w^3 + g3 w^4 + g5 w^5 where g_i are elements of Fp2
+// out = Compress(in) = [ g2, g3, g4, g5 ] 
+template Fp12cyclotomicCompress(n, k) {
+    signal input in[6][2][k];
+    signal output out[4][2][k]; 
+
+    for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
+        out[0][eps][j] <== in[1][eps][j];
+        out[1][eps][j] <== in[4][eps][j];
+        out[2][eps][j] <== in[2][eps][j];
+        out[3][eps][j] <== in[5][eps][j];
+    } 
+}
+
+// in = [g2, g3, g4, g5] where g_i are elements of Fp2
+// out = Decompress(in) = g0 + g2 w + g4 w^2 + g1 w^3 + g3 w^4 + g5 w^5 where
+// if g2 != 0:
+//      g1 = (g5^2 * (1+u) + 3 g4^2 - 2 g3)/(4g2) 
+//      g0 = (2 g1^2 + g2 * g5 - 3 g3*g4) * (1+u) + 1
+// if g2 = 0:
+//      g1 = (2 g4 * g5)/g3
+//      g0 = (2 g1^2 - 3 g3 * g4) * (1+u)  + 1
+
+// well this is going to be a slog... 
+// not going to optimize too much since this isn't called often
+template Fp12cyclotomicDecompress(n, k) {
+    signal input in[4][2][k];
+    signal input p[k];
+    signal output out[6][2][k]; 
+
+}
+
 // output is square of input 
 template Fp12cyclotomicSquare(n, k) {
     signal input in[6][2][k];
@@ -793,7 +836,7 @@ template Fp12cyclotomicExp(n, k, e) {
 }
 
 // hard part of final exponentiation
-// use equation (3) from https://eprint.iacr.org/2016/130.pdf
+// use equation at top of p.14 from https://eprint.iacr.org/2020/875.pdf
 template hard_part(n, k){
     signal input in[6][2][k]; 
     signal input p[k];

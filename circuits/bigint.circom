@@ -39,6 +39,24 @@ template BigIsEqual(k) {
     out <== checkZero.out;
 }
 
+// check if k-register variable a is equal to zero
+template BigIsZero(k) {
+    signal input a[k];
+    signal output out;
+
+    component isZeros[k];
+    var total = k;
+    for (var i = 0; i < k; i ++) {
+        isZeros[i] = IsZero();
+        isZeros[i].in <== a[i];
+        total -= isZeros[i].out;
+    }
+    component checkZero = IsZero();
+    checkZero.in <== total;
+    out <== checkZero.out;
+}
+
+
 // a - b
 template ModSub(n) {
     assert(n <= 252);
