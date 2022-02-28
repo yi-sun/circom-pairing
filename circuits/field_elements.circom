@@ -801,112 +801,93 @@ template hard_part(n, k){
 
     var x = get_BLS12_381_parameter();  // absolute value of parameter for BLS12-381
     
-    // lambda3 = x^2 + 2 x + 1
-    // in^x 
-    component pow30 = Fp12cyclotomicExp(n, k, x); 
-    for(var i=0; i<k; i++) pow30.p[i] <== p[i];
-    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-        pow30.in[id][eps][j] <== in[id][eps][j];
-    
-    // (in^x)^{x+2} 
-    component pow31 = Fp12cyclotomicExp(n, k, x+2); 
-    for(var i=0; i<k; i++) pow31.p[i] <== p[i];
-    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-        pow31.in[id][eps][j] <== pow30.out[id][eps][j];
-
-    // in^{x(x+2)+1} = in^{lambda3}
-    component explambda3 = Fp12Multiply(n, k);
-    for(var i=0; i<k; i++) explambda3.p[i] <== p[i];
-    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
-        explambda3.a[id][eps][j] <== pow31.out[id][eps][j];
-        explambda3.b[id][eps][j] <== in[id][eps][j];
-    }
-
-    // in^{-lambda3} using that inverse = Frob(6) in cyclotomic subgroup
-    component inv1 = Fp12frobeniusMap(n, k, 6);
-    for(var i=0; i<k; i++) inv1.p[i] <== p[i];
-    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-        inv1.in[id][eps][j] <== explambda3.out[id][eps][j];
-
-    // in^{-lambda3(x)} 
-    component explambda2 = Fp12cyclotomicExp(n, k, x);
-    for(var i=0; i<k; i++) explambda2.p[i] <== p[i];
-    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-        explambda2.in[id][eps][j] <== inv1.out[id][eps][j];
-
-    // in^{lambda2 x}
-    component pow1 = Fp12cyclotomicExp(n, k, x);
+    // in^{(x+1)/3} 
+    component pow1 = Fp12cyclotomicExp(n, k, (x+1)\3 ); 
     for(var i=0; i<k; i++) pow1.p[i] <== p[i];
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-        pow1.in[id][eps][j] <== explambda2.out[id][eps][j];
-
-    // in^{lambda2 x + lambda3} = in^{-lambda1}
-    component prod1 = Fp12Multiply(n, k);
-    for(var i=0; i<k; i++) prod1.p[i] <== p[i];
-    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
-        prod1.a[id][eps][j] <== pow1.out[id][eps][j];
-        prod1.b[id][eps][j] <== explambda3.out[id][eps][j];
-    }
+        pow1.in[id][eps][j] <== in[id][eps][j];
     
-    // in^{-(lambda2x + lambda3} 
-    component explambda1 = Fp12frobeniusMap(n, k, 6);
-    for(var i=0; i<k; i++) explambda1.p[i] <== p[i];
+    // in^{(x+1)/3 * (x+1)}
+    component pow2 = Fp12cyclotomicExp(n, k, x+1); 
+    for(var i=0; i<k; i++) pow2.p[i] <== p[i];
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-        explambda1.in[id][eps][j] <== prod1.out[id][eps][j];
-    
-    // in^{-lambda1 x}
-    component pow00 = Fp12cyclotomicExp(n, k, x);
-    for(var i=0; i<k; i++) pow00.p[i] <== p[i];
-    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-        pow00.in[id][eps][j] <== prod1.out[id][eps][j];
+        pow2.in[id][eps][j] <== pow1.out[id][eps][j];
 
-    // in^3 
-    component pow01 = Fp12cyclotomicExp(n, k, 3);
-    for(var i=0; i<k; i++) pow01.p[i] <== p[i];
+    // in^{(x+1)^2/3 * -1} = pow2^-1  inverse = frob(6) in cyclotomic subgroup
+    component pow3 = Fp12frobeniusMap(n, k, 6);
+    for(var i=0; i<k; i++) pow3.p[i] <== p[i];
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-        pow01.in[id][eps][j] <== in[id][eps][j];
+        pow3.in[id][eps][j] <== pow2.out[id][eps][j];
 
-    // in^{-lambda1*x + 3}
-    component explambda0 = Fp12Multiply(n, k);
-    for(var i=0; i<k; i++) explambda0.p[i] <== p[i];
+    // in^{(x+1)^2/3 * -x} = pow3^x 
+    component pow4 = Fp12cyclotomicExp(n, k, x); 
+    for(var i=0; i<k; i++) pow4.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        pow4.in[id][eps][j] <== pow3.out[id][eps][j];
+
+    // in^{(x+1)^2/3 * p} = pow2^p 
+    component pow5 = Fp12frobeniusMap(n, k, 1);
+    for(var i=0; i<k; i++) pow5.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        pow5.in[id][eps][j] <== pow2.out[id][eps][j];
+
+    // in^{(x+1)^2/3 * (-x+p)} = pow4 * pow5
+    component pow6 = Fp12Multiply(n, k);
+    for(var i=0; i<k; i++) pow6.p[i] <== p[i];
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
-        explambda0.a[id][eps][j] <== pow00.out[id][eps][j];
-        explambda0.b[id][eps][j] <== pow01.out[id][eps][j];
-    }
-    
-    component frob[4]; // frob[i] = (in^{lambda_i})^{q^i} = in^{lambda_i * q^i}
-    for(var i=1; i<4; i++){
-        frob[i] = Fp12frobeniusMap(n, k, i); 
-        for(var j=0; j<k; j++) frob[i].p[j] <== p[j];
-    }
-    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
-        frob[1].in[id][eps][j] <== explambda1.out[id][eps][j];
-        frob[2].in[id][eps][j] <== explambda2.out[id][eps][j];
-        frob[3].in[id][eps][j] <== explambda3.out[id][eps][j];
+        pow6.a[id][eps][j] <== pow4.out[id][eps][j];
+        pow6.b[id][eps][j] <== pow5.out[id][eps][j];
     }
 
-    // in^{lambda_0} * frob[1]
-    component fprod0 = Fp12Multiply(n, k); 
-    for(var i=0; i<k; i++) fprod0.p[i] <== p[i];
+    // in^{(x+1)^2/3 * (-x+p) * x}  = pow6^x
+    component pow7 = Fp12cyclotomicExp(n, k, x);
+    for(var i=0; i<k; i++) pow7.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        pow7.in[id][eps][j] <== pow6.out[id][eps][j];
+
+    // in^{(x+1)^2/3 * (-x+p) * x^2}  = pow7^x
+    component pow8 = Fp12cyclotomicExp(n, k, x);
+    for(var i=0; i<k; i++) pow8.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        pow8.in[id][eps][j] <== pow7.out[id][eps][j];
+
+    // in^{(x+1)^2/3 * (-x+p) * q^2} = pow6^{q^2}
+    component pow9 = Fp12frobeniusMap(n, k, 2);
+    for(var i=0; i<k; i++) pow9.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        pow9.in[id][eps][j] <== pow6.out[id][eps][j];
+    
+    // in^{(x+1)^2/3 * (-x+p) * -1} = pow6^{-1} = pow6^{q^6}
+    component pow10 = Fp12frobeniusMap(n, k, 6);
+    for(var i=0; i<k; i++) pow10.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        pow10.in[id][eps][j] <== pow6.out[id][eps][j];
+    
+    // in^{(x+1)^2/3 * (-x+p) * (x^2 + q^2)} = pow8 * pow9
+    component pow11 = Fp12Multiply(n, k);
+    for(var i=0; i<k; i++) pow11.p[i] <== p[i];
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
-        fprod0.a[id][eps][j] <== explambda0.out[id][eps][j];
-        fprod0.b[id][eps][j] <== frob[1].out[id][eps][j];
+        pow11.a[id][eps][j] <== pow8.out[id][eps][j];
+        pow11.b[id][eps][j] <== pow9.out[id][eps][j];
     }
-    // frob[2] * frob[3]
-    component fprod1 = Fp12Multiply(n, k); 
-    for(var i=0; i<k; i++) fprod1.p[i] <== p[i];
+    
+    // in^{(x+1)^2/3 * (-x+p) * (x^2 + q^2 - 1)} = pow10 * pow11
+    component pow12 = Fp12Multiply(n, k);
+    for(var i=0; i<k; i++) pow12.p[i] <== p[i];
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
-        fprod1.a[id][eps][j] <== frob[2].out[id][eps][j];
-        fprod1.b[id][eps][j] <== frob[3].out[id][eps][j];
+        pow12.a[id][eps][j] <== pow10.out[id][eps][j];
+        pow12.b[id][eps][j] <== pow11.out[id][eps][j];
     }
-    // final answer: in^{lambda_0} * frob[1] * frob[2] * frob[3]
-    component fprod2 = Fp12Multiply(n, k); 
-    for(var i=0; i<k; i++) fprod2.p[i] <== p[i];
+    
+    // final answer
+    // in^{(x+1)^2/3 * (-x+p) * (x^2 + q^2 - 1) + 1} = pow12 * in 
+    component pow13 = Fp12Multiply(n, k); 
+    for(var i=0; i<k; i++) pow13.p[i] <== p[i];
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
-        fprod2.a[id][eps][j] <== fprod0.out[id][eps][j];
-        fprod2.b[id][eps][j] <== fprod1.out[id][eps][j];
+        pow13.a[id][eps][j] <== pow12.out[id][eps][j];
+        pow13.b[id][eps][j] <== in[id][eps][j];
     }
     
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-        out[id][eps][j] <== fprod2.out[id][eps][j];
+        out[id][eps][j] <== pow13.out[id][eps][j];
 }
