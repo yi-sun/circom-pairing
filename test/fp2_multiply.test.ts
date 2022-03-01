@@ -137,7 +137,7 @@ describe("Fp2invert n = 4, k = 2", function() {
         var c1_array: bigint[] = bigint_to_array(4, 2, c1);
 
         it('Testing a0: ' + a0 + ' a1: ' + a1 + ' p: ' + p + ' c0: ' + c0 + ' c1: ' + c1, async function() {
-            let witness = await circuit.calculateWitness({"in": [a0_array, a1_array], "p": p_array});
+            let witness = await circuit.calculateWitness({"in": [a0_array, a1_array]});
 	    await circuit.assertOut(witness, {"out": [c0_array, c1_array]});
             await circuit.checkConstraints(witness);
         });

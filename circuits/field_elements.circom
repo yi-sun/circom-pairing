@@ -334,7 +334,6 @@ template Fp2invert(n, k, p){
         in_out.a[i][j] <-- in[i][j];
         in_out.b[i][j] <-- out[i][j];
     }
-    for(var i=0; i<k; i++) in_out.p[i] <-- p[i];
 
     for(var i=0; i<2; i++)for(var j=0; j<k; j++){
         if(i == 0 && j == 0)
