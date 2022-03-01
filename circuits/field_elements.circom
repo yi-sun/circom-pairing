@@ -285,42 +285,18 @@ template Fp2subtract(n, k){
     }
 }
 
-// Src: https://github.com/paulmillr/noble-bls12-381/blob/23823d664b1767fb20c9c19c5800c66993b576a5/math.ts#L444
-// We wish to find the multiplicative inverse of a nonzero
-// element a + bu in Fp2. We leverage an identity
-//
-// (a + bu)(a - bu) = a² + b²
-//
-// which holds because u² = -1. This can be rewritten as
-//
-// (a + bu)(a - bu)/(a² + b²) = 1
-//
-// because a² + b² = 0 has no nonzero solutions for (a, b).
-// This gives that (a - bu)/(a² + b²) is the inverse
-// of (a + bu). Importantly, this can be computing using
-// only a single inversion in Fp.
+// Call Fp2invert_func to compute inverse
+// Then check out * in = 1, out is an array of shorts
 template Fp2invert(n, k, p){
     signal input in[2][k];
     signal output out[2][k];
 
-    // lambda = 1/(in0**2 + in1**2) % p
-    
-    var sq0[100] = prod(n, k, in[0], in[0]);
-    var sq1[100] = prod(n, k, in[1], in[1]);
-    var sq_sum[100] = long_add(n, 2*k, sq0, sq1);
-    var sq_sum_div[2][100] = long_div2(n, k, k+1, sq_sum, p);
-    // lambda = 1/(sq_sum)%p
-    var lambda[100] = mod_inv(n, k, sq_sum_div[1], p);
-    var out0[100] = prod(n, k, lambda, in[0]);
-    var out0_div[2][100] = long_div(n, k, out0, p);
-    for(var i=0; i<k; i++)
-        out[0][i] <-- out0_div[1][i];
-    
-    var out1_pre[100] = long_sub(n, k, p, in[1]);
-    var out1[100] = prod(n, k, lambda, out1_pre);
-    var out1_div[2][100] = long_div(n, k, out1, p);
-    for(var i=0; i<k; i++)
-        out[1][i] <-- out1_div[1][i];
+    var inverse[2][100] = Fp2invert_func(n, k, p, in); // 2 x 100, only 2 x k relevant
+    for (var i = 0; i < 2; i ++) {
+        for (var j = 0; j < k; j ++) {
+            out[i][j] <-- inverse[i][j];
+        }
+    }
 
     //range checks
     component outRangeChecks[2][k];

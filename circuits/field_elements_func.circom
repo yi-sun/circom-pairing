@@ -59,6 +59,43 @@ function get_BLS12_381_prime(n, k){
     return p;
 }
 
+// a is 2 x k, represents element of Fp^2
+// out is the inverse of a in Fp^2 (2 x k array of shorts)
+
+// Src: https://github.com/paulmillr/noble-bls12-381/blob/23823d664b1767fb20c9c19c5800c66993b576a5/math.ts#L444
+// We wish to find the multiplicative inverse of a nonzero
+// element a + bu in Fp2. We leverage an identity
+//
+// (a + bu)(a - bu) = a² + b²
+//
+// which holds because u² = -1. This can be rewritten as
+//
+// (a + bu)(a - bu)/(a² + b²) = 1
+//
+// because a² + b² = 0 has no nonzero solutions for (a, b).
+// This gives that (a - bu)/(a² + b²) is the inverse
+// of (a + bu). 
+function Fp2invert_func(n, k, p, a) {
+    var sq0[100] = prod(n, k, a[0], a[0]);
+    var sq1[100] = prod(n, k, a[1], a[1]);
+    var sq_sum[100] = long_add(n, 2*k, sq0, sq1);
+    var sq_sum_div[2][100] = long_div2(n, k, k+1, sq_sum, p);
+    // lambda = 1/(sq_sum)%p
+    var lambda[100] = mod_inv(n, k, sq_sum_div[1], p);
+    var out0[100] = prod(n, k, lambda, a[0]);
+    var out0_div[2][100] = long_div(n, k, out0, p);
+    var out[2][100];
+    for(var i=0; i<k; i++)
+        out[0][i] = out0_div[1][i];
+    
+    var out1_pre[100] = long_sub(n, k, p, a[1]);
+    var out1[100] = prod(n, k, lambda, out1_pre);
+    var out1_div[2][100] = long_div(n, k, out1, p);
+    for(var i=0; i<k; i++)
+        out[1][i] = out1_div[1][i];
+    return out;
+}
+
 function get_Fp12_frobenius(n, k){
     assert( (n==96 && k==4) || (n==77 && k==5) );
     var coeff[12][6][2][5]; // 
