@@ -695,3 +695,39 @@ template CheckCarryToZero(n, m, k) {
     in[k-1] + carry[k-2] === 0;
     
 }
+
+// generalization of secp prime trick according to https://discord.com/channels/913953234777931796/920131476333420634/947186676558606446
+// X = 2^n 
+// in has k + m registers 
+//      in[0] + in[1] * X + ... + in[k+m-1] * X^{k+m-1} 
+//      where in[i] is a signed long such that in[i] * 2^n does not cause overflow
+// Assume prime p in k registers is given, p[i] in [0, 2^n)
+// For i >= k, we precompute X^i = r[i] mod p 
+//      where r[i] represented as k registers with r[i][j] in [0, 2^n) 
+// Output has k registers where in[i] * X^i is replaced by sum_j in[i] * r[i][j] * X^j
+// if in[i] in (-B, B) for all i, then out[i] < (-2^n * B * m, 2^n * B * m)
+template primeTrickCompression(n, k, m, p){
+    signal input in[m+k]; 
+    signal output out[k];
+
+    var two[100]; 
+    var e[100];
+    for(var i=1; i<100; i++){
+        two[i]=0;
+        e[i]=0;
+    }
+    two[0] = 2;
+    var r[20][100]; 
+    for(var i=0; i<m; i++){
+        e[0] = n*(k+i);
+        r[i] = mod_exp(n, k, two, p, e );
+    } 
+    var out_sum[20]; 
+    for(var i=0; i<k; i++)
+        out_sum[i] = in[i];
+    for(var i=0; i<m; i++)
+        for(var j=0; j<k; j++)
+            out_sum[j] += in[i+k] * r[i][j]; // linear constraint
+    for(var i=0; i<k; i++)
+        out[i] <== out_sum[i]; 
+}

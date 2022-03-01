@@ -87,32 +87,38 @@ template BigMultShortLong2D(n, k, l) {
     }
 }
 
-// output (a0 + a1 u)*(b0 + b1 u) = (a0*b0 + (p-a1)*b1) + (a0*b1 + a1*b0)u 
-//      where no carries are performed 
-// out[0], out[1] have 2*k-1 registers 
-// out[0][i] in (-(k+1)*2^{2n}, (k+1)*2^{2n+1})
-// out[1][i] in [0, (k+1)*2^{2n+1}) 
-template Fp2multiplyNoCarry(n, k){
+// multiplication specialized to Fp2
+// (a0 + a1 u)*(b0 + b1 u) = (a0*b0 - a1*b1) + (a0*b1 + a1*b0)u 
+
+// p has k registers 
+
+// outputs:
+//  (the minus is slightly problematic so we keep a0b0 and a1b1 in this preparatory template)
+//  a0b0 has k registers and is congruent to a0*b0 mod p 
+//      this uses "prime trick" to compress from 2*k-1 to k registers 
+//      each register in [0, (k+1)*k*2^{3n} )
+//  a1b1 has k registers and is congruent to a1*b1 mod p 
+//      same as above
+//  imag has k registers and is congruent to a0*b1 + a1*b0 mod p 
+//      each register in [0, (k+1)*k*2^{3n+1} )
+template Fp2multiplyNoCarry(n, k, p){
     signal input a[2][k];
     signal input b[2][k];
-    signal input p[k];
-    signal output out[2][2*k-1];
+    signal output a0b0[k];
+    signal output a1b1[k];
+    signal output imag[k];
     
-    component a0b0 = BigMultShortLong(n, k);
-    component a1b1 = BigMultShortLong(n, k);
-    component pb1 = BigMultShortLong(n, k); 
+    component a0b0_pre = BigMultShortLong(n, k); // output has 2*k-1 registers
+    component a1b1_pre = BigMultShortLong(n, k);
     component a0b1 = BigMultShortLong(n, k); 
     component a1b0 = BigMultShortLong(n, k);
     
     for(var i=0; i<k; i++){
-        a0b0.a[i] <== a[0][i];
-        a0b0.b[i] <== b[0][i];
+        a0b0_pre.a[i] <== a[0][i];
+        a0b0_pre.b[i] <== b[0][i];
 
-        a1b1.a[i] <== a[1][i];
-        a1b1.b[i] <== b[1][i];
-
-        pb1.a[i] <== p[i];
-        pb1.b[i] <== b[1][i];
+        a1b1_pre.a[i] <== a[1][i];
+        a1b1_pre.b[i] <== b[1][i];
 
         a0b1.a[i] <== a[0][i];
         a0b1.b[i] <== b[1][i];
@@ -121,29 +127,45 @@ template Fp2multiplyNoCarry(n, k){
         a1b0.b[i] <== b[0][i];
     }
  
+    component compress[3]; 
+    for(var i=0; i<3; i++)
+        compress[i] = primeTrickCompression(n, k, k-1, p); 
     for(var i=0; i<2*k-1; i++){
-        out[0][i] <== a0b0.out[i] + pb1.out[i] - a1b1.out[i];
-        out[1][i] <== a0b1.out[i] + a1b0.out[i];
+        compress[0].in[i] <== a0b0_pre.out[i];
+        compress[1].in[i] <== a1b1_pre.out[i];
+        compress[2].in[i] <== a0b1.out[i] + a1b0.out[i];
+    }
+    for(var i=0; i<k; i++){
+        a0b0[i] <== compress[0].out[i];
+        a1b1[i] <== compress[1].out[i];
+        imag[i] <== compress[2].out[i];
     }
 }
 
-// multiplication specialized to Fp^2 
-// (a0 + a1 u)*(b0 + b1 u) = (a0*b0 - a1*b1) + (a0*b1 + a1*b0)u
-template Fp2multiply(n, k){
+// outputs a*b in Fp2 
+// out[i] has k registers each in [0, 2^n)
+// out[i] in [0, p)
+template Fp2multiply(n, k, p){
     signal input a[2][k];
     signal input b[2][k];
-    signal input p[k];
     signal output out[2][k];
 
-    var LOGK = 3;
     assert(k<7);
-    assert(2*n + 1 + LOGK<254);
+    var LOGK = 6; // LOGK = ceil( log_2( (k+1)k ) )
+    assert(3*n + 1 + LOGK<254);
 
-    var Xvar[2][2][100] = Fp2prod(n, k, a, b, p); 
+    component ab = Fp2multiplyNoCarry(n, k, p); 
+    for(var i=0; i<k; i++){
+        ab.a[0][i] <== a[0][i];
+        ab.a[1][i] <== a[1][i];
+        ab.b[0][i] <== b[0][i];
+        ab.b[1][i] <== b[1][i];
+    }
+    var Xvar[2][2][100] = Fp2prod(n, k, ab.a0b0, ab.a1b1, ab.imag, p); 
     component range_checks[2][k];
     component lt[2];
-    signal X[2][k+2]; 
-    component X_range_checks[2][k+2];
+    signal X[2][4]; 
+    component X_range_checks[2][4];
     
     for(var eps=0; eps<2; eps++){
         lt[eps] = BigLessThan(n, k);
@@ -157,56 +179,55 @@ template Fp2multiply(n, k){
         }
         lt[eps].out === 1;
         
-        for(var i=0; i<k+2; i++){
+        for(var i=0; i<4; i++){
             X[eps][i] <-- Xvar[eps][0][i];
-            X_range_checks[eps][i] = Num2Bits(n);
-            X_range_checks[eps][i].in <== X[eps][i];
+            X_range_checks[eps][i] = Num2Bits(n+1);
+            X_range_checks[eps][i].in <== X[eps][i] + (1<<n); // X[eps][i] should be between [-2^n, 2^n)
         }
         
     }
 
-    
     // out[0] constraint: X = X[0], Y = out[0] 
-    // constrain by Carry( a0 *' b0 +' p *' b1 -' a1 *' b1 - p *' X - Y ) = 0 
+    // constrain by Carry( a0b0 -' a1b1 - p *' X - Y ) = 0 
     // where all operations are performed without carry 
-    // each register is an overflow representation in the range (-(k+1)*2^{2n+1}-2^n, (k+1)*2^{2n + 1} )
-    //                                          which is inside (-2^{2n+1+LOGK}, 2^{2n+1+LOGK})
+    // each register is an overflow representation in the range 
+    //      (-(k+1)*k*2^{3n}-2^{2n}-2^n, (k+1)*k*2^{3n}+2^{2n} )
+    //      which is contained in (-2^{3n+LOGK+1}, 2^{3n+LOGK+1})
 
     // out[1] constraint: X = X[1], Y = out[1]
-    // constrain by Carry( a0 *' b1 +' a1 *' b0 -' p *' X - Y) = 0 
-    // each register is an overflow representation in the range (-(k+1)*2^{2n}-2^n, (k+1)*2^{2n + 1} )
-    //                                          which is inside (-2^{2n+1+LOGK}, 2^{2n+1+LOGK})
+    // constrain by Carry( imag -' p *' X - Y) = 0 
+    // each register is an overflow representation in the range 
+    //      (-2^{2n}-2^n, (k+1)*k*2^{3n+1} + 2^{2n} )
+    //      which is contained in (-2^{3n+LOGK+1}, 2^{3n+LOGK+1})
     
-    component ab = Fp2multiplyNoCarry(n, k); 
-    for(var i=0; i<k; i++){
-        ab.p[i] <== p[i];
-        ab.a[0][i] <== a[0][i];
-        ab.a[1][i] <== a[1][i];
-        ab.b[0][i] <== b[0][i];
-        ab.b[1][i] <== b[1][i];
-    }
     component pX[2];
     component carry_check[2];
+    var maxk4;
+    if(k < 4) maxk4 = 4;
+    else maxk4 = k;
+
     for(var eps=0; eps<2; eps++){
-        pX[eps] = BigMultShortLong(n, k+2); // 2*k+3 registers
-        for(var i=0; i<k; i++){
-            pX[eps].a[i] <== p[i];
-            pX[eps].b[i] <== X[eps][i];
+        pX[eps] = BigMultShortLong(n, maxk4); // p has k registers, X[eps] has 4 registers, so output really has k+3 registers 
+        for(var i=0; i<maxk4; i++){
+            if(i < k)
+                pX[eps].a[i] <== p[i];
+            else
+                pX[eps].a[i] <== 0;
+            if(i < 4)
+                pX[eps].b[i] <== X[eps][i];
+            else 
+                pX[eps].b[i] <== 0;
         }
-        for(var i=k; i<k+2; i++){
-            pX[eps].a[i] <== 0;
-            pX[eps].b[i] <== X[eps][i];
-        }
-
-        carry_check[eps] = CheckCarryToZero(n, 2*n+2+LOGK, 2*k+3); 
-        for(var i=0; i<k; i++)
-            carry_check[eps].in[i] <== ab.out[eps][i] - pX[eps].out[i] - out[eps][i]; 
-        for(var i=k; i<2*k-1; i++)
-            carry_check[eps].in[i] <== ab.out[eps][i] - pX[eps].out[i]; 
-        for(var i=2*k-1; i<2*k+3; i++)
-            carry_check[eps].in[i] <== -pX[eps].out[i];
+        carry_check[eps] = CheckCarryToZero(n, 3*n+2+LOGK, k+3 ); 
     }
-
+    for(var i=0; i<k; i++){
+        carry_check[0].in[i] <== ab.a0b0[i] - ab.a1b1[i] - pX[0].out[i] - out[0][i]; 
+        carry_check[1].in[i] <== ab.imag[i] - pX[1].out[i] - out[1][i];
+    }
+    for(var i=k; i<k+3; i++){
+        carry_check[0].in[i] <== -pX[0].out[i];
+        carry_check[1].in[i] <== -pX[1].out[i];
+    }
 }
 
 // input: in[0] + in[1] u
@@ -267,9 +288,8 @@ template Fp2subtract(n, k){
 // This gives that (a - bu)/(a² + b²) is the inverse
 // of (a + bu). Importantly, this can be computing using
 // only a single inversion in Fp.
-template Fp2invert(n, k){
+template Fp2invert(n, k, p){
     signal input in[2][k];
-    signal input p[k];
     signal output out[2][k];
 
     // lambda = 1/(in0**2 + in1**2) % p
@@ -298,7 +318,7 @@ template Fp2invert(n, k){
         outRangeChecks[i][j].in <== out[i][j];
     }
 
-    component in_out = Fp2multiply(n, k);
+    component in_out = Fp2multiply(n, k, p);
     for(var i=0; i<2; i++)for(var j=0; j<k; j++){
         in_out.a[i][j] <-- in[i][j];
         in_out.b[i][j] <-- out[i][j];
@@ -360,10 +380,10 @@ template Fp2frobeniusMap(n, k, power){
 
 template Fp12frobeniusMap(n, k, power){
     signal input in[6][2][k];
-    signal input p[k];
     signal output out[6][2][k];
 
-    var FP12_FROBENIUS_COEFFICIENTS[12][6][2][k] = get_Fp12_frobenius(n, k);
+    var p = get_BLS12_381_prime(n, k);
+    var FP12_FROBENIUS_COEFFICIENTS[12][6][2][5] = get_Fp12_frobenius(n, k);
     var pow = power % 12;
  
     component in_frob[6]; 
@@ -410,7 +430,7 @@ template Fp12frobeniusMap(n, k, power){
             out[0][1][j] <== in_frob[0].out[1][j];
         } 
         for(var i=1; i<6; i++){
-            mult_odd[i] = Fp2multiply(n, k);
+            mult_odd[i] = Fp2multiply(n, k, p);
             for(var j=0; j<k; j++){
                 for(var eps=0; eps<2; eps++){
                     mult_odd[i].a[eps][j] <== in_frob[i].out[eps][j];

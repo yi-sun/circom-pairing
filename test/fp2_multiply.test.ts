@@ -59,7 +59,7 @@ function invert(number: bigint, modulo: bigint): bigint {
     return mod(x, modulo);
 }
 
-describe("Fp2multiply n = 4, k = 2", function() {
+describe("Fp2multiply n = 4, k = 2, p=17", function() {
     this.timeout(1000 * 1000);
 
     // runs circom compilation
@@ -75,8 +75,8 @@ describe("Fp2multiply n = 4, k = 2", function() {
         for (var b0 = 0n; b0 < p; b0 = b0 + 2n) {
             for (var a1 = 0n; a1 < p; a1 = a1 + 2n) {
                 for (var b1 = 0n; b1 < p; b1 = b1 + 2n) {
-                    var c0 = (a0 * b0 - a1 * b1 + p * p) % p;
-                    var c1 = (a0 * b1 + a1 * b0) % p;
+                    var c0 = mod(a0 * b0 - a1 * b1, p);
+                    var c1 = mod(a0 * b1 + a1 * b0, p);
                     test_cases.push([a0, a1, b0, b1, p, c0, c1]);
                 }
             }
@@ -94,9 +94,9 @@ describe("Fp2multiply n = 4, k = 2", function() {
         var c0_array: bigint[] = bigint_to_array(4, 2, c0);
         var c1_array: bigint[] = bigint_to_array(4, 2, c1);
 
-        it('Testing a0: ' + a0 + ' a1: ' + a1 + ' b0: ' + b0 + ' b1: ' + b1 + ' p: ' + p + ' c0: ' + c0 + ' c1: ' + c1, async function() {
-            let witness = await circuit.calculateWitness({"a": [a0_array, a1_array], "b": [b0_array, b1_array], "p": p_array});
-	    await circuit.assertOut(witness, {"c": [c0_array, c1_array]});
+        it('Testing a0: ' + a0 + ' a1: ' + a1 + ' b0: ' + b0 + ' b1: ' + b1 + ' c0: ' + c0 + ' c1: ' + c1, async function() {
+            let witness = await circuit.calculateWitness({"a": [a0_array, a1_array], "b": [b0_array, b1_array]});
+	    await circuit.assertOut(witness, {"out": [c0_array, c1_array]});
             await circuit.checkConstraints(witness);
         });
     }

@@ -224,10 +224,31 @@ function short_div(n, k, a, b) {
    return ret;
 }
 
+// a has k registers
+// a = a0 + a1 * X + ... + a[k-1] * X^{k-1} with X = 2^n
+//      works as long as a[i-1]/2^n + a[i] doesn't overflow, e.g. a[i] in [0, 2^252)
+// output is the value of a as a BigInt with registers not overflowed 
+//      assuming that output has <100 registers 
+function long_to_short(n, k, a){
+    var out[100];
+    var temp[100];
+    for(var i=0; i<k; i++) temp[i] = a[i];
+    for(var i=k; i<100; i++) temp[i] = 0;
+
+    var carry=0;
+    for(var i=0; i<99; i++){
+        out[i] = temp[i] % (1<<n);
+        temp[i+1] += temp[i] \ (1<<n);
+    }
+    assert(temp[99] < (1<<n)); // otherwise 100 is not enough registers! 
+    out[99] = temp[99];
+    return out;
+}
+
 // n bits per register
 // a and b both have k registers
 // out[0] has length 2 * k
-// adapted from BigMulShortLong and LongToShortNoEndCarry2 witness computation
+// adapted from BigMulShortLong and LongToShortNoEndCarry witness computation
 function prod(n, k, a, b) {
     // first compute the intermediate values. taken from BigMulShortLong
     var prod_val[100]; // length is 2 * k - 1
@@ -244,7 +265,7 @@ function prod(n, k, a, b) {
         }
     }
 
-    // now do a bunch of carrying to make sure registers not overflowed. taken from LongToShortNoEndCarry2
+    // now do a bunch of carrying to make sure registers not overflowed. taken from LongToShortNoEndCarry
     var out[100]; // length is 2 * k
 
     var split[100][3]; // first dimension has length 2 * k - 1
