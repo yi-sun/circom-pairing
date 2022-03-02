@@ -118,6 +118,26 @@ function long_sub(n, k, a, b) {
     return diff;
 }
 
+function long_add_mod(n, k, a, b, p) {
+    var sum[100] = long_add(n,k,a,b); 
+    var temp[2][100] = long_div2(n,k,1,sum,p);
+    return temp[1];
+}
+
+function long_sub_mod(n, k, a, b, p) {
+    if(long_gt(n, k, b, a) == 1){
+        return long_add(n, k, a, long_sub(n,k,p,b));
+    }else{
+        return long_sub(n, k, a, b);
+    }
+}
+
+function prod_mod(n, k, a, b, p) {
+    var prod[100] = prod(n,k,a,b);
+    var temp[2][100] = long_div(n,k,prod,p);
+    return temp[1];
+}
+
 // a is a n-bit scalar
 // b has k registers
 function long_scalar_mult(n, k, a, b) {

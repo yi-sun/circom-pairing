@@ -159,20 +159,17 @@ template BigMultShortLong2DUnequal(n, ka, kb, la, lb) {
 //  a[4][k] allow overflow
 //  b[4][k] 
 // outputs:
-//  out[4][k] such that 
+//  out[4][2*k-1] such that 
 //      ( (a[0] - a[1]) + (a[2] - a[3])*u ) * ( (b[0] - b[1]) + (b[2] - b[3])*u ) 
-//          is congruent to (out[0] - out[1]) + (out[2] - out[3])*u modulo p  
+//      = (out[0] - out[1]) + (out[2] - out[3])*u  
 //      we keep track of "positive" and "negatives" since circom isn't able to 
-//      out[4] has k registers because we use the "prime trick" to compress from 2*k-1 to k registers 
-//      if each a[i][j] is in [0, B) then out[i][j] is in [0, 4*(k+1)*k*B^2 )
-//          (k+1)B^2 from BigMultShortLong
-//          *k from prime trick
-//          *4 from adding 
+//      if each a[i][j] is in [0, B) then out[i][j] is in [0, 4*(k+1)*B^2 )
+//  out[i] has 2*k-1 registers since that's output of BigMultShortLong
 template Fp2multiplyNoCarry(n, k, p){
     signal input a[4][k];
     signal input b[4][k];
-    signal output out[4][k];
-    
+    signal output out[4][2*k-1];
+
     component ab[4][4];
     for(var i=0; i<4; i++)for(var j=0; j<4; j++){
         ab[i][j] = BigMultShortLong(n, k); // output has 2*k-1 registers
@@ -182,24 +179,48 @@ template Fp2multiplyNoCarry(n, k, p){
         }
     }
     
-    component c[4];
-    for(var i=0; i<4; i++)
-        c[i] = primeTrickCompression(n, k, k-1, p);
     for(var j=0; j<2*k-1; j++){
-        c[0].in[j] <== ab[0][0].out[j] + ab[1][1].out[j] + ab[2][3].out[j] + ab[3][2].out[j];
-        c[1].in[j] <== ab[0][1].out[j] + ab[1][0].out[j] + ab[2][2].out[j] + ab[3][3].out[j];
-        c[2].in[j] <== ab[0][2].out[j] + ab[1][3].out[j] + ab[2][0].out[j] + ab[3][1].out[j];
-        c[3].in[j] <== ab[0][3].out[j] + ab[1][2].out[j] + ab[2][1].out[j] + ab[3][0].out[j];
+        out[0].in[j] <== ab[0][0].out[j] + ab[1][1].out[j] + ab[2][3].out[j] + ab[3][2].out[j];
+        out[1].in[j] <== ab[0][1].out[j] + ab[1][0].out[j] + ab[2][2].out[j] + ab[3][3].out[j];
+        out[2].in[j] <== ab[0][2].out[j] + ab[1][3].out[j] + ab[2][0].out[j] + ab[3][1].out[j];
+        out[3].in[j] <== ab[0][3].out[j] + ab[1][2].out[j] + ab[2][1].out[j] + ab[3][0].out[j];
+    }
+}
+
+// same input as above
+// outputs:
+//  out[4][k] such that 
+//      out[i] has k registers because we use the "prime trick" to compress from 2*k-1 to k registers 
+//      if each a[i][j] is in [0, B) then out[i][j] is in [0, 4*(k+1)*k*B^2 )
+//          (k+1)B^2 from BigMultShortLong
+//          *4 from adding 
+//          *k from prime trick
+template Fp2multiplyNoCarryCompress(n, k, p){
+    signal input a[4][k];
+    signal input b[4][k];
+    signal output out[4][k];
+    
+    component ab = Fp2multiplyNoCarry(n, k, p);
+    for(var i=0; i<4; i++)for(var j=0; j<k; j++){
+        ab.a[i][j] <== a[i][j];
+        ab.b[i][j] <== b[i][j]; 
+    }
+    
+    component c[4];
+    for(var i=0; i<4; i++){
+        c[i] = primeTrickCompression(n, k, k-1, p);
+        for(var j=0; j<2*k-1; j++)
+            c[i].in[j] <== ab.out[i][j]; 
     }
  
     for(var i=0; i<4; i++)for(var j=0; j<k; j++)
-        out[i][j] <== c[i].out[j];    
+        out[i][j] <== c[i].out[j];
 }
 
-// constrain in[0] - in[1] = p * X + Y 
-// in[i] in [0, 2^overflow) 
-template BigModCheck(n, k, m, overflow, p){
-    signal input in[2][k]; 
+// constrain in = p * X + Y 
+// in[i] in (-2^overflow, 2^overflow) 
+template checkBigMod(n, k, m, overflow, p){
+    signal input in[k]; 
     signal input X[m];
     signal input Y[k];
 
@@ -222,10 +243,29 @@ template BigModCheck(n, k, m, overflow, p){
     }
     carry_check = CheckCarryToZero(n, overflow+1, k+m-1 ); 
     for(var i=0; i<k; i++){
-        carry_check.in[i] <== in[0][i] - in[1][i] - pX.out[i] - Y[i]; 
+        carry_check.in[i] <== in[i] - pX.out[i] - Y[i]; 
     }
     for(var i=k; i<k+m-1; i++)
         carry_check.in[i] <== -pX.out[i];
+}
+
+// check if in[0] + in[0]*u is a valid point of Fp2 with in[0],in[1] both with k registers in [0,2^n) and in[i] in [0,p)
+template checkValidFp2(n, k, p){
+    signal input in[2][k];
+    component range_checks[2][k];
+    component lt[2];
+    
+    for(var eps=0; eps<2; eps++){
+        lt[eps] = BigLessThan(n, k);
+        for(var i=0; i<k; i++){
+            range_checks[eps][i] = Num2Bits(n);
+            range_checks[eps][i].in <== in[eps][i];
+            
+            lt[eps].a[i] <== in[eps][i];
+            lt[eps].b[i] <== p[i];
+        }
+        lt[eps].out === 1;
+    }    
 }
 
 // multiplication specialized to Fp2
@@ -242,7 +282,7 @@ template Fp2multiply(n, k, p){
     var LOGK = 6; // LOGK = ceil( log_2( (k+1)k ) )
     assert(3*n + 1 + LOGK<254);
 
-    component c = Fp2multiplyNoCarry(n, k, p); 
+    component c = Fp2multiplyNoCarryCompress(n, k, p); 
     for(var i=0; i<k; i++){
         c.a[0][i] <== a[0][i];
         c.a[1][i] <== 0;
@@ -255,30 +295,22 @@ template Fp2multiply(n, k, p){
     }
     // bounds below say X[eps] will only require 4 registers max 
     var m = 4;
-    var Xvar[2][2][100] = Fp2prod(n, k, m, c.out, p); 
-    component range_checks[2][k];
-    component lt[2];
+    var Xvar[2][2][100] = Fp2_long_div(n, k, m, c.out, p); 
+    component range_check = checkValidFp2(n, k, p);
     signal X[2][m]; 
     component X_range_checks[2][m];
     
     for(var eps=0; eps<2; eps++){
-        lt[eps] = BigLessThan(n, k);
         for(var i=0; i<k; i++){
             out[eps][i] <-- Xvar[eps][1][i];
-            range_checks[eps][i] = Num2Bits(n);
-            range_checks[eps][i].in <== out[eps][i];
-            
-            lt[eps].a[i] <== out[eps][i];
-            lt[eps].b[i] <== p[i];
+            range_check.in[eps][i] <== out[eps][i];
         }
-        lt[eps].out === 1;
         
         for(var i=0; i<m; i++){
             X[eps][i] <-- Xvar[eps][0][i];
             X_range_checks[eps][i] = Num2Bits(n+1);
             X_range_checks[eps][i].in <== X[eps][i] + (1<<n); // X[eps][i] should be between [-2^n, 2^n)
         }
-        
     }
 
     // out[0] constraint: X = X[0], Y = out[0] 
@@ -289,6 +321,7 @@ template Fp2multiply(n, k, p){
     //      which is contained in (-2^{3n+LOGK+1}, 2^{3n+LOGK+1})
 
     // out[1] constraint: X = X[1], Y = out[1]
+    // c3 = 0 in this case
     // constrain by Carry( c2 -' c3 -' p *' X - Y) = 0 
     // each register is an overflow representation in the range 
     //      (-2^{2n}-2^n, (k+1)*k*2^{3n+1} + 2^{2n} )
@@ -296,10 +329,9 @@ template Fp2multiply(n, k, p){
     
     component mod_check[2];
     for(var eps=0; eps<2; eps++){
-        mod_check[eps] = BigModCheck(n, k, m, 3*n+1+LOGK, p);
+        mod_check[eps] = checkBigMod(n, k, m, 3*n+1+LOGK, p);
         for(var i=0; i<k; i++){
-            mod_check[eps].in[0][i] <== c.out[2*eps][i];
-            mod_check[eps].in[1][i] <== c.out[2*eps+1][i];
+            mod_check[eps].in[i] <== c.out[2*eps][i] - c.out[2*eps+1][i];
             mod_check[eps].Y[i] <== out[eps][i];
         }
         for(var i=0; i<m; i++){
@@ -374,8 +406,8 @@ template Fp2invert(n, k, p){
 
     component in_out = Fp2multiply(n, k, p);
     for(var i=0; i<2; i++)for(var j=0; j<k; j++){
-        in_out.a[i][j] <-- in[i][j];
-        in_out.b[i][j] <-- out[i][j];
+        in_out.a[i][j] <== in[i][j];
+        in_out.b[i][j] <== out[i][j];
     }
 
     for(var i=0; i<2; i++)for(var j=0; j<k; j++){
@@ -1396,23 +1428,234 @@ template Fp12cyclotomicCompress(n, k) {
 //      g1 = (2 g4 * g5)/g3
 //      g0 = (2 g1^2 - 3 g3 * g4) * (1+u)  + 1
 
-// well this is going to be a slog... 
-// not going to optimize too much since this isn't called often
-template Fp12cyclotomicDecompress(n, k) {
+template Fp12cyclotomicDecompress(n, k, p) {
     signal input in[4][2][k];
-    signal input p[k];
     signal output out[6][2][k]; 
 
+    assert(k<7);
+    var LOGK = 6; // LOGK = ceil( log_2( (k+1)k ) )
+    assert(3*n + 5 + LOGK<254);
+
     // g2 = in[0], g3 = in[1], g4 = in[2], g5 = in[3]
+
+    // detect if g2 is 0
     component g2Zero[2];
     for(var eps=0; eps<2; eps++){
-        g2Zero[eps] = IsZero();
+        g2Zero[eps] = BigIsZero(k);
         for(var i=0; i<k; i++)
             g2Zero[eps].in[i] <== in[0][eps][i];
     }
     signal g2isZero;
     g2isZero <== g2Zero[0].out * g2Zero[1].out; 
 
+    // COMPUTATION OF g1 when g2 != 0:
+    component g5sq = Fp2multiplyNoCarryCompress(n, k, p); // overflow (k+1)*k * 2^{3n+1}
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        g5sq.a[2*eps][i] <== in[3][eps][i];
+        g5sq.a[2*eps+1][i] <== 0;
+        g5sq.b[2*eps][i] <== in[3][eps][i];
+        g5sq.b[2*eps+1][i] <== 0;
+    }
+    // c = 1+u
+    signal g5sqc[4][k]; // overflow 2*(k+1)*k * 2^{3n+1}
+    for(var i=0; i<k; i++){
+        g5sqc[0][i] <== g5sq.out[0][i] + g5sq.out[3][i];
+        g5sqc[1][i] <== g5sq.out[1][i] + g5sq.out[2][i];
+        g5sqc[2][i] <== g5sq.out[0][i] + g5sq.out[2][i];
+        g5sqc[3][i] <== g5sq.out[1][i] + g5sq.out[3][i];
+    }
+    component g4sq3 = Fp2multiplyNoCarryCompress(n, k, p); // overflow 3*(k+1)*k * 2^{3n+1}
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        g4sq3.a[2*eps][i] <== 3*in[2][eps][i];
+        g4sq3.a[2*eps+1][i] <== 0;
+        g4sq3.b[2*eps][i] <== in[2][eps][i];
+        g4sq3.b[2*eps+1][i] <== 0;
+    }
+    signal g1num[4][k];  // g5^2 * (1+u) + 3 g4^2 - 2 g3
+                         // overflow 5*(k+1)*k * 2^{3n+1} + 2*2^n < 2^{4n}
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        g1num[2*eps][i] <== g5sqc[2*eps][i] + g4sq3.out[2*eps][i];
+        g1num[2*eps+1][i] <== g5sqc[2*eps+1][i] + g4sq3.out[2*eps+1][i] + 2*in[1][eps][i];
+    }
+    // precompute inverse of 4g2 
+    // first compute 4g2 
+    var fourg2[2][100]; 
+    var four[100];
+    four[0] = 4;
+    for(var i=1; i<100; i++) four[i] = 0;
+    for(var eps=0; eps<2; eps++)
+        fourg2[eps] = prod_mod(n, k, four, in[0][eps], p);
+    
+    // 1/(4*g2)
+    var fourg2inv[2][100] = Fp2invert_func(n, k, fourg2, p);
+    // precompute g1_0 = g1num / (4*g2)  
+    var g1num_mod[2][100]; 
+    for(var eps=0; eps<2; eps++){
+        var temp1[2][100] = long_div2(n,k,4,long_to_short(n, k, g1num[2*eps]),p);
+        var temp2[2][100] = long_div2(n,k,4,long_to_short(n, k, g1num[2*eps+1]),p);
+        g1num_mod[eps] = long_sub_mod(n,k,temp1[1],temp2[1],p);
+    }
+
+    var g1_1var[2][100] = find_Fp2_product(n, k, g1num_mod, fourg2inv, p);
+    signal g1_1[2][k]; 
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++)
+        g1_1[eps][i] <-- g1_1var[eps][i]; 
+    
+    // constraint is g1_1 * (4g2) = g1num + p*X'' for some X'' 
+    // precompute g1_1 * (4g2) = p*X + Y,  g1num = p*X' + Y',  should have Y = Y' so X'' = X-X'
+    // g1_1 * (4g2) 
+    component multinv1 = Fp2multiplyNoCarryCompress(n, k, p);  // overflow 4*(k+1)*k * 2^{3n+1} 
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        multinv1.a[2*eps][i] <== g1_1[eps][i]; 
+        multinv1.a[2*eps+1][i] <== 0;
+        multinv1.b[2*eps][i] <== 4*in[0][eps][i]; 
+        multinv1.b[2*eps+1][i] <== 0;
+    }
+    
+    var m = 4;
+    component check_g11 = checkValidFp2(n, k, p);
+    for(var eps=0; eps<2; eps++)
+        for(var i=0; i<k; i++)
+            check_g11.in[eps][i] <== g1_1[eps][i];
+        
+    // get multinv1 = p*X + Y 
+    var XY[2][2][100] = Fp2_long_div(n, k, m, multinv1.out, p); 
+    // get g1num = p*X' + Y'
+    var XY1[2][2][100] = Fp2_long_div(n, k, m, g1num, p); 
+
+    signal X[4][2][m]; 
+    component X_range_checks[4][2][m];
+    for(var eps=0; eps<2; eps++){    
+        for(var i=0; i<m; i++){
+            // X'' = X-X'
+            X[0][eps][i] <-- XY[eps][0][i] - XY1[eps][0][i];
+            X_range_checks[0][eps][i] = Num2Bits(n+1);
+            X_range_checks[0][eps][i].in <== X[0][eps][i] + (1<<n); // X[eps][i] should be between [-2^n, 2^n)
+        }
+    }
+    // finally constrain multinv1 - g1num = p * X'' 
+    component mod_check[2];  // overflow 9*(k+1)*k * 2^{3n+1} + 2*2^n < 2^{3n+LOGK+5} 
+    for(var eps=0; eps<2; eps++){
+        mod_check[eps] = checkBigMod(n, k, m, 3*n+5+LOGK, p);
+        for(var i=0; i<k; i++){
+            mod_check[eps].in[i] <== multinv1.out[2*eps][i] - multinv1.out[2*eps+1][i] - g1num[2*eps][i] + g1num[2*eps+1][i];
+            mod_check[eps].Y[i] <== 0;
+        }
+        for(var i=0; i<m; i++){
+            mod_check[eps].X[i] <== X[0][eps][i];
+        }
+    }
+    // END OF COMPUTATION OF g1 when g2 != 0:
+
+    // COMPUTATION OF g1 when g2 = 0:
+    // g1 = 2*g4*g5 / g3
+    component twog4g5 = Fp2multiplyNoCarryCompress(n, k, p); // overflow (k+1)*k * 2^{3n+2}
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        twog4g5.a[2*eps][i] <== 2*in[2][eps][i];
+        twog4g5.a[2*eps+1][i] <== 0;
+        twog4g5.b[2*eps][i] <== in[3][eps][i];
+        twog4g5.b[2*eps+1][i] <== 0;
+    }
+    // precompute inverse of g3 
+    var g3inv[2][100] = Fp2invert_func(n, k, in[1], p);
+    // precompute g1_0 = 2g4g5 / g3
+    var twog4g5_mod[2][100]; 
+    for(var eps=0; eps<2; eps++){
+        var temp1[2][100] = long_div2(n,k,4,long_to_short(n, k, twog4g5.out[2*eps]),p);
+        var temp2[2][100] = long_div2(n,k,4,long_to_short(n, k, twog4g5.out[2*eps+1]),p);
+        twog4g5_mod[eps] = long_sub_mod(n,k,temp1[1],temp2[1],p);
+    }
+
+    var g1_0var[2][100] = find_Fp2_product(n, k, twog4g5_mod, g3inv, p);
+    signal g1_0[2][k]; 
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++)
+        g1_0[eps][i] <-- g1_0var[eps][i]; 
+
+    // constraint is g1_0 * g3 = twog4g5 + p*X'' for some X'' 
+    // precompute g1_0 * g3 = p*X + Y,  twog4g5 = p*X' + Y',  should have Y = Y' so X'' = X-X'
+    // g1_0 * g3
+    component multinv0 = Fp2multiplyNoCarryCompress(n, k, p);  // overflow (k+1)*k * 2^{3n+1} 
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        multinv0.a[2*eps][i] <== g1_0[eps][i]; 
+        multinv0.a[2*eps+1][i] <== 0;
+        multinv0.b[2*eps][i] <== in[1][eps][i]; 
+        multinv0.b[2*eps+1][i] <== 0;
+    }
+    
+    component check_g10 = checkValidFp2(n, k, p);
+    for(var eps=0; eps<2; eps++)
+        for(var i=0; i<k; i++)
+            check_g10.in[eps][i] <== g1_0[eps][i];
+        
+    // get multinv0 = p*X + Y 
+    XY = Fp2_long_div(n, k, m, multinv0.out, p); 
+    // get twog4g5 = p*X' + Y'
+    XY1 = Fp2_long_div(n, k, m, twog4g5.out, p); 
+
+    for(var eps=0; eps<2; eps++){    
+        for(var i=0; i<m; i++){
+            // X'' = X-X'
+            X[1][eps][i] <-- XY[eps][0][i] - XY1[eps][0][i];
+            X_range_checks[1][eps][i] = Num2Bits(n+1);
+            X_range_checks[1][eps][i].in <== X[1][eps][i] + (1<<n); // X[eps][i] should be between [-2^n, 2^n)
+        }
+    }
+    // finally constrain multinv0 - twog4g5 = p * X'' 
+    component mod_check1[2];  // overflow 3*(k+1)*k * 2^{3n+1} < 2^{3n+LOGK+3} 
+    for(var eps=0; eps<2; eps++){
+        mod_check1[eps] = checkBigMod(n, k, m, 3*n+3+LOGK, p);
+        for(var i=0; i<k; i++){
+            mod_check1[eps].in[i] <== multinv0.out[2*eps][i] - multinv0.out[2*eps+1][i] - twog4g5.out[2*eps][i] + twog4g5.out[2*eps+1][i];
+            mod_check1[eps].Y[i] <== 0;
+        }
+        for(var i=0; i<m; i++){
+            mod_check1[eps].X[i] <== X[1][eps][i];
+        }
+    }
+    // END OF COMPUTATION OF g1 when g2 = 0.
+
+    // COMPUTATIN OF g0 when g2 != 0:
+    // g0 = (2 g1^2 + g2 g5 - 3 g3 g4 )(1+u) + 1
+    component twog1sq= Fp2multiplyNoCarryCompress(n, k, p); // overflow 2*(k+1)*k * 2^{3n+1}
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        twog1sq.a[2*eps][i] <== 2*g1_1[eps][i];
+        twog1sq.a[2*eps+1][i] <== 0;
+        twog1sq.b[2*eps][i] <== g_1_1[eps][i];
+        twog1sq.b[2*eps+1][i] <== 0;
+    }
+    
+    component g2g5 = Fp2multiplyNoCarryCompress(n, k, p); // overflow (k+1)*k * 2^{3n+1}
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        g2g5.a[2*eps][i] <== in[0][eps][i];
+        g2g5.a[2*eps+1][i] <== 0;
+        g2g5.b[2*eps][i] <== in[3][eps][i];
+        g2g5.b[2*eps+1][i] <== 0;
+    }
+    
+    component threeg3g4 = Fp2multiplyNoCarryCompress(n, k, p); // overflow 3*(k+1)*k * 2^{3n+1}
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        threeg3g4.a[2*eps][i] <== 3*in[1][eps][i];
+        threeg3g4.a[2*eps+1][i] <== 0;
+        threeg3g4.b[2*eps][i] <== in[2][eps][i];
+        threeg3g4.b[2*eps+1][i] <== 0;
+    }
+    // 2 g1^2 + g2 g5 - 3 g3 g4 
+    var temp[4][100]; 
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        temp[2*eps][i] = twog1gsq.out[2*eps][i] + g2g5.out[2*eps][i] + threeg3g4.out[2*eps+1][i];
+        temp[2*eps+1][i] = twog1gsq.out[2*eps+1][i] + g2g5.out[2*eps+1][i] + threeg3g4.out[2*eps][i];
+    }
+    // (2 g1^2 + g2 g5 - 3 g3 g4)(1+u)
+    var tempc[4][100]; // overflow 2*(k+1)*k * 2^{3n+1}
+    for(var i=0; i<k; i++){
+        tempc[0][i] = temp[0][i] + temp[3][i];
+        tempc[1][i] = temp[1][i] + temp[2][i];
+        tempc[2][i] = temp[0][i] + temp[2][i];
+        tempc[3][i] = temp[1][i] + temp[3][i];
+    }
+    // (2 g1^2 + g2 g5 - 3 g3 g4)(1+u) + 1
+    tempc[0][0]++;
+    
     
 }
 

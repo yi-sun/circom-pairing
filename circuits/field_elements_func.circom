@@ -8,7 +8,7 @@ pragma circom 2.0.2;
 //      a[2] - a[3] = p * out[1][0] + out[1][1] with out[1][1] in [0,p) 
 // out[i][0] has m registers in range [-2^n, 2^n)
 // out[i][1] has k registers in range [0, 2^n)
-function Fp2prod(n, k, m, a, p){
+function Fp2_long_div(n, k, m, a, p){
     var out[2][2][100];
     // solve for X and Y such that a0*b0 + (p-a1)*b1 = p*X + Y with Y in [0,p) 
     // -a1*b1 = (p-a1)*b1 mod p
@@ -40,6 +40,22 @@ function Fp2prod(n, k, m, a, p){
                 out[eps][0][i] = X[2*eps][0][i] - X[2*eps+1][0][i]; 
         }
     }
+    return out;
+}
+
+// helper function to precompute the product of two elements a, b in Fp2
+// a[2][k], b[2][k] all registers in [0, 2^n) 
+// (a0 + a1 u)*(b0 + b1 u) = (a0*b0 - a1*b1) + (a0*b1 + a1*b0)u 
+// this is a direct computation - totally distinct from the combo of Fp2multiplyNoCarry and Fp2_long_div
+function find_Fp2_product(n, k, a, b, p){
+    var out[2][100];
+    var ab[2][2][100]; 
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++){
+        ab[i][j] = prod_mod(n,k,a[i],b[j],p);
+    }
+    out[0] = long_sub_mod(n,k,ab[0][0],ab[1][1],p); 
+    out[1] = long_add_mod(n,k,ab[0][1],ab[1][0],p);
+
     return out;
 }
 
@@ -91,8 +107,7 @@ function Fp2invert_func(n, k, p, a) {
     var out1_pre[100] = long_sub(n, k, p, a[1]);
     var out1[100] = prod(n, k, lambda, out1_pre);
     var out1_div[2][100] = long_div(n, k, out1, p);
-    for(var i=0; i<k; i++)
-        out[1][i] = out1_div[1][i];
+    out[1] = out1_div[1];
     return out;
 }
 
