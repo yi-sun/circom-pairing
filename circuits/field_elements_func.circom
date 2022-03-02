@@ -111,7 +111,7 @@ function get_BLS12_381_prime(n, k){
 // because a² + b² = 0 has no nonzero solutions for (a, b).
 // This gives that (a - bu)/(a² + b²) is the inverse
 // of (a + bu). 
-function Fp2invert_func(n, k, p, a) {
+function Fp2invert_func(n, k, a, p) {
     var sq0[100] = prod(n, k, a[0], a[0]);
     var sq1[100] = prod(n, k, a[1], a[1]);
     var sq_sum[100] = long_add(n, 2*k, sq0, sq1);
@@ -121,8 +121,7 @@ function Fp2invert_func(n, k, p, a) {
     var out0[100] = prod(n, k, lambda, a[0]);
     var out0_div[2][100] = long_div(n, k, out0, p);
     var out[2][100];
-    for(var i=0; i<k; i++)
-        out[0][i] = out0_div[1][i];
+    out[0] = out0_div[1];
     
     var out1_pre[100] = long_sub(n, k, p, a[1]);
     var out1[100] = prod(n, k, lambda, out1_pre);

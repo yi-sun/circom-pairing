@@ -4,6 +4,136 @@ include "bigint.circom";
 include "field_elements_func.circom";
 include "fp2.circom";
 
+// a[i][j], b[j][j] are short unsigned integers
+// out[i][j] is a long unsigned integer
+// basically multiply two-variable polynomials a, b
+// use case: one variable will end up being 2**n; the other will be the field extension generator
+template BigMultShortLong2D(n, k, l) {
+    signal input a[l][k];
+    signal input b[l][k];
+    signal output out[2*l-1][2*k-1];
+
+    var prod_val[2*l-1][2*k-1];
+    for (var i = 0; i < 2*l-1; i++) {
+        for (var j = 0; j < 2*k-1; j++) {
+            prod_val[i][j] = 0;
+        }
+    }
+
+    for (var i1 = 0; i1 < l; i1 ++) {
+        for (var i2 = 0; i2 < l; i2 ++) {
+            for (var j1 = 0; j1 < k; j1 ++) {
+                for (var j2 = 0; j2 < k; j2 ++) {
+                    var i = i1 + i2;
+                    var j = j1 + j2;
+                    prod_val[i][j] += a[i1][j1] * b[i2][j2];
+                }
+            }
+        }
+    }
+
+    for (var i = 0; i < 2*l-1; i++) {
+        for (var j = 0; j < 2*k-1; j++) {
+            out[i][j] <-- prod_val[i][j];
+        }
+    }
+
+    var a_poly[2*l-1][2*k-1];
+    var b_poly[2*l-1][2*k-1];
+    var out_poly[2*l-1][2*k-1];
+    for (var i = 0; i < 2*l-1; i++) {
+        for (var j = 0; j < 2*k-1; j++) {
+            a_poly[i][j] = 0;
+            b_poly[i][j] = 0;
+            out_poly[i][j] = 0;
+            for (var deg1 = 0; deg1 < l; deg1 ++) {
+                for (var deg2 = 0; deg2 < k; deg2 ++) {
+                    a_poly[i][j] = a_poly[i][j] + a[deg1][deg2] * (i ** deg1) * (j ** deg2);
+                    b_poly[i][j] = b_poly[i][j] + b[deg1][deg2] * (i ** deg1) * (j ** deg2);
+                }
+            }
+            for (var deg1 = 0; deg1 < 2*l-1; deg1 ++) {
+                for (var deg2 = 0; deg2 < 2*k-1; deg2 ++) {
+                    out_poly[i][j] = out_poly[i][j] + out[deg1][deg2] * (i ** deg1) * (j ** deg2);
+                }
+            }
+        }
+    }
+
+    for (var i = 0; i < 2*l-1; i++) {
+        for (var j = 0; j < 2*k-1; j++) {
+            out_poly[i][j] === a_poly[i][j] * b_poly[i][j];
+        }
+    }
+}
+
+// a[i][j], b[j][j] are short unsigned integers
+// out[i][j] is a long unsigned integer
+// basically multiply two-variable polynomials a, b
+// use case: one variable will end up being 2**n; the other will be the field extension generator
+template BigMultShortLong2DUnequal(n, ka, kb, la, lb) {
+    signal input a[la][ka];
+    signal input b[lb][kb];
+    signal output out[la + lb -1][ka + kb -1];
+
+    var prod_val[la + lb -1][ka + kb -1];
+    for (var i = 0; i < la + lb -1; i++) {
+        for (var j = 0; j < ka + kb -1; j++) {
+            prod_val[i][j] = 0;
+        }
+    }
+
+    for (var i1 = 0; i1 < la; i1 ++) {
+        for (var i2 = 0; i2 < lb; i2 ++) {
+            for (var j1 = 0; j1 < ka; j1 ++) {
+                for (var j2 = 0; j2 < kb; j2 ++) {
+                    var i = i1 + i2;
+                    var j = j1 + j2;
+                    prod_val[i][j] += a[i1][j1] * b[i2][j2];
+                }
+            }
+        }
+    }
+
+    for (var i = 0; i < la + lb -1; i++) {
+        for (var j = 0; j < ka + kb -1; j++) {
+            out[i][j] <-- prod_val[i][j];
+        }
+    }
+
+    var a_poly[la + lb - 1][ka + kb -1];
+    var b_poly[la + lb - 1][ka + kb -1];
+    var out_poly[la + lb - 1][ka + kb -1];
+    for (var i = 0; i < la + lb - 1; i++) {
+        for (var j = 0; j < ka + kb - 1; j++) {
+            a_poly[i][j] = 0;
+            b_poly[i][j] = 0;
+            out_poly[i][j] = 0;
+            for (var deg1 = 0; deg1 < la + lb - 1; deg1 ++) {
+		if (deg1 < la) {
+                    for (var deg2 = 0; deg2 < ka; deg2 ++) {
+			a_poly[i][j] = a_poly[i][j] + a[deg1][deg2] * (i ** deg1) * (j ** deg2);
+                    }
+		}
+		if (deg1 < lb) {
+		    for (var deg2 = 0; deg2 < kb; deg2 ++) {
+			b_poly[i][j] = b_poly[i][j] + b[deg1][deg2] * (i ** deg1) * (j ** deg2);
+		    }
+		}
+                for (var deg2 = 0; deg2 < ka + kb -1; deg2 ++) {
+                    out_poly[i][j] = out_poly[i][j] + out[deg1][deg2] * (i ** deg1) * (j ** deg2);
+                }
+            }
+        }
+    }
+
+    for (var i = 0; i < la + lb - 1; i++) {
+        for (var j = 0; j < ka + kb - 1; j++) {
+            out_poly[i][j] === a_poly[i][j] * b_poly[i][j];
+        }
+    }
+}
+
 template Fp12frobeniusMap(n, k, power){
     signal input in[6][2][k];
     signal output out[6][2][k];
@@ -993,461 +1123,515 @@ template Fp6invert(n, k, p) {
 //     }
 // }
 
-// // assume input is an element of Fp12 in the cyclotomic subgroup GΦ₁₂
-// // A cyclotomic group is a subgroup of Fp^n defined by
-// //   GΦₙ(p) = {α ∈ Fpⁿ : α^{Φₙ(p)} = 1}
+// assume input is an element of Fp12 in the cyclotomic subgroup GΦ₁₂
+// A cyclotomic group is a subgroup of Fp^n defined by
+//   GΦₙ(p) = {α ∈ Fpⁿ : α^{Φₙ(p)} = 1}
 
-// // below we implement compression and decompression for an element  GΦ₁₂ following Theorem 3.1 of https://www.ams.org/journals/mcom/2013-82-281/S0025-5718-2012-02625-1/S0025-5718-2012-02625-1.pdf
-// // Fp4 = Fp2(w^3) where (w^3)^2 = 1+u 
-// // Fp12 = Fp4(w) where w^3 = w^3 
+// below we implement compression and decompression for an element  GΦ₁₂ following Theorem 3.1 of https://eprint.iacr.org/2010/542.pdf
+// Fp4 = Fp2(w^3) where (w^3)^2 = 1+u 
+// Fp12 = Fp4(w) where w^3 = w^3 
 
-// // in = g0 + g2 w + g4 w^2 + g1 w^3 + g3 w^4 + g5 w^5 where g_i are elements of Fp2
-// // out = Compress(in) = [ g2, g3, g4, g5 ] 
-// template Fp12cyclotomicCompress(n, k) {
-//     signal input in[6][2][k];
-//     signal output out[4][2][k]; 
+// in = g0 + g2 w + g4 w^2 + g1 w^3 + g3 w^4 + g5 w^5 where g_i are elements of Fp2
+// out = Compress(in) = [ g2, g3, g4, g5 ] 
+template Fp12cyclotomicCompress(n, k) {
+    signal input in[6][2][k];
+    signal output out[4][2][k]; 
 
-//     for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
-//         out[0][eps][j] <== in[1][eps][j];
-//         out[1][eps][j] <== in[4][eps][j];
-//         out[2][eps][j] <== in[2][eps][j];
-//         out[3][eps][j] <== in[5][eps][j];
-//     } 
-// }
+    for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
+        out[0][eps][j] <== in[1][eps][j];
+        out[1][eps][j] <== in[4][eps][j];
+        out[2][eps][j] <== in[2][eps][j];
+        out[3][eps][j] <== in[5][eps][j];
+    } 
+}
 
-// // in = [g2, g3, g4, g5] where g_i are elements of Fp2
-// // out = Decompress(in) = g0 + g2 w + g4 w^2 + g1 w^3 + g3 w^4 + g5 w^5 where
-// // if g2 != 0:
-// //      g1 = (g5^2 * (1+u) + 3 g4^2 - 2 g3)/(4g2) 
-// //      g0 = (2 g1^2 + g2 * g5 - 3 g3*g4) * (1+u) + 1
-// // if g2 = 0:
-// //      g1 = (2 g4 * g5)/g3
-// //      g0 = (2 g1^2 - 3 g3 * g4) * (1+u)  + 1
+// in = [g2, g3, g4, g5] where g_i are elements of Fp2
+// out = Decompress(in) = g0 + g2 w + g4 w^2 + g1 w^3 + g3 w^4 + g5 w^5 where
+// if g2 != 0:
+//      g1 = (g5^2 * (1+u) + 3 g4^2 - 2 g3)/(4g2) 
+//      g0 = (2 g1^2 + g2 * g5 - 3 g3*g4) * (1+u) + 1
+// if g2 = 0:
+//      g1 = (2 g4 * g5)/g3
+//      g0 = (2 g1^2 - 3 g3 * g4) * (1+u)  + 1
+// out0 = g0, out1 = g2, out2 = g4, out3 = g1, out4 = g3, out5 = g5
+template Fp12cyclotomicDecompress(n, k, p) {
+    signal input in[4][2][k];
+    signal output out[6][2][k]; 
 
-// template Fp12cyclotomicDecompress(n, k, p) {
-//     signal input in[4][2][k];
-//     signal output out[6][2][k]; 
+    assert(k<7);
+    var LOGK = 6; // LOGK = ceil( log_2( (k+1)k ) )
+    assert(3*n + 5 + LOGK<254);
 
-//     assert(k<7);
-//     var LOGK = 6; // LOGK = ceil( log_2( (k+1)k ) )
-//     assert(3*n + 5 + LOGK<254);
+    // g2 = in[0], g3 = in[1], g4 = in[2], g5 = in[3]
+    for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
+        out[1][eps][j] <== in[0][eps][j]; 
+        out[2][eps][j] <== in[2][eps][j]; 
+        out[4][eps][j] <== in[1][eps][j]; 
+        out[5][eps][j] <== in[3][eps][j]; 
+    }
 
-//     // g2 = in[0], g3 = in[1], g4 = in[2], g5 = in[3]
+    // detect if g2 is 0
+    component g2Zero[2];
+    for(var eps=0; eps<2; eps++){
+        g2Zero[eps] = BigIsZero(k);
+        for(var i=0; i<k; i++)
+            g2Zero[eps].in[i] <== in[0][eps][i];
+    }
+    var total = 2 - g2Zero[0].out - g2Zero[1].out; 
+    component g2isZero = IsZero();
+    g2isZero.in <== total;
 
-//     // detect if g2 is 0
-//     component g2Zero[2];
-//     for(var eps=0; eps<2; eps++){
-//         g2Zero[eps] = BigIsZero(k);
-//         for(var i=0; i<k; i++)
-//             g2Zero[eps].in[i] <== in[0][eps][i];
-//     }
-//     signal g2isZero;
-//     g2isZero <== g2Zero[0].out * g2Zero[1].out; 
-
-//     // COMPUTATION OF g1 when g2 != 0:
-//     component g5sq = Fp2multiplyNoCarryCompress(n, k, p); // overflow (k+1)*k * 2^{3n+1}
-//     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
-//         g5sq.a[2*eps][i] <== in[3][eps][i];
-//         g5sq.a[2*eps+1][i] <== 0;
-//         g5sq.b[2*eps][i] <== in[3][eps][i];
-//         g5sq.b[2*eps+1][i] <== 0;
-//     }
-//     // c = 1+u
-//     signal g5sqc[4][k]; // overflow 2*(k+1)*k * 2^{3n+1}
-//     for(var i=0; i<k; i++){
-//         g5sqc[0][i] <== g5sq.out[0][i] + g5sq.out[3][i];
-//         g5sqc[1][i] <== g5sq.out[1][i] + g5sq.out[2][i];
-//         g5sqc[2][i] <== g5sq.out[0][i] + g5sq.out[2][i];
-//         g5sqc[3][i] <== g5sq.out[1][i] + g5sq.out[3][i];
-//     }
-//     component g4sq3 = Fp2multiplyNoCarryCompress(n, k, p); // overflow 3*(k+1)*k * 2^{3n+1}
-//     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
-//         g4sq3.a[2*eps][i] <== 3*in[2][eps][i];
-//         g4sq3.a[2*eps+1][i] <== 0;
-//         g4sq3.b[2*eps][i] <== in[2][eps][i];
-//         g4sq3.b[2*eps+1][i] <== 0;
-//     }
-//     signal g1num[4][k];  // g5^2 * (1+u) + 3 g4^2 - 2 g3
-//                          // overflow 5*(k+1)*k * 2^{3n+1} + 2*2^n < 2^{4n}
-//     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
-//         g1num[2*eps][i] <== g5sqc[2*eps][i] + g4sq3.out[2*eps][i];
-//         g1num[2*eps+1][i] <== g5sqc[2*eps+1][i] + g4sq3.out[2*eps+1][i] + 2*in[1][eps][i];
-//     }
-//     // precompute inverse of 4g2 
-//     // first compute 4g2 
-//     var fourg2[2][100]; 
-//     var four[100];
-//     four[0] = 4;
-//     for(var i=1; i<100; i++) four[i] = 0;
-//     for(var eps=0; eps<2; eps++)
-//         fourg2[eps] = prod_mod(n, k, four, in[0][eps], p);
+    // COMPUTATION OF g1 when g2 != 0:
+    component g5sq = Fp2multiplyNoCarryCompress(n, k, p); // overflow (k+1)*k * 2^{3n+1}
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        g5sq.a[2*eps][i] <== in[3][eps][i];
+        g5sq.a[2*eps+1][i] <== 0;
+        g5sq.b[2*eps][i] <== in[3][eps][i];
+        g5sq.b[2*eps+1][i] <== 0;
+    }
+    // c = 1+u
+    signal g5sqc[4][k]; // overflow 2*(k+1)*k * 2^{3n+1}
+    for(var i=0; i<k; i++){
+        g5sqc[0][i] <== g5sq.out[0][i] + g5sq.out[3][i];
+        g5sqc[1][i] <== g5sq.out[1][i] + g5sq.out[2][i];
+        g5sqc[2][i] <== g5sq.out[0][i] + g5sq.out[2][i];
+        g5sqc[3][i] <== g5sq.out[1][i] + g5sq.out[3][i];
+    }
+    component g4sq3 = Fp2multiplyNoCarryCompress(n, k, p); // overflow 3*(k+1)*k * 2^{3n+1}
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        g4sq3.a[2*eps][i] <== 3*in[2][eps][i];
+        g4sq3.a[2*eps+1][i] <== 0;
+        g4sq3.b[2*eps][i] <== in[2][eps][i];
+        g4sq3.b[2*eps+1][i] <== 0;
+    }
+    signal g1num[4][k];  // g5^2 * (1+u) + 3 g4^2 - 2 g3
+                         // overflow 5*(k+1)*k * 2^{3n+1} + 2*2^n < 2^{4n}
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        g1num[2*eps][i] <== g5sqc[2*eps][i] + g4sq3.out[2*eps][i];
+        g1num[2*eps+1][i] <== g5sqc[2*eps+1][i] + g4sq3.out[2*eps+1][i] + 2*in[1][eps][i];
+    }
+    // precompute inverse of 4g2 
+    // first compute 4g2 
+    var fourg2[2][100]; 
+    var four[100];
+    four[0] = 4;
+    for(var i=1; i<100; i++) four[i] = 0;
+    for(var eps=0; eps<2; eps++)
+        fourg2[eps] = prod_mod(n, k, four, in[0][eps], p);
     
-//     // 1/(4*g2)
-//     var fourg2inv[2][100] = Fp2invert_func(n, k, fourg2, p);
-//     // precompute g1_0 = g1num / (4*g2)  
-//     var g1num_mod[2][100]; 
-//     for(var eps=0; eps<2; eps++){
-//         var temp1[2][100] = long_div2(n,k,4,long_to_short(n, k, g1num[2*eps]),p);
-//         var temp2[2][100] = long_div2(n,k,4,long_to_short(n, k, g1num[2*eps+1]),p);
-//         g1num_mod[eps] = long_sub_mod(n,k,temp1[1],temp2[1],p);
-//     }
+    // 1/(4*g2)
+    var fourg2inv[2][100] = Fp2invert_func(n, k, fourg2, p);
 
-//     var g1_1var[2][100] = find_Fp2_product(n, k, g1num_mod, fourg2inv, p);
-//     signal g1_1[2][k]; 
-//     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++)
-//         g1_1[eps][i] <-- g1_1var[eps][i]; 
+    // precompute g1_0 = g1num / (4*g2)  
+    var g1num_mod[2][100]; 
+    for(var eps=0; eps<2; eps++){
+        var temp1[2][100] = long_div2(n,k,4,long_to_short(n, k, g1num[2*eps]),p);
+        var temp2[2][100] = long_div2(n,k,4,long_to_short(n, k, g1num[2*eps+1]),p);
+        g1num_mod[eps] = long_sub_mod(n,k,temp1[1],temp2[1],p);
+    }
+
+    var g1_1var[2][100] = find_Fp2_product(n, k, g1num_mod, fourg2inv, p);
+
+    signal g1_1[2][k]; 
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++)
+        g1_1[eps][i] <-- g1_1var[eps][i]; 
     
-//     // constraint is g1_1 * (4g2) = g1num + p*X'' for some X'' 
-//     // precompute g1_1 * (4g2) = p*X + Y,  g1num = p*X' + Y',  should have Y = Y' so X'' = X-X'
-//     // g1_1 * (4g2) 
-//     component multinv1 = Fp2multiplyNoCarryCompress(n, k, p);  // overflow 4*(k+1)*k * 2^{3n+1} 
-//     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
-//         multinv1.a[2*eps][i] <== g1_1[eps][i]; 
-//         multinv1.a[2*eps+1][i] <== 0;
-//         multinv1.b[2*eps][i] <== 4*in[0][eps][i]; 
-//         multinv1.b[2*eps+1][i] <== 0;
-//     }
+    // constraint is g1_1 * (4g2) = g1num + p*X'' for some X'' 
+    // precompute g1_1 * (4g2) = p*X + Y,  g1num = p*X' + Y',  should have Y = Y' so X'' = X-X'
+    // g1_1 * (4g2) 
+    component multinv1 = Fp2multiplyNoCarryCompress(n, k, p);  // overflow 4*(k+1)*k * 2^{3n+1} 
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        multinv1.a[2*eps][i] <== g1_1[eps][i]; 
+        multinv1.a[2*eps+1][i] <== 0;
+        multinv1.b[2*eps][i] <== 4*in[0][eps][i]; 
+        multinv1.b[2*eps+1][i] <== 0;
+    }
     
-//     var m = 4;
-//     component check_g11 = checkValidFp2(n, k, p);
-//     for(var eps=0; eps<2; eps++)
-//         for(var i=0; i<k; i++)
-//             check_g11.in[eps][i] <== g1_1[eps][i];
+    var m = 4;
+    component check_g11 = checkValidFp2(n, k, p);
+    for(var eps=0; eps<2; eps++)for(var i=0; i<k; i++)
+        check_g11.in[eps][i] <== g1_1[eps][i];
         
-//     // get multinv1 = p*X + Y 
-//     var XY[2][2][100] = Fp2_long_div(n, k, m, multinv1.out, p); 
-//     // get g1num = p*X' + Y'
-//     var XY1[2][2][100] = Fp2_long_div(n, k, m, g1num, p); 
+    // get multinv1 = p*X + Y 
+    var XY[2][2][100] = Fp2_long_div(n, k, m, multinv1.out, p); 
+    // get g1num = p*X' + Y'
+    var XY1[2][2][100] = Fp2_long_div(n, k, m, g1num, p); 
 
-//     signal X[4][2][m]; 
-//     component X_range_checks[4][2][m];
-//     for(var eps=0; eps<2; eps++){    
-//         for(var i=0; i<m; i++){
-//             // X'' = X-X'
-//             X[0][eps][i] <-- XY[eps][0][i] - XY1[eps][0][i];
-//             X_range_checks[0][eps][i] = Num2Bits(n+1);
-//             X_range_checks[0][eps][i].in <== X[0][eps][i] + (1<<n); // X[eps][i] should be between [-2^n, 2^n)
-//         }
-//     }
-//     // finally constrain multinv1 - g1num = p * X'' 
-//     component mod_check[2];  // overflow 9*(k+1)*k * 2^{3n+1} + 2*2^n < 2^{3n+LOGK+5} 
-//     for(var eps=0; eps<2; eps++){
-//         mod_check[eps] = checkBigMod(n, k, m, 3*n+5+LOGK, p);
-//         for(var i=0; i<k; i++){
-//             mod_check[eps].in[i] <== multinv1.out[2*eps][i] - multinv1.out[2*eps+1][i] - g1num[2*eps][i] + g1num[2*eps+1][i];
-//             mod_check[eps].Y[i] <== 0;
-//         }
-//         for(var i=0; i<m; i++){
-//             mod_check[eps].X[i] <== X[0][eps][i];
-//         }
-//     }
-//     // END OF COMPUTATION OF g1 when g2 != 0:
+    signal X[4][2][m]; 
+    component X_range_checks[4][2][m];
+    for(var eps=0; eps<2; eps++){    
+        for(var i=0; i<m; i++){
+            // X'' = X-X'
+            X[0][eps][i] <-- XY[eps][0][i] - XY1[eps][0][i];
+            X_range_checks[0][eps][i] = Num2Bits(n+1);
+            X_range_checks[0][eps][i].in <== X[0][eps][i] + (1<<n); // X[eps][i] should be between [-2^n, 2^n)
+        }
+    }
+    // finally constrain multinv1 - g1num = p * X'' 
+    component mod_check[2];  // overflow 9*(k+1)*k * 2^{3n+1} + 2*2^n < 2^{3n+LOGK+5} 
+    for(var eps=0; eps<2; eps++){
+        mod_check[eps] = checkBigMod(n, k, m, 3*n+5+LOGK, p);
+        for(var i=0; i<k; i++){
+            mod_check[eps].in[i] <== multinv1.out[2*eps][i] - multinv1.out[2*eps+1][i] - g1num[2*eps][i] + g1num[2*eps+1][i];
+            mod_check[eps].Y[i] <== 0;
+        }
+        for(var i=0; i<m; i++){
+            mod_check[eps].X[i] <== X[0][eps][i];
+        }
+    }
+    // END OF COMPUTATION OF g1 when g2 != 0:
 
-//     // COMPUTATION OF g1 when g2 = 0:
-//     // g1 = 2*g4*g5 / g3
-//     component twog4g5 = Fp2multiplyNoCarryCompress(n, k, p); // overflow (k+1)*k * 2^{3n+2}
-//     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
-//         twog4g5.a[2*eps][i] <== 2*in[2][eps][i];
-//         twog4g5.a[2*eps+1][i] <== 0;
-//         twog4g5.b[2*eps][i] <== in[3][eps][i];
-//         twog4g5.b[2*eps+1][i] <== 0;
-//     }
-//     // precompute inverse of g3 
-//     var g3inv[2][100] = Fp2invert_func(n, k, in[1], p);
-//     // precompute g1_0 = 2g4g5 / g3
-//     var twog4g5_mod[2][100]; 
-//     for(var eps=0; eps<2; eps++){
-//         var temp1[2][100] = long_div2(n,k,4,long_to_short(n, k, twog4g5.out[2*eps]),p);
-//         var temp2[2][100] = long_div2(n,k,4,long_to_short(n, k, twog4g5.out[2*eps+1]),p);
-//         twog4g5_mod[eps] = long_sub_mod(n,k,temp1[1],temp2[1],p);
-//     }
 
-//     var g1_0var[2][100] = find_Fp2_product(n, k, twog4g5_mod, g3inv, p);
-//     signal g1_0[2][k]; 
-//     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++)
-//         g1_0[eps][i] <-- g1_0var[eps][i]; 
 
-//     // constraint is g1_0 * g3 = twog4g5 + p*X'' for some X'' 
-//     // precompute g1_0 * g3 = p*X + Y,  twog4g5 = p*X' + Y',  should have Y = Y' so X'' = X-X'
-//     // g1_0 * g3
-//     component multinv0 = Fp2multiplyNoCarryCompress(n, k, p);  // overflow (k+1)*k * 2^{3n+1} 
-//     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
-//         multinv0.a[2*eps][i] <== g1_0[eps][i]; 
-//         multinv0.a[2*eps+1][i] <== 0;
-//         multinv0.b[2*eps][i] <== in[1][eps][i]; 
-//         multinv0.b[2*eps+1][i] <== 0;
-//     }
-    
-//     component check_g10 = checkValidFp2(n, k, p);
-//     for(var eps=0; eps<2; eps++)
-//         for(var i=0; i<k; i++)
-//             check_g10.in[eps][i] <== g1_0[eps][i];
+    // COMPUTATION OF g1 when g2 = 0:
+    // g1 = 2*g4*g5 / g3
+    component twog4g5 = Fp2multiplyNoCarryCompress(n, k, p); // overflow (k+1)*k * 2^{3n+2}
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        twog4g5.a[2*eps][i] <== 2*in[2][eps][i];
+        twog4g5.a[2*eps+1][i] <== 0;
+        twog4g5.b[2*eps][i] <== in[3][eps][i];
+        twog4g5.b[2*eps+1][i] <== 0;
+    }
+    // precompute inverse of g3 
+    var g3inv[2][100] = Fp2invert_func(n, k, in[1], p);
+    // precompute g1_0 = 2g4g5 / g3
+    var twog4g5_mod[2][100]; 
+    for(var eps=0; eps<2; eps++){
+        var temp1[2][100] = long_div2(n,k,4,long_to_short(n, k, twog4g5.out[2*eps]),p);
+        var temp2[2][100] = long_div2(n,k,4,long_to_short(n, k, twog4g5.out[2*eps+1]),p);
+        twog4g5_mod[eps] = long_sub_mod(n,k,temp1[1],temp2[1],p);
+    }
+
+    var g1_0var[2][100] = find_Fp2_product(n, k, twog4g5_mod, g3inv, p);
+
+    signal g1_0[2][k]; 
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++)
+        g1_0[eps][i] <-- g1_0var[eps][i]; 
+    component check_g10 = checkValidFp2(n, k, p);
+    for(var eps=0; eps<2; eps++)for(var i=0; i<k; i++)
+            check_g10.in[eps][i] <== g1_0[eps][i];
         
-//     // get multinv0 = p*X + Y 
-//     XY = Fp2_long_div(n, k, m, multinv0.out, p); 
-//     // get twog4g5 = p*X' + Y'
-//     XY1 = Fp2_long_div(n, k, m, twog4g5.out, p); 
 
-//     for(var eps=0; eps<2; eps++){    
-//         for(var i=0; i<m; i++){
-//             // X'' = X-X'
-//             X[1][eps][i] <-- XY[eps][0][i] - XY1[eps][0][i];
-//             X_range_checks[1][eps][i] = Num2Bits(n+1);
-//             X_range_checks[1][eps][i].in <== X[1][eps][i] + (1<<n); // X[eps][i] should be between [-2^n, 2^n)
-//         }
-//     }
-//     // finally constrain multinv0 - twog4g5 = p * X'' 
-//     component mod_check1[2];  // overflow 3*(k+1)*k * 2^{3n+1} < 2^{3n+LOGK+3} 
-//     for(var eps=0; eps<2; eps++){
-//         mod_check1[eps] = checkBigMod(n, k, m, 3*n+3+LOGK, p);
-//         for(var i=0; i<k; i++){
-//             mod_check1[eps].in[i] <== multinv0.out[2*eps][i] - multinv0.out[2*eps+1][i] - twog4g5.out[2*eps][i] + twog4g5.out[2*eps+1][i];
-//             mod_check1[eps].Y[i] <== 0;
-//         }
-//         for(var i=0; i<m; i++){
-//             mod_check1[eps].X[i] <== X[1][eps][i];
-//         }
-//     }
-//     // END OF COMPUTATION OF g1 when g2 = 0.
-
-//     // COMPUTATIN OF g0 when g2 != 0:
-//     // g0 = (2 g1^2 + g2 g5 - 3 g3 g4 )(1+u) + 1
-//     component twog1sq= Fp2multiplyNoCarryCompress(n, k, p); // overflow 2*(k+1)*k * 2^{3n+1}
-//     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
-//         twog1sq.a[2*eps][i] <== 2*g1_1[eps][i];
-//         twog1sq.a[2*eps+1][i] <== 0;
-//         twog1sq.b[2*eps][i] <== g_1_1[eps][i];
-//         twog1sq.b[2*eps+1][i] <== 0;
-//     }
+    // constraint is g1_0 * g3 = twog4g5 + p*X'' for some X'' 
+    // precompute g1_0 * g3 = p*X + Y,  twog4g5 = p*X' + Y',  should have Y = Y' so X'' = X-X'
+    // g1_0 * g3
+    component multinv0 = Fp2multiplyNoCarryCompress(n, k, p);  // overflow (k+1)*k * 2^{3n+1} 
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        multinv0.a[2*eps][i] <== g1_0[eps][i]; 
+        multinv0.a[2*eps+1][i] <== 0;
+        multinv0.b[2*eps][i] <== in[1][eps][i]; 
+        multinv0.b[2*eps+1][i] <== 0;
+    }
     
-//     component g2g5 = Fp2multiplyNoCarryCompress(n, k, p); // overflow (k+1)*k * 2^{3n+1}
-//     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
-//         g2g5.a[2*eps][i] <== in[0][eps][i];
-//         g2g5.a[2*eps+1][i] <== 0;
-//         g2g5.b[2*eps][i] <== in[3][eps][i];
-//         g2g5.b[2*eps+1][i] <== 0;
-//     }
+    // get multinv0 = p*X + Y 
+    XY = Fp2_long_div(n, k, m, multinv0.out, p); 
+    // get twog4g5 = p*X' + Y'
+    XY1 = Fp2_long_div(n, k, m, twog4g5.out, p); 
+
+    for(var eps=0; eps<2; eps++){    
+        for(var i=0; i<m; i++){
+            // X'' = X-X'
+            X[1][eps][i] <-- XY[eps][0][i] - XY1[eps][0][i];
+            X_range_checks[1][eps][i] = Num2Bits(n+1);
+            X_range_checks[1][eps][i].in <== X[1][eps][i] + (1<<n); // X[eps][i] should be between [-2^n, 2^n)
+        }
+    }
+    // finally constrain multinv0 - twog4g5 = p * X'' 
+    component mod_check1[2];  // overflow 3*(k+1)*k * 2^{3n+1} < 2^{3n+LOGK+3} 
+    for(var eps=0; eps<2; eps++){
+        mod_check1[eps] = checkBigMod(n, k, m, 3*n+3+LOGK, p);
+        for(var i=0; i<k; i++){
+            mod_check1[eps].in[i] <== multinv0.out[2*eps][i] - multinv0.out[2*eps+1][i] - twog4g5.out[2*eps][i] + twog4g5.out[2*eps+1][i];
+            mod_check1[eps].Y[i] <== 0;
+        }
+        for(var i=0; i<m; i++){
+            mod_check1[eps].X[i] <== X[1][eps][i];
+        }
+    }
+    // END OF COMPUTATION OF g1 when g2 = 0.
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++)
+        out[3][eps][i] <== g1_1[eps][i] + g2isZero.out * (g1_0[eps][i] - g1_1[eps][i]);
     
-//     component threeg3g4 = Fp2multiplyNoCarryCompress(n, k, p); // overflow 3*(k+1)*k * 2^{3n+1}
-//     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
-//         threeg3g4.a[2*eps][i] <== 3*in[1][eps][i];
-//         threeg3g4.a[2*eps+1][i] <== 0;
-//         threeg3g4.b[2*eps][i] <== in[2][eps][i];
-//         threeg3g4.b[2*eps+1][i] <== 0;
-//     }
-//     // 2 g1^2 + g2 g5 - 3 g3 g4 
-//     var temp[4][100]; 
-//     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
-//         temp[2*eps][i] = twog1gsq.out[2*eps][i] + g2g5.out[2*eps][i] + threeg3g4.out[2*eps+1][i];
-//         temp[2*eps+1][i] = twog1gsq.out[2*eps+1][i] + g2g5.out[2*eps+1][i] + threeg3g4.out[2*eps][i];
-//     }
-//     // (2 g1^2 + g2 g5 - 3 g3 g4)(1+u)
-//     var tempc[4][100]; // overflow 2*(k+1)*k * 2^{3n+1}
-//     for(var i=0; i<k; i++){
-//         tempc[0][i] = temp[0][i] + temp[3][i];
-//         tempc[1][i] = temp[1][i] + temp[2][i];
-//         tempc[2][i] = temp[0][i] + temp[2][i];
-//         tempc[3][i] = temp[1][i] + temp[3][i];
-//     }
-//     // (2 g1^2 + g2 g5 - 3 g3 g4)(1+u) + 1
-//     tempc[0][0]++;
+
+
+    // COMPUTATION OF g0 when g2 != 0:
+    // g0 = (2 g1^2 + g2 g5 - 3 g3 g4 )(1+u) + 1
+    component twog1sq= Fp2multiplyNoCarryCompress(n, k, p); // overflow 2*(k+1)*k * 2^{3n+1}
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        twog1sq.a[2*eps][i] <== 2*g1_1[eps][i];
+        twog1sq.a[2*eps+1][i] <== 0;
+        twog1sq.b[2*eps][i] <== g1_1[eps][i];
+        twog1sq.b[2*eps+1][i] <== 0;
+    }
     
+    component g2g5 = Fp2multiplyNoCarryCompress(n, k, p); // overflow (k+1)*k * 2^{3n+1}
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        g2g5.a[2*eps][i] <== in[0][eps][i];
+        g2g5.a[2*eps+1][i] <== 0;
+        g2g5.b[2*eps][i] <== in[3][eps][i];
+        g2g5.b[2*eps+1][i] <== 0;
+    }
     
-// }
-
-// // output is square of input 
-// template Fp12cyclotomicSquare(n, k) {
-//     signal input in[6][2][k];
-//     signal input p[k];
-//     signal output out[6][2][k];
-
-//     // for now just use plain multiplication, this can be optimized later
-//     component square = Fp12Multiply(n, k);
-//     for(var i=0; i<6; i++)for(var j=0; j<k; j++){
-//         square.a[i][0][j] <== in[i][0][j];
-//         square.a[i][1][j] <== in[i][1][j];
+    component threeg3g4 = Fp2multiplyNoCarryCompress(n, k, p); // overflow 3*(k+1)*k * 2^{3n+1}
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        threeg3g4.a[2*eps][i] <== 3*in[1][eps][i];
+        threeg3g4.a[2*eps+1][i] <== 0;
+        threeg3g4.b[2*eps][i] <== in[2][eps][i];
+        threeg3g4.b[2*eps+1][i] <== 0;
+    }
+    // 2 g1^2 + g2 g5 - 3 g3 g4 
+    var temp[4][100]; 
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        temp[2*eps][i] = twog1sq.out[2*eps][i] + g2g5.out[2*eps][i] + threeg3g4.out[2*eps+1][i];
+        temp[2*eps+1][i] = twog1sq.out[2*eps+1][i] + g2g5.out[2*eps+1][i] + threeg3g4.out[2*eps][i];
+    }
+    // (2 g1^2 + g2 g5 - 3 g3 g4)(1+u)
+    var tempc[4][100]; // overflow 2*6*(k+1)*k * 2^{3n+1}
+    for(var i=0; i<k; i++){
+        tempc[0][i] = temp[0][i] + temp[3][i];
+        tempc[1][i] = temp[1][i] + temp[2][i];
+        tempc[2][i] = temp[0][i] + temp[2][i];
+        tempc[3][i] = temp[1][i] + temp[3][i];
+    }
+    // (2 g1^2 + g2 g5 - 3 g3 g4)(1+u) + 1  
+    tempc[0][0]++;
+    // get tempc = p*X + Y 
+    component carry_mod01 = Fp2CarryModP(n, k, m, 3*n+5+LOGK, p);
+    for(var i=0; i<4; i++)for(var j=0; j<k; j++)
+        carry_mod01.in[i][j] <== tempc[i][j];
+    // g0_1 = Y 
+    signal g0_1[2][k]; 
+    for(var i=0; i<2; i++)for(var j=0; j<k; j++)
+        g0_1[i][j] <== carry_mod01.out[i][j]; 
+    // END OF COMPUTATION OF g0 when g2 != 0. 
     
-//         square.b[i][0][j] <== in[i][0][j];
-//         square.b[i][1][j] <== in[i][1][j];
-//     }
-//     for(var i=0; i<k; i++) square.p[i] <== p[i];
+    // COMPUTATION OF g0 when g2 = 0:
+    // g0 = (2g1^2 - 3g3g4)(1+u) + 1
+    component twog1_0sq= Fp2multiplyNoCarryCompress(n, k, p); // overflow 2*(k+1)*k * 2^{3n+1}
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        twog1_0sq.a[2*eps][i] <== 2*g1_0[eps][i];
+        twog1_0sq.a[2*eps+1][i] <== 0;
+        twog1_0sq.b[2*eps][i] <== g1_0[eps][i];
+        twog1_0sq.b[2*eps+1][i] <== 0;
+    }
+    // can reuse threeg3g4 ! 
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        temp[2*eps][i] = twog1_0sq.out[2*eps][i]  + threeg3g4.out[2*eps+1][i];
+        temp[2*eps+1][i] = twog1_0sq.out[2*eps+1][i] + threeg3g4.out[2*eps][i];
+    } // overflow 2*5*(k+1)*k * 2^{3n+1}
+    for(var i=0; i<k; i++){
+        tempc[0][i] = temp[0][i] + temp[3][i];
+        tempc[1][i] = temp[1][i] + temp[2][i];
+        tempc[2][i] = temp[0][i] + temp[2][i];
+        tempc[3][i] = temp[1][i] + temp[3][i];
+    }
+    tempc[0][0]++;
+    component carry_mod00 = Fp2CarryModP(n, k, m, 3*n+5+LOGK, p);
+    for(var i=0; i<4; i++)for(var j=0; j<k; j++)
+        carry_mod00.in[i][j] <== tempc[i][j];
+    signal g0_0[2][k]; 
+    for(var i=0; i<2; i++)for(var j=0; j<k; j++)
+        g0_0[i][j] <== carry_mod00.out[i][j]; 
+    // END OF COMPUTATION OF g0 when g2 = 0.    
+        
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++)
+        out[0][eps][i] <== g0_1[eps][i] + g2isZero.out * (g0_0[eps][i] - g0_1[eps][i]);
 
-//     for(var i=0; i<6; i++)for(var j=0; j<k; j++){
-//         out[i][0][j] <== square.out[i][0][j];
-//         out[i][1][j] <== square.out[i][1][j];
-//     }
-// }
+}
 
-// // assume input is an element of Fp12 in the cyclotomic subgroup GΦ12
-// // output is input raised to the e-th power
-// // use the square and multiply method
-// // assume 0 < e < 2^254
-// template Fp12cyclotomicExp(n, k, e) {
-//     assert( e > 0 );
+// output is square of input 
+template Fp12cyclotomicSquare(n, k) {
+    signal input in[6][2][k];
+    signal input p[k];
+    signal output out[6][2][k];
 
-//     signal input in[6][2][k];
-//     signal input p[k];
-//     signal output out[6][2][k];
-
-//     var temp = e;
-//     var BITLENGTH;
-//     for(var i=0; i<254; i++){
-//         if( temp != 0 )
-//             BITLENGTH = i; 
-//         temp = temp>>1;
-//     }
-//     BITLENGTH++;
-//     component pow2[BITLENGTH]; // pow2[i] = in^{2^i} 
-//     component mult[BITLENGTH];
-
-//     signal first[6][2][k];
-//     var curid = 0;
-
-//     for(var i=0; i<BITLENGTH; i++){
-//         // compute pow2[i] = pow2[i-1]**2
-//         if( i > 0 ){ // pow2[0] is never defined since there is no squaring involved
-//             pow2[i] = Fp12cyclotomicSquare(n, k);
-//             for(var j=0; j<k; j++) pow2[i].p[j] <== p[j];
-//             if( i == 1 ){
-//                 for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//                     pow2[i].in[id][eps][j] <== in[id][eps][j];
-//             }else{
-//                 for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//                     pow2[i].in[id][eps][j] <== pow2[i-1].out[id][eps][j];
-//             }
-//         }
-//         if( ((e >> i) & 1) == 1 ){
-//             if(curid == 0){ // this is the least significant bit
-//                 if( i == 0 ){
-//                     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//                         first[id][eps][j] <== in[id][eps][j];
-//                 }else{
-//                     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//                         first[id][eps][j] <== pow2[i].out[id][eps][j];
-//                 }
-//             }else{
-//                 // multiply what we already have with pow2[i]
-//                 mult[curid] = Fp12Multiply(n, k); 
-//                 for(var j=0; j<k; j++) mult[curid].p[j] <== p[j];
-//                 for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//                     mult[curid].a[id][eps][j] <== pow2[i].out[id][eps][j];
-//                 if(curid == 1){
-//                     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//                         mult[curid].b[id][eps][j] <== first[id][eps][j];
-//                 }else{
-//                     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//                         mult[curid].b[id][eps][j] <== mult[curid-1].out[id][eps][j];
-//                 }
-//             } 
-//             curid++; 
-//         }
-//     }
-//     curid--;
-//     if(curid == 0){
-//         for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//             out[id][eps][j] <== first[id][eps][j];
-//     }else{
-//         for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//             out[id][eps][j] <== mult[curid].out[id][eps][j];
-//     }
-// }
-
-// // hard part of final exponentiation
-// // use equation at top of p.14 from https://eprint.iacr.org/2020/875.pdf
-// template hard_part(n, k){
-//     signal input in[6][2][k]; 
-//     signal input p[k];
-//     signal output out[6][2][k];
-
-//     var x = get_BLS12_381_parameter();  // absolute value of parameter for BLS12-381
+    // for now just use plain multiplication, this can be optimized later
+    component square = Fp12Multiply(n, k);
+    for(var i=0; i<6; i++)for(var j=0; j<k; j++){
+        square.a[i][0][j] <== in[i][0][j];
+        square.a[i][1][j] <== in[i][1][j];
     
-//     // in^{(x+1)/3} 
-//     component pow1 = Fp12cyclotomicExp(n, k, (x+1)\3 ); 
-//     for(var i=0; i<k; i++) pow1.p[i] <== p[i];
-//     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//         pow1.in[id][eps][j] <== in[id][eps][j];
+        square.b[i][0][j] <== in[i][0][j];
+        square.b[i][1][j] <== in[i][1][j];
+    }
+    for(var i=0; i<k; i++) square.p[i] <== p[i];
+
+    for(var i=0; i<6; i++)for(var j=0; j<k; j++){
+        out[i][0][j] <== square.out[i][0][j];
+        out[i][1][j] <== square.out[i][1][j];
+    }
+}
+
+// assume input is an element of Fp12 in the cyclotomic subgroup GΦ12
+// output is input raised to the e-th power
+// use the square and multiply method
+// assume 0 < e < 2^254
+template Fp12cyclotomicExp(n, k, e) {
+    assert( e > 0 );
+
+    signal input in[6][2][k];
+    signal input p[k];
+    signal output out[6][2][k];
+
+    var temp = e;
+    var BITLENGTH;
+    for(var i=0; i<254; i++){
+        if( temp != 0 )
+            BITLENGTH = i; 
+        temp = temp>>1;
+    }
+    BITLENGTH++;
+    component pow2[BITLENGTH]; // pow2[i] = in^{2^i} 
+    component mult[BITLENGTH];
+
+    signal first[6][2][k];
+    var curid = 0;
+
+    for(var i=0; i<BITLENGTH; i++){
+        // compute pow2[i] = pow2[i-1]**2
+        if( i > 0 ){ // pow2[0] is never defined since there is no squaring involved
+            pow2[i] = Fp12cyclotomicSquare(n, k);
+            for(var j=0; j<k; j++) pow2[i].p[j] <== p[j];
+            if( i == 1 ){
+                for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+                    pow2[i].in[id][eps][j] <== in[id][eps][j];
+            }else{
+                for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+                    pow2[i].in[id][eps][j] <== pow2[i-1].out[id][eps][j];
+            }
+        }
+        if( ((e >> i) & 1) == 1 ){
+            if(curid == 0){ // this is the least significant bit
+                if( i == 0 ){
+                    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+                        first[id][eps][j] <== in[id][eps][j];
+                }else{
+                    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+                        first[id][eps][j] <== pow2[i].out[id][eps][j];
+                }
+            }else{
+                // multiply what we already have with pow2[i]
+                mult[curid] = Fp12Multiply(n, k); 
+                for(var j=0; j<k; j++) mult[curid].p[j] <== p[j];
+                for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+                    mult[curid].a[id][eps][j] <== pow2[i].out[id][eps][j];
+                if(curid == 1){
+                    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+                        mult[curid].b[id][eps][j] <== first[id][eps][j];
+                }else{
+                    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+                        mult[curid].b[id][eps][j] <== mult[curid-1].out[id][eps][j];
+                }
+            } 
+            curid++; 
+        }
+    }
+    curid--;
+    if(curid == 0){
+        for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+            out[id][eps][j] <== first[id][eps][j];
+    }else{
+        for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+            out[id][eps][j] <== mult[curid].out[id][eps][j];
+    }
+}
+
+// hard part of final exponentiation
+// use equation at top of p.14 from https://eprint.iacr.org/2020/875.pdf
+template hard_part(n, k){
+    signal input in[6][2][k]; 
+    signal input p[k];
+    signal output out[6][2][k];
+
+    var x = get_BLS12_381_parameter();  // absolute value of parameter for BLS12-381
     
-//     // in^{(x+1)/3 * (x+1)}
-//     component pow2 = Fp12cyclotomicExp(n, k, x+1); 
-//     for(var i=0; i<k; i++) pow2.p[i] <== p[i];
-//     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//         pow2.in[id][eps][j] <== pow1.out[id][eps][j];
-
-//     // in^{(x+1)^2/3 * -1} = pow2^-1  inverse = frob(6) in cyclotomic subgroup
-//     component pow3 = Fp12frobeniusMap(n, k, 6);
-//     for(var i=0; i<k; i++) pow3.p[i] <== p[i];
-//     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//         pow3.in[id][eps][j] <== pow2.out[id][eps][j];
-
-//     // in^{(x+1)^2/3 * -x} = pow3^x 
-//     component pow4 = Fp12cyclotomicExp(n, k, x); 
-//     for(var i=0; i<k; i++) pow4.p[i] <== p[i];
-//     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//         pow4.in[id][eps][j] <== pow3.out[id][eps][j];
-
-//     // in^{(x+1)^2/3 * p} = pow2^p 
-//     component pow5 = Fp12frobeniusMap(n, k, 1);
-//     for(var i=0; i<k; i++) pow5.p[i] <== p[i];
-//     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//         pow5.in[id][eps][j] <== pow2.out[id][eps][j];
-
-//     // in^{(x+1)^2/3 * (-x+p)} = pow4 * pow5
-//     component pow6 = Fp12Multiply(n, k);
-//     for(var i=0; i<k; i++) pow6.p[i] <== p[i];
-//     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
-//         pow6.a[id][eps][j] <== pow4.out[id][eps][j];
-//         pow6.b[id][eps][j] <== pow5.out[id][eps][j];
-//     }
-
-//     // in^{(x+1)^2/3 * (-x+p) * x}  = pow6^x
-//     component pow7 = Fp12cyclotomicExp(n, k, x);
-//     for(var i=0; i<k; i++) pow7.p[i] <== p[i];
-//     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//         pow7.in[id][eps][j] <== pow6.out[id][eps][j];
-
-//     // in^{(x+1)^2/3 * (-x+p) * x^2}  = pow7^x
-//     component pow8 = Fp12cyclotomicExp(n, k, x);
-//     for(var i=0; i<k; i++) pow8.p[i] <== p[i];
-//     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//         pow8.in[id][eps][j] <== pow7.out[id][eps][j];
-
-//     // in^{(x+1)^2/3 * (-x+p) * q^2} = pow6^{q^2}
-//     component pow9 = Fp12frobeniusMap(n, k, 2);
-//     for(var i=0; i<k; i++) pow9.p[i] <== p[i];
-//     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//         pow9.in[id][eps][j] <== pow6.out[id][eps][j];
+    // in^{(x+1)/3} 
+    component pow1 = Fp12cyclotomicExp(n, k, (x+1)\3 ); 
+    for(var i=0; i<k; i++) pow1.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        pow1.in[id][eps][j] <== in[id][eps][j];
     
-//     // in^{(x+1)^2/3 * (-x+p) * -1} = pow6^{-1} = pow6^{q^6}
-//     component pow10 = Fp12frobeniusMap(n, k, 6);
-//     for(var i=0; i<k; i++) pow10.p[i] <== p[i];
-//     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//         pow10.in[id][eps][j] <== pow6.out[id][eps][j];
+    // in^{(x+1)/3 * (x+1)}
+    component pow2 = Fp12cyclotomicExp(n, k, x+1); 
+    for(var i=0; i<k; i++) pow2.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        pow2.in[id][eps][j] <== pow1.out[id][eps][j];
+
+    // in^{(x+1)^2/3 * -1} = pow2^-1  inverse = frob(6) in cyclotomic subgroup
+    component pow3 = Fp12frobeniusMap(n, k, 6);
+    for(var i=0; i<k; i++) pow3.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        pow3.in[id][eps][j] <== pow2.out[id][eps][j];
+
+    // in^{(x+1)^2/3 * -x} = pow3^x 
+    component pow4 = Fp12cyclotomicExp(n, k, x); 
+    for(var i=0; i<k; i++) pow4.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        pow4.in[id][eps][j] <== pow3.out[id][eps][j];
+
+    // in^{(x+1)^2/3 * p} = pow2^p 
+    component pow5 = Fp12frobeniusMap(n, k, 1);
+    for(var i=0; i<k; i++) pow5.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        pow5.in[id][eps][j] <== pow2.out[id][eps][j];
+
+    // in^{(x+1)^2/3 * (-x+p)} = pow4 * pow5
+    component pow6 = Fp12Multiply(n, k);
+    for(var i=0; i<k; i++) pow6.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
+        pow6.a[id][eps][j] <== pow4.out[id][eps][j];
+        pow6.b[id][eps][j] <== pow5.out[id][eps][j];
+    }
+
+    // in^{(x+1)^2/3 * (-x+p) * x}  = pow6^x
+    component pow7 = Fp12cyclotomicExp(n, k, x);
+    for(var i=0; i<k; i++) pow7.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        pow7.in[id][eps][j] <== pow6.out[id][eps][j];
+
+    // in^{(x+1)^2/3 * (-x+p) * x^2}  = pow7^x
+    component pow8 = Fp12cyclotomicExp(n, k, x);
+    for(var i=0; i<k; i++) pow8.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        pow8.in[id][eps][j] <== pow7.out[id][eps][j];
+
+    // in^{(x+1)^2/3 * (-x+p) * q^2} = pow6^{q^2}
+    component pow9 = Fp12frobeniusMap(n, k, 2);
+    for(var i=0; i<k; i++) pow9.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        pow9.in[id][eps][j] <== pow6.out[id][eps][j];
     
-//     // in^{(x+1)^2/3 * (-x+p) * (x^2 + q^2)} = pow8 * pow9
-//     component pow11 = Fp12Multiply(n, k);
-//     for(var i=0; i<k; i++) pow11.p[i] <== p[i];
-//     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
-//         pow11.a[id][eps][j] <== pow8.out[id][eps][j];
-//         pow11.b[id][eps][j] <== pow9.out[id][eps][j];
-//     }
+    // in^{(x+1)^2/3 * (-x+p) * -1} = pow6^{-1} = pow6^{q^6}
+    component pow10 = Fp12frobeniusMap(n, k, 6);
+    for(var i=0; i<k; i++) pow10.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        pow10.in[id][eps][j] <== pow6.out[id][eps][j];
     
-//     // in^{(x+1)^2/3 * (-x+p) * (x^2 + q^2 - 1)} = pow10 * pow11
-//     component pow12 = Fp12Multiply(n, k);
-//     for(var i=0; i<k; i++) pow12.p[i] <== p[i];
-//     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
-//         pow12.a[id][eps][j] <== pow10.out[id][eps][j];
-//         pow12.b[id][eps][j] <== pow11.out[id][eps][j];
-//     }
+    // in^{(x+1)^2/3 * (-x+p) * (x^2 + q^2)} = pow8 * pow9
+    component pow11 = Fp12Multiply(n, k);
+    for(var i=0; i<k; i++) pow11.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
+        pow11.a[id][eps][j] <== pow8.out[id][eps][j];
+        pow11.b[id][eps][j] <== pow9.out[id][eps][j];
+    }
     
-//     // final answer
-//     // in^{(x+1)^2/3 * (-x+p) * (x^2 + q^2 - 1) + 1} = pow12 * in 
-//     component pow13 = Fp12Multiply(n, k); 
-//     for(var i=0; i<k; i++) pow13.p[i] <== p[i];
-//     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
-//         pow13.a[id][eps][j] <== pow12.out[id][eps][j];
-//         pow13.b[id][eps][j] <== in[id][eps][j];
-//     }
+    // in^{(x+1)^2/3 * (-x+p) * (x^2 + q^2 - 1)} = pow10 * pow11
+    component pow12 = Fp12Multiply(n, k);
+    for(var i=0; i<k; i++) pow12.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
+        pow12.a[id][eps][j] <== pow10.out[id][eps][j];
+        pow12.b[id][eps][j] <== pow11.out[id][eps][j];
+    }
     
-//     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-//         out[id][eps][j] <== pow13.out[id][eps][j];
-// }
+    // final answer
+    // in^{(x+1)^2/3 * (-x+p) * (x^2 + q^2 - 1) + 1} = pow12 * in 
+    component pow13 = Fp12Multiply(n, k); 
+    for(var i=0; i<k; i++) pow13.p[i] <== p[i];
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
+        pow13.a[id][eps][j] <== pow12.out[id][eps][j];
+        pow13.b[id][eps][j] <== in[id][eps][j];
+    }
+    
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        out[id][eps][j] <== pow13.out[id][eps][j];
+}

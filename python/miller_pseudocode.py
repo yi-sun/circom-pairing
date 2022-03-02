@@ -52,11 +52,12 @@ def exp(a, n):
     compute a^n in Fq^k
     """
     a_pow = a
+    res = None
     while n:
-        if 1 & n:
+        if n % 2:
             res = res*a_pow if res else a_pow
         n //= 2
-        a_pow *= a        
+        a_pow *= a_pow        
     return res
 
 def mul(a, b):
