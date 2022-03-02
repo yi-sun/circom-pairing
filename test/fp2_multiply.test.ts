@@ -1,5 +1,4 @@
 import path = require("path");
-import { expect, assert } from 'chai';
 const circom_tester = require('circom_tester');
 const wasm_tester = circom_tester.wasm;
 
@@ -21,18 +20,6 @@ function bigint_to_array(n: number, k: number, x: bigint) {
 function mod(a: bigint, b: bigint) {
   const res = a % b;
   return res >= 0n ? res : b + res;
-}
-
-function powMod(num: bigint, power: bigint, modulo: bigint) {
-    if (modulo <= 0n || power < 0n) throw new Error('Expected power/modulo > 0');
-    if (modulo === 1n) return 0n;
-    let res = 1n;
-    while (power > 0n) {
-      if (power & 1n) res = (res * num) % modulo;
-      num = (num * num) % modulo;
-      power >>= 1n;
-    }
-    return res;
 }
 
 function invert(number: bigint, modulo: bigint): bigint {
