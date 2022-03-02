@@ -41,6 +41,12 @@ template Fp2multiplyNoCarry(n, k){
     signal input b[4][k];
     signal output out[4][2*k-1];
 
+    // if a,b registers were in [0,2^n), then
+    // var l = 2;
+    // var LOGK = 3;
+    // var LOGL = 1;
+    // assert(2*n + 1 + LOGK + LOGL <254);
+
     component ab[4][4];
     for(var i=0; i<4; i++)for(var j=0; j<4; j++){
         ab[i][j] = BigMultShortLong(n, k); // output has 2*k-1 registers

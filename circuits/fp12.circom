@@ -1132,11 +1132,12 @@ template Fp12cyclotomicDecompress(n, k, p) {
     for(var eps=0; eps<2; eps++){    
         for(var i=0; i<m; i++){
             // X'' = X-X'
-            X[0][eps][i] <-- XY[eps][0][i] - XY1[eps][0][i];
-            X_range_checks[0][eps][i] = Num2Bits(n+1);
-            X_range_checks[0][eps][i].in <== X[0][eps][i] + (1<<n); // X[eps][i] should be between [-2^n, 2^n)
+            X[0][eps][i] <-- XY[eps][0][i] - XY1[eps][0][i]; // each XY[eps][0] is in [-2^n, 2^n) so difference is in [-2^{n+1}, 2^{n+1})
+            X_range_checks[0][eps][i] = Num2Bits(n+2);
+            X_range_checks[0][eps][i].in <== X[0][eps][i] + (1<<(n+1)); // X[eps][i] should be between [-2^{n+1}, 2^{n+1})
         }
     }
+
     // finally constrain multinv1 - g1num = p * X'' 
     component mod_check[2];  // overflow 9*(k+1)*k * 2^{3n+1} + 2*2^n < 2^{3n+LOGK+5} 
     for(var eps=0; eps<2; eps++){
@@ -1196,14 +1197,14 @@ template Fp12cyclotomicDecompress(n, k, p) {
     // get multinv0 = p*X + Y 
     XY = Fp2_long_div(n, k, m, multinv0.out, p); 
     // get twog4g5 = p*X' + Y'
-    XY1 = Fp2_long_div(n, k, m, twog4g5.out, p); 
+    XY1 = Fp2_long_div(n, k, m, twog4g5.out, p);  
 
     for(var eps=0; eps<2; eps++){    
         for(var i=0; i<m; i++){
             // X'' = X-X'
-            X[1][eps][i] <-- XY[eps][0][i] - XY1[eps][0][i];
-            X_range_checks[1][eps][i] = Num2Bits(n+1);
-            X_range_checks[1][eps][i].in <== X[1][eps][i] + (1<<n); // X[eps][i] should be between [-2^n, 2^n)
+            X[1][eps][i] <-- XY[eps][0][i] - XY1[eps][0][i]; // each XY[eps][0] is in [-2^n, 2^n) so difference is in [-2^{n+1}, 2^{n+1}) 
+            X_range_checks[1][eps][i] = Num2Bits(n+2);
+            X_range_checks[1][eps][i].in <== X[1][eps][i] + (1<< (n+1)); // X[eps][i] should be between [-2^{n+1}, 2^{n+1})
         }
     }
     // finally constrain multinv0 - twog4g5 = p * X'' 

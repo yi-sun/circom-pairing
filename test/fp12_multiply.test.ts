@@ -137,7 +137,7 @@ describe("Fp12Compression n = 3, k = 2", function() {
         circuit = await wasm_tester(path.join(__dirname, "circuits", "test_fp12_compression_32.circom"));
     });
 
-    let p: bigint = 13n;
+    let p: bigint = 19n;
     Fp.ORDER = p;
     Fp2.ORDER = p;
 
@@ -168,15 +168,17 @@ describe("Fp12Compression n = 3, k = 2", function() {
     }
 
     var test_cases: Array<Fp12> = [];
-    for(var test_id = 0; test_id < 1000; test_id++){
+    for(var test_id = 0; test_id < 100; test_id++){
         let rand_twelve: BigintTwelve = [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n];
         for( let i = 0; i < 12; i++){
-            rand_twelve[i] = BigInt( Math.floor(Math.random() * 13) );
+            rand_twelve[i] = BigInt( Math.floor(Math.random() * 19) );
         }
         let elt: Fp12 = Fp12.fromBigTwelve( rand_twelve ); 
-        let elt2: Fp12 = elt.pow( (p ** 6n - 1n) * (p*p + 1n) ); // this is now in cyclotomic subgroup 
-        if( !elt2.equals(Fp12.ONE) && elt2.pow( p ** 4n - p ** 2n + 1n ).equals( Fp12.ONE ) ) // check it's in cyclotomic subgroup
+        let elt2: Fp12 = elt.pow( ( (p ** 6n) - 1n) * (p*p + 1n) ); // this is now in cyclotomic subgroup 
+        if( !elt2.equals(Fp12.ONE) ){ // skip if elt2 = 1
+            // console.log( elt2.pow( (p ** 4n) - (p*p) + 1n ).equals(Fp12.ONE) );
             test_cases.push(elt2);
+        }
     }
 
     test_cases.forEach(test_compression_32);
