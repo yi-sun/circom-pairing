@@ -59,6 +59,26 @@ function find_Fp2_product(n, k, a, b, p){
     return out;
 }
 
+// helper function to precompute the sum of two elements a, b in Fp2
+// a[2][k], b[2][k] all registers in [0, 2^n) 
+// this is a direct computation
+function find_Fp2_sum(n, k, a, b, p){
+    var out[2][100];
+    out[0] = long_add_mod(n,k,a[0],b[0],p); 
+    out[1] = long_add_mod(n,k,a[1],b[1],p);
+    return out;
+}
+
+// helper function to precompute the difference of two elements a, b in Fp2
+// a[2][k], b[2][k] all registers in [0, 2^n) 
+// this is a direct computation
+function find_Fp2_diff(n, k, a, b, p){
+    var out[2][100];
+    out[0] = long_sub_mod(n,k,a[0],b[0],p); 
+    out[1] = long_sub_mod(n,k,a[1],b[1],p);
+    return out;
+}
+
 function get_BLS12_381_parameter(){
     return 15132376222941642752;
 }
@@ -108,6 +128,97 @@ function Fp2invert_func(n, k, p, a) {
     var out1[100] = prod(n, k, lambda, out1_pre);
     var out1_div[2][100] = long_div(n, k, out1, p);
     out[1] = out1_div[1];
+    return out;
+}
+
+// function Fp12invert_func(n, k, p, a) {
+//     var out[100]; // TODO - multiply by conjugate and then call Fp6invert_func
+//     return out;
+// }
+
+// compute the inverse of a0 + a1v + a2v^2 in Fp6, where 
+// v^3 = 1+u, u^2 = -1, a0 a1 a2 in Fp2 (2 x k)
+// returns an element in standard Fp12 representation (6 x 2 x k)
+function Fp6invert_func(n, k, p, a0, a1, a2) {
+    var out[6][2][100];
+
+    var a0_squared[2][100] = find_Fp2_product(n, k, a0, a0, p);
+    var a1_squared[2][100] = find_Fp2_product(n, k, a1, a1, p);
+    var a2_squared[2][100] = find_Fp2_product(n, k, a2, a2, p);
+    var a0a1[2][100] = find_Fp2_product(n, k, a0, a1, p);
+    var a0a2[2][100] = find_Fp2_product(n, k, a0, a2, p);
+    var a1a2[2][100] = find_Fp2_product(n, k, a1, a2, p);
+    var a0a1a2[2][100] = find_Fp2_product(n, k, a0a1, a2, p);
+
+    var v3[2][100]; // v^3 = 1 + u
+    for (var i = 0; i < 2; i ++) {
+        for (var j = 0; j < k; j ++) {
+            if (j == 0) {
+                v3[i][j] = 1;
+            } else {
+                v3[i][j] = 0;
+            }
+        }
+    }
+
+    var three_v3[2][100]; // 3v^3 = 3 + 3u
+    for (var i = 0; i < 2; i ++) {
+        for (var j = 0; j < k; j ++) {
+            if (j == 0) {
+                three_v3[i][j] = 3;
+            } else {
+                three_v3[i][j] = 0;
+            }
+        }
+    }
+
+    var v6[2][100]; // v^6 = 2u
+    for (var i = 0; i < 2; i ++) {
+        for (var j = 0; j < k; j ++) {
+            if (i == 1 && j == 0) {
+                v6[i][j] = 2;
+            } else {
+                v6[i][j] = 0;
+            }
+        }
+    }
+
+    var v0_1[2][100] = find_Fp2_product(n, k, a1a2, v3, p);
+    var v0_temp[2][100] = find_Fp2_diff(n, k, a0_squared, v0_1, p); // a0^2 - a1a2v^3
+    var v1_1[2][100] = find_Fp2_product(n, k, a2_squared, v3, p);
+    var v1_temp[2][100] = find_Fp2_diff(n, k, v1_1, a0a1, p); // v^3a2^2 - a0a1
+    var v2_temp[2][100] = find_Fp2_diff(n, k, a1_squared, a0a2, p); // a1^2 - a0a2
+
+    var a0_cubed[2][100] = find_Fp2_product(n, k, a0, a0_squared, p);
+    var a1_cubed[2][100] = find_Fp2_product(n, k, a1, a1_squared, p);
+    var a2_cubed[2][100] = find_Fp2_product(n, k, a2, a2_squared, p);
+    var a13v3[2][100] = find_Fp2_product(n, k, a1_cubed, v3, p);
+    var a23v6[2][100] = find_Fp2_product(n, k, a2_cubed, v6, p);
+    var a0a1a23v3[2][100] = find_Fp2_product(n, k, a0a1a2, three_v3, p);
+
+    var denom_1[2][100] = find_Fp2_sum(n, k, a0_cubed, a13v3, p);
+    var denom_2[2][100] = find_Fp2_diff(n, k, a23v6, a0a1a23v3, p);
+    var denom[2][100] = find_Fp2_sum(n, k, denom_1, denom_2, p); // a0^3 + a1^3v^3 + a2^3v^6 - 3a0a1a2v^3
+
+    var denom_inv[2][100] = Fp2invert_func(n, k, p, denom);
+
+    var v0_final[2][100] = find_Fp2_product(n, k, v0_temp, denom_inv, p);
+    var v1_final[2][100] = find_Fp2_product(n, k, v1_temp, denom_inv, p);
+    var v2_final[2][100] = find_Fp2_product(n, k, v2_temp, denom_inv, p);
+
+    for (var i = 1; i < 6; i = i + 2) {
+        for (var j = 0; j < 2; j ++) {
+            for (var m = 0; m < 100; m ++) {
+                if (i > 1)
+                out[i][j][m] = 0;
+                else 
+                out[i][j][m] = 0;//v3[j][m];
+            }
+        }
+    }
+    out[0] = v0_final;
+    out[2] = v1_final;
+    out[4] = v2_final;
     return out;
 }
 
