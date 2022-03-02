@@ -774,3 +774,167 @@ template primeTrickCompression(n, k, m, p){
     for(var i=0; i<k; i++)
         out[i] <== out_sum[i]; 
 }
+
+// a[i][j], b[j][j] are short unsigned integers
+// out[i][j] is a long unsigned integer
+// basically multiply two-variable polynomials a, b
+// use case: one variable will end up being 2**n; the other will be the field extension generator
+template BigMultShortLong2D(n, k, l) {
+    signal input a[l][k];
+    signal input b[l][k];
+    signal output out[2*l-1][2*k-1];
+
+    var prod_val[2*l-1][2*k-1];
+    for (var i = 0; i < 2*l-1; i++) {
+        for (var j = 0; j < 2*k-1; j++) {
+            prod_val[i][j] = 0;
+        }
+    }
+
+    for (var i1 = 0; i1 < l; i1 ++) {
+        for (var i2 = 0; i2 < l; i2 ++) {
+            for (var j1 = 0; j1 < k; j1 ++) {
+                for (var j2 = 0; j2 < k; j2 ++) {
+                    var i = i1 + i2;
+                    var j = j1 + j2;
+                    prod_val[i][j] += a[i1][j1] * b[i2][j2];
+                }
+            }
+        }
+    }
+
+    for (var i = 0; i < 2*l-1; i++) {
+        for (var j = 0; j < 2*k-1; j++) {
+            out[i][j] <-- prod_val[i][j];
+        }
+    }
+
+    var a_poly[2*l-1][2*k-1];
+    var b_poly[2*l-1][2*k-1];
+    var out_poly[2*l-1][2*k-1];
+    for (var i = 0; i < 2*l-1; i++) {
+        for (var j = 0; j < 2*k-1; j++) {
+            a_poly[i][j] = 0;
+            b_poly[i][j] = 0;
+            out_poly[i][j] = 0;
+            for (var deg1 = 0; deg1 < l; deg1 ++) {
+                for (var deg2 = 0; deg2 < k; deg2 ++) {
+                    a_poly[i][j] = a_poly[i][j] + a[deg1][deg2] * (i ** deg1) * (j ** deg2);
+                    b_poly[i][j] = b_poly[i][j] + b[deg1][deg2] * (i ** deg1) * (j ** deg2);
+                }
+            }
+            for (var deg1 = 0; deg1 < 2*l-1; deg1 ++) {
+                for (var deg2 = 0; deg2 < 2*k-1; deg2 ++) {
+                    out_poly[i][j] = out_poly[i][j] + out[deg1][deg2] * (i ** deg1) * (j ** deg2);
+                }
+            }
+        }
+    }
+
+    for (var i = 0; i < 2*l-1; i++) {
+        for (var j = 0; j < 2*k-1; j++) {
+            out_poly[i][j] === a_poly[i][j] * b_poly[i][j];
+        }
+    }
+}
+
+// a[i][j], b[j][j] are short unsigned integers
+// out[i][j] is a long unsigned integer
+// basically multiply two-variable polynomials a, b
+// use case: one variable will end up being 2**n; the other will be the field extension generator
+template BigMultShortLong2DUnequal(n, ka, kb, la, lb) {
+    signal input a[la][ka];
+    signal input b[lb][kb];
+    signal output out[la + lb -1][ka + kb -1];
+
+    var prod_val[la + lb -1][ka + kb -1];
+    for (var i = 0; i < la + lb -1; i++) {
+        for (var j = 0; j < ka + kb -1; j++) {
+            prod_val[i][j] = 0;
+        }
+    }
+
+    for (var i1 = 0; i1 < la; i1 ++) {
+        for (var i2 = 0; i2 < lb; i2 ++) {
+            for (var j1 = 0; j1 < ka; j1 ++) {
+                for (var j2 = 0; j2 < kb; j2 ++) {
+                    var i = i1 + i2;
+                    var j = j1 + j2;
+                    prod_val[i][j] += a[i1][j1] * b[i2][j2];
+                }
+            }
+        }
+    }
+
+    for (var i = 0; i < la + lb -1; i++) {
+        for (var j = 0; j < ka + kb -1; j++) {
+            out[i][j] <-- prod_val[i][j];
+        }
+    }
+
+    var a_poly[la + lb - 1][ka + kb -1];
+    var b_poly[la + lb - 1][ka + kb -1];
+    var out_poly[la + lb - 1][ka + kb -1];
+    for (var i = 0; i < la + lb - 1; i++) {
+        for (var j = 0; j < ka + kb - 1; j++) {
+            a_poly[i][j] = 0;
+            b_poly[i][j] = 0;
+            out_poly[i][j] = 0;
+            for (var deg1 = 0; deg1 < la + lb - 1; deg1 ++) {
+		if (deg1 < la) {
+                    for (var deg2 = 0; deg2 < ka; deg2 ++) {
+			a_poly[i][j] = a_poly[i][j] + a[deg1][deg2] * (i ** deg1) * (j ** deg2);
+                    }
+		}
+		if (deg1 < lb) {
+		    for (var deg2 = 0; deg2 < kb; deg2 ++) {
+			b_poly[i][j] = b_poly[i][j] + b[deg1][deg2] * (i ** deg1) * (j ** deg2);
+		    }
+		}
+                for (var deg2 = 0; deg2 < ka + kb -1; deg2 ++) {
+                    out_poly[i][j] = out_poly[i][j] + out[deg1][deg2] * (i ** deg1) * (j ** deg2);
+                }
+            }
+        }
+    }
+
+    for (var i = 0; i < la + lb - 1; i++) {
+        for (var j = 0; j < ka + kb - 1; j++) {
+            out_poly[i][j] === a_poly[i][j] * b_poly[i][j];
+        }
+    }
+}
+
+
+
+// constrain in = p * X + Y 
+// in[i] in (-2^overflow, 2^overflow) 
+template checkBigMod(n, k, m, overflow, p){
+    signal input in[k]; 
+    signal input X[m];
+    signal input Y[k];
+
+    component pX;
+    component carry_check;
+    var maxkm;
+    if(k < m) maxkm = m;
+    else maxkm = k;
+
+    pX = BigMultShortLong(n, maxkm); // p has k registers, X has m registers, so output really has k+m-1 registers 
+    for(var i=0; i<maxkm; i++){
+        if(i < k)
+            pX.a[i] <== p[i];
+        else
+            pX.a[i] <== 0;
+        if(i < m)
+            pX.b[i] <== X[i];
+        else 
+            pX.b[i] <== 0;
+    }
+    carry_check = CheckCarryToZero(n, overflow+1, k+m-1 ); 
+    for(var i=0; i<k; i++){
+        carry_check.in[i] <== in[i] - pX.out[i] - Y[i]; 
+    }
+    for(var i=k; i<k+m-1; i++)
+        carry_check.in[i] <== -pX.out[i];
+}
