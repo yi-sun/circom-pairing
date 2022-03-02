@@ -101,38 +101,6 @@ template Fp2multiplyNoCarryCompress(n, k, p){
         out[i][j] <== compress.out[i][j];
 }
 
-// constrain in = p * X + Y 
-// in[i] in (-2^overflow, 2^overflow) 
-template checkBigMod(n, k, m, overflow, p){
-    signal input in[k]; 
-    signal input X[m];
-    signal input Y[k];
-
-    component pX;
-    component carry_check;
-    var maxkm;
-    if(k < m) maxkm = m;
-    else maxkm = k;
-
-    pX = BigMultShortLong(n, maxkm); // p has k registers, X has m registers, so output really has k+m-1 registers 
-    for(var i=0; i<maxkm; i++){
-        if(i < k)
-            pX.a[i] <== p[i];
-        else
-            pX.a[i] <== 0;
-        if(i < m)
-            pX.b[i] <== X[i];
-        else 
-            pX.b[i] <== 0;
-    }
-    carry_check = CheckCarryToZero(n, overflow+1, k+m-1 ); 
-    for(var i=0; i<k; i++){
-        carry_check.in[i] <== in[i] - pX.out[i] - Y[i]; 
-    }
-    for(var i=k; i<k+m-1; i++)
-        carry_check.in[i] <== -pX.out[i];
-}
-
 // check if in[0] + in[0]*u is a valid point of Fp2 with in[0],in[1] both with k registers in [0,2^n) and in[i] in [0,p)
 template checkValidFp2(n, k, p){
     signal input in[2][k];
