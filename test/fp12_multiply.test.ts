@@ -1,6 +1,18 @@
 import path = require("path");
 const circom_tester = require('circom_tester');
 const wasm_tester = circom_tester.wasm;
+import {
+  Fp, Fp2, Fp6, Fp12, CURVE, mod
+} from './math';
+
+type BigintTuple = [bigint, bigint];
+type FpTuple = [Fp, Fp];
+type BigintSix = [bigint, bigint, bigint, bigint, bigint, bigint];
+// prettier-ignore
+type BigintTwelve = [
+  bigint, bigint, bigint, bigint, bigint, bigint,
+  bigint, bigint, bigint, bigint, bigint, bigint
+];
 
 function bigint_to_array(n: number, k: number, x: bigint) {
     let mod: bigint = 1n;
@@ -114,4 +126,59 @@ describe("Fp12Multiply2 n = 3, k = 2", function() {
     }
 
     test_cases.forEach(test_field_multiply_32);
+});
+
+describe("Fp12Compression n = 3, k = 2", function() {
+    this.timeout(1000 * 1000);
+
+    // runs circom compilation
+    let circuit: any;
+    before(async function () {
+        circuit = await wasm_tester(path.join(__dirname, "circuits", "test_fp12_compression_32.circom"));
+    });
+
+    let p: bigint = 13n;
+    Fp.ORDER = p;
+    Fp2.ORDER = p;
+
+    var test_compression_32 = function (x: Fp12) {
+        let in_array: Array<[ bigint[], bigint[] ]> = new Array(6);
+        let a_array: Array< [bigint, bigint] > = new Array(6);
+        let {c0: x0, c1: x1} = x;
+        let {c0: c00, c1: c01, c2: c02} = x0;
+        let {c0: c10, c1: c11, c2: c12} = x1;
+        let Fp2_array: Array< Fp2 > = [c00, c10, c01, c11, c02, c12]; 
+        for( var i = 0; i < 6; i++ ){
+            let {c0: a0, c1: a1} = Fp2_array[i];
+            in_array[i] = [ bigint_to_array(3, 2, a0.value), bigint_to_array(3, 2, a1.value) ];
+            a_array[i] = [ a0.value, a1.value ];
+        }
+
+        it('Testing a0: ' + a_array[0][0] + ', ' + a_array[0][1] + 
+            ' a1: ' + a_array[1][0] + ', ' + a_array[1][1] + 
+            ' a2: ' + a_array[2][0] + ', ' + a_array[2][1] + 
+            ' a3: ' + a_array[3][0] + ', ' + a_array[3][1] + 
+            ' a4: ' + a_array[4][0] + ', ' + a_array[4][1] + 
+            ' a5: ' + a_array[5][0] + ', ' + a_array[5][1] + 
+            ' p: ' + p, async function() {
+            let witness = await circuit.calculateWitness({"in": in_array });
+	    await circuit.assertOut(witness, {"out": in_array });
+            await circuit.checkConstraints(witness);
+        });
+    }
+
+    var test_cases: Array<Fp12> = [];
+    for(var test_id = 0; test_id < 1000; test_id++){
+        let rand_twelve: BigintTwelve = [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n];
+        for( let i = 0; i < 12; i++){
+            rand_twelve[i] = BigInt( Math.floor(Math.random() * 13) );
+        }
+        let elt: Fp12 = Fp12.fromBigTwelve( rand_twelve ); 
+        let elt2: Fp12 = elt.pow( (p ** 6n - 1n) * (p*p + 1n) ); // this is now in cyclotomic subgroup 
+        if( !elt2.equals(Fp12.ONE) && elt2.pow( p ** 4n - p ** 2n + 1n ).equals( Fp12.ONE ) ) // check it's in cyclotomic subgroup
+            test_cases.push(elt2);
+    }
+
+    test_cases.forEach(test_compression_32);
+
 });
