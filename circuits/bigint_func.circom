@@ -49,6 +49,24 @@ function long_add(n, k, a, b){
 }
 
 // n bits per register
+// a has k registers
+// b has k registers
+// c has k registers
+// d has k registers
+// output has k+1 registers
+function long_add4(n, k, a, b, c, d){
+    var carry = 0;
+    var sum[100];
+    for(var i=0; i < k; i++){
+        var sumAndCarry[2] = SplitFn(a[i] + b[i] + c[i] + d[i] + carry, n, n);
+        sum[i] = sumAndCarry[0];
+        carry = sumAndCarry[1];
+    }
+    sum[k] = carry;
+    return sum;
+}
+
+// n bits per register
 // a has k1 registers
 // b has k2 registers
 // assume k1 > k2
@@ -144,9 +162,7 @@ function long_div2(n, k, m, a, b){
                 dividend[j] = remainder[j + i];
             }
         }
-
         out[0][i] = short_div(n, k, dividend, b);
-
         var mult_shift[100] = long_scalar_mult(n, k, out[0][i], b);
         var subtrahend[200];
         for (var j = 0; j < m + k; j++) {
@@ -180,14 +196,6 @@ function short_div_norm(n, k, a, b) {
    if (qhat > (1 << n) - 1) {
       qhat = (1 << n) - 1;
    }
-   //log(k);
-   for (var i = 0; i <= k; i++) {
-       //log(a[i]);
-   }
-   for (var i = 0; i < k; i++) {
-       //log(b[i]);
-   }
-   //log(qhat);
 
    var mult[100] = long_scalar_mult(n, k, qhat, b);
    if (long_gt(n, k + 1, mult, a) == 1) {
@@ -208,20 +216,19 @@ function short_div_norm(n, k, a, b) {
 // assumes leading digit of b is non-zero
 // 0 <= a < (2**n) * b
 function short_div(n, k, a, b) {
-   var scale = (1 << n) \ (1 + b[k - 1]);
-   //log(scale);
-   // k + 2 registers now
-   var norm_a[200] = long_scalar_mult(n, k + 1, scale, a);
-   // k + 1 registers now
-   var norm_b[200] = long_scalar_mult(n, k, scale, b);
-
-   var ret;
-   if (norm_b[k] != 0) {
-       ret = short_div_norm(n, k + 1, norm_a, norm_b);
-   } else {
-       ret = short_div_norm(n, k, norm_a, norm_b);
-   }
-   return ret;
+    var scale = (1 << n) \ (1 + b[k - 1]);
+    // k + 2 registers now
+    var norm_a[100] = long_scalar_mult(n, k + 1, scale, a);
+    // k + 1 registers now
+    var norm_b[100] = long_scalar_mult(n, k, scale, b);
+    
+    var ret;
+    if (norm_b[k] != 0) {
+	ret = short_div_norm(n, k + 1, norm_a, norm_b);
+    } else {
+	ret = short_div_norm(n, k, norm_a, norm_b);
+    }
+    return ret;
 }
 
 // a has k registers
@@ -342,6 +349,62 @@ function prod2D(n, k, l, a, b) {
                 carry[j][i] = sumAndCarry[j][1];
             }
             out[j][2 * k - 1] = split[j][2*k-2][1] + split[j][2*k-3][2] + carry[j][2*k-2];
+        }
+    }
+
+    return out;
+}
+
+// adapted from BigMultShortLong2D and LongToShortNoEndCarry2 witness computation
+function prod3D(n, k, l, a, b, c) {
+    // first compute the intermediate values. taken from BigMulShortLong
+    var prod_val[100][100]; // length is 3l - 2 by 3k - 2
+    for (var i = 0; i < 3 * k; i++) {
+        for (var j = 0; j < 3 * l; j ++) {
+            prod_val[j][i] = 0;
+        }
+    }
+    for (var i1 = 0; i1 < k; i1 ++) {
+        for (var i2 = 0; i2 < k; i2 ++) {
+	    for (var i3 = 0; i3 < k; i3 ++) {
+		for (var j1 = 0; j1 < l; j1 ++) {
+                    for (var j2 = 0; j2 < l; j2 ++) {
+			for (var j3 = 0; j3 < l; j3 ++) {
+			    prod_val[j1 + j2 + j3][i1 + i2 + i3] = prod_val[j1 + j2 + j3][i1 + i2 + i3] + a[j1][i1] * b[j2][i2] * c[j3][i3];
+			}
+		    }
+                }
+            }
+        }
+    }
+
+    // now do a bunch of carrying to make sure registers not overflowed. taken from LongToShortNoEndCarry2
+    var out[100][100]; // length is 3 * l by 3 * k
+
+    var split[100][100][3]; // second dimension has length 3 * k - 1
+    for (var j = 0; j < 3 * l - 1; j ++) {
+        for (var i = 0; i < 3 * k - 1; i++) {
+            split[j][i] = SplitThreeFn(prod_val[j][i], n, n, n);
+        }
+    }
+
+    var carry[100][100]; // length is 3l-1 x 3k
+    var sumAndCarry[100][2];
+    for ( var j = 0; j < 3 * l - 1; j ++) {
+        carry[j][0] = 0;
+        out[j][0] = split[j][0][0];
+        if (3 * k - 1 > 1) {
+            sumAndCarry[j] = SplitFn(split[j][0][1] + split[j][1][0], n, n);
+            out[j][1] = sumAndCarry[j][0];
+            carry[j][1] = sumAndCarry[j][1];
+        }
+        if (3 * k - 1 > 2) {
+            for (var i = 2; i < 3 * k - 1; i++) {
+                sumAndCarry[j] = SplitFn(split[j][i][0] + split[j][i-1][1] + split[j][i-2][2] + carry[j][i-1], n, n);
+                out[j][i] = sumAndCarry[j][0];
+                carry[j][i] = sumAndCarry[j][1];
+            }
+            out[j][3 * k - 1] = split[j][3*k-2][1] + split[j][3*k-3][2] + carry[j][3*k-2];
         }
     }
 

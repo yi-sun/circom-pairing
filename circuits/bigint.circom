@@ -252,6 +252,49 @@ template BigMultShortLong(n, k) {
    }
 }
 
+// a[i] and b[i] are short unsigned integers
+// out[i] is a long unsigned integer
+template BigMultShortLongUnequal(n, ka, kb) {
+    assert(n <= 126);
+    signal input a[ka];
+    signal input b[kb];
+    signal output out[ka + kb - 1];
+    
+    var prod_val[ka + kb - 1];
+    for (var i = 0; i < ka + kb - 1; i++) {
+	prod_val[i] = 0;
+    }
+    for (var i = 0; i < ka; i++) {
+	for (var j = 0; j < kb; j++) {
+	    prod_val[i + j] = prod_val[i + j] + a[i] * b[j];
+	}
+    }
+    for (var i = 0; i < ka + kb - 1; i++) {
+       out[i] <-- prod_val[i];
+   }
+
+   var a_poly[ka + kb - 1];
+   var b_poly[ka + kb - 1];
+   var out_poly[ka + kb - 1];
+   for (var i = 0; i < ka + kb - 1; i++) {
+       out_poly[i] = 0;
+       a_poly[i] = 0;
+       b_poly[i] = 0;
+       for (var j = 0; j < ka + kb - 1; j++) {
+           out_poly[i] = out_poly[i] + out[j] * (i ** j);
+       }
+       for (var j = 0; j < ka; j++) {
+           a_poly[i] = a_poly[i] + a[j] * (i ** j);
+       }
+       for (var j = 0; j < kb; j++) {
+           b_poly[i] = b_poly[i] + b[j] * (i ** j);
+       }
+   }
+   for (var i = 0; i < ka + kb - 1; i++) {
+      out_poly[i] === a_poly[i] * b_poly[i];
+   }
+}
+
 
 // in[i] contains longs
 // out[i] contains shorts
