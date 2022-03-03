@@ -114,8 +114,8 @@ template Fp12Multiply(n, k) {
     var a1[l][k];
     var b0[l][k];
     var b1[l][k];
-    var neg_b0[l][100];
-    var neg_b1[l][100];
+    var neg_b0[l][20];
+    var neg_b1[l][20];
     for (var i = 0; i < l; i ++) { 
         for ( var j = 0; j < k; j ++) {
             a0[i][j] = a[i][0][j];
@@ -129,29 +129,29 @@ template Fp12Multiply(n, k) {
         neg_b1[i] = long_sub(n, k, p, b1[i]);
     }
 
-    var real_init[2*l-1][100];
-    var imag_init[2*l-1][100];
-    var imag_init_neg[2*l-1][100];
-    var real[l][2][100];
-    var imag[l][2][100];
+    var real_init[2*l-1][20];
+    var imag_init[2*l-1][20];
+    var imag_init_neg[2*l-1][20];
+    var real[l][2][20];
+    var imag[l][2][20];
     // each product will be 2l-1 x 2k
-    var a0b0_var[100][100] = prod2D(n, k, l, a0, b0);
-    var a1b1_neg[100][100] = prod2D(n, k, l, a1, neg_b1);
-    var a0b1_var[100][100] = prod2D(n, k, l, a0, b1);
-    var a1b0_var[100][100] = prod2D(n, k, l, a1, b0);
-    var a0b1_neg[100][100] = prod2D(n, k, l, a0, neg_b1);
-    var a1b0_neg[100][100] = prod2D(n, k, l, a1, neg_b0);
+    var a0b0_var[20][20] = prod2D(n, k, l, a0, b0);
+    var a1b1_neg[20][20] = prod2D(n, k, l, a1, neg_b1);
+    var a0b1_var[20][20] = prod2D(n, k, l, a0, b1);
+    var a1b0_var[20][20] = prod2D(n, k, l, a1, b0);
+    var a0b1_neg[20][20] = prod2D(n, k, l, a0, neg_b1);
+    var a1b0_neg[20][20] = prod2D(n, k, l, a1, neg_b0);
     for (var i = 0; i < 2*l - 1; i ++) { // compute initial rep (deg w = 10)
         real_init[i] = long_add(n, 2*k, a0b0_var[i], a1b1_neg[i]); // 2*k+1 registers each
         imag_init[i] = long_add(n, 2*k, a0b1_var[i], a1b0_var[i]);
         imag_init_neg[i] = long_add(n, 2*k, a0b1_neg[i], a1b0_neg[i]);
     }
-    var real_carry[l][100];
-    var imag_carry[l][100];
-    var real_final[l][100];
-    var imag_final[l][100];
-    var zeros[100]; // to balance register sizes
-    for (var i = 0; i < 100; i ++) {
+    var real_carry[l][20];
+    var imag_carry[l][20];
+    var real_final[l][20];
+    var imag_final[l][20];
+    var zeros[20]; // to balance register sizes
+    for (var i = 0; i < 20; i ++) {
         zeros[i] = 0;
     }
     for (var i = 0; i < l; i ++) {
@@ -167,8 +167,8 @@ template Fp12Multiply(n, k) {
         real_final[i] = long_add_unequal(n, 2*k+2, 2*k+1, real_carry[i], real_init[i]); // now 2*k+3 registers
         imag_final[i] = long_add_unequal(n, 2*k+2, 2*k+1, imag_carry[i], imag_init[i]);
     }
-    var XYreal_temp[l][2][100];
-    var XYimag_temp[l][2][100];
+    var XYreal_temp[l][2][20];
+    var XYimag_temp[l][2][20];
     signal XYreal[l][2][k+4];
     signal XYimag[l][2][k+4];
     for (var i = 0; i < l; i ++) {
@@ -954,44 +954,43 @@ template Fp6invert(n, k, p) {
     }
 }
 
-// // Call Fp12invert_func to compute inverse
-// // Then check out * in = 1, out is an array of shorts
-// template Fp12invert(n, k, p){
-//     signal input in[6][2][k];
-//     signal output out[6][2][k];
+// Call Fp12invert_func to compute inverse
+// Then check out * in = 1, out is an array of shorts
+template Fp12Invert(n, k, p){
+    signal input in[6][2][k];
+    signal output out[6][2][k];
 
-//     var inverse[6][2][100] = Fp12invert_func(n, k, p, in); // 6 x 2 x 100, only 6 x 2 x k relevant
-//     for (var i = 0; i < 6; i ++) {
-//         for (var j = 0; j < 2; j ++) {
-//             for (var m = 0; m < k; m ++) {
-//                 out[i][j][m] <-- inverse[i][j][m];
-//             }
-//         }
-//     }
+    var inverse[6][2][20] = Fp12invert_func(n, k, p, in); // 6 x 2 x 100, only 6 x 2 x k relevant
+    for (var i = 0; i < 6; i ++) {
+        for (var j = 0; j < 2; j ++) {
+            for (var m = 0; m < k; m ++) {
+                out[i][j][m] <-- inverse[i][j][m];
+            }
+        }
+    }
 
-//     //range checks
-//     component outRangeChecks[6][2][k];
-//     for(var i=0; i<6; i++) for(var j=0; j<2; j++) for(var m=0; m<k; m++) {
-//         outRangeChecks[i][j][m] = Num2Bits(n);
-//         outRangeChecks[i][j][m].in <== out[i][j][m];
-//     }
+    component outRangeChecks[6][2][k];
+    for(var i=0; i<6; i++) for(var j=0; j<2; j++) for(var m=0; m<k; m++) {
+        outRangeChecks[i][j][m] = Num2Bits(n);
+        outRangeChecks[i][j][m].in <== out[i][j][m];
+    }
 
-//     component in_out = Fp12multiply(n, k, p);
-//     for(var i=0; i<6; i++) for(var j=0; j<2; j++) for(var m=0; m<k; m++) {
-//         in_out.a[i][j][m] <== in[i][j][m];
-//         in_out.b[i][j][m] <== out[i][j][m];
-//     }
-//     for (var i = 0; i < k; i ++) {
-//         in_out.p[i] <== p[i];
-//     }
+    component in_out = Fp12Multiply(n, k);
+    for(var i=0; i<6; i++) for(var j=0; j<2; j++) for(var m=0; m<k; m++) {
+        in_out.a[i][j][m] <== in[i][j][m];
+        in_out.b[i][j][m] <== out[i][j][m];
+    }
+    for (var i = 0; i < k; i ++) {
+        in_out.p[i] <== p[i];
+    }
 
-//     for(var i=0; i<6; i++)for(var j=0; j<2; j++) for(var m = 0; m < k; m ++) {
-//         if(i == 0 && j == 0 && m == 0)
-//             in_out.out[i][j][m] === 1;
-//         else
-//             in_out.out[i][j][m] === 0;
-//     }
-// }
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++) for(var m = 0; m < k; m ++) {
+        if(i == 0 && j == 0 && m == 0)
+            in_out.out[i][j][m] === 1;
+        else
+            in_out.out[i][j][m] === 0;
+    }
+}
 
 // input is an element of Fp12 
 // output is input raised to the e-th power

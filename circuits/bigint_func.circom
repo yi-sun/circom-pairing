@@ -38,7 +38,7 @@ function long_gt(n, k, a, b) {
 // output has k+1 registers
 function long_add(n, k, a, b){
     var carry = 0;
-    var sum[100];
+    var sum[20];
     for(var i=0; i<k; i++){
         var sumAndCarry[2] = SplitFn(a[i] + b[i] + carry, n, n);
         sum[i] = sumAndCarry[0];
@@ -73,7 +73,7 @@ function long_add4(n, k, a, b, c, d){
 // output has k1+1 registers
 function long_add_unequal(n, k1, k2, a, b){
     var carry = 0;
-    var sum[100];
+    var sum[20];
     for(var i=0; i<k1; i++){
         if (i < k2) {
             var sumAndCarry[2] = SplitFn(a[i] + b[i] + carry, n, n);
@@ -94,8 +94,8 @@ function long_add_unequal(n, k1, k2, a, b){
 // b has k registers
 // a >= b
 function long_sub(n, k, a, b) {
-    var diff[100];
-    var borrow[100];
+    var diff[20];
+    var borrow[20];
     for (var i = 0; i < k; i++) {
         if (i == 0) {
            if (a[i] >= b[i]) {
@@ -119,8 +119,8 @@ function long_sub(n, k, a, b) {
 }
 
 function long_add_mod(n, k, a, b, p) {
-    var sum[100] = long_add(n,k,a,b); 
-    var temp[2][100] = long_div2(n,k,1,sum,p);
+    var sum[20] = long_add(n,k,a,b); 
+    var temp[2][20] = long_div2(n,k,1,sum,p);
     return temp[1];
 }
 
@@ -134,15 +134,15 @@ function long_sub_mod(n, k, a, b, p) {
 
 function prod_mod(n, k, a, b, p) {
     var prod[100] = prod(n,k,a,b);
-    var temp[2][100] = long_div(n,k,prod,p);
+    var temp[2][20] = long_div(n,k,prod,p);
     return temp[1];
 }
 
 // a is a n-bit scalar
 // b has k registers
 function long_scalar_mult(n, k, a, b) {
-    var out[100];
-    for (var i = 0; i < 100; i++) {
+    var out[20];
+    for (var i = 0; i < 20; i++) {
         out[i] = 0;
     }
     for (var i = 0; i < k; i++) {
@@ -162,9 +162,9 @@ function long_scalar_mult(n, k, a, b) {
 // implements algorithm of https://people.eecs.berkeley.edu/~fateman/282/F%20Wright%20notes/week4.pdf
 // b[k-1] must be nonzero!
 function long_div2(n, k, m, a, b){
-    var out[2][100];
+    var out[2][20];
 
-    var remainder[200];
+    var remainder[20];
     for (var i = 0; i < m + k; i++) {
         remainder[i] = a[i];
     }
@@ -183,7 +183,7 @@ function long_div2(n, k, m, a, b){
             }
         }
         out[0][i] = short_div(n, k, dividend, b);
-        var mult_shift[100] = long_scalar_mult(n, k, out[0][i], b);
+        var mult_shift[20] = long_scalar_mult(n, k, out[0][i], b);
         var subtrahend[200];
         for (var j = 0; j < m + k; j++) {
             subtrahend[j] = 0;
@@ -217,7 +217,7 @@ function short_div_norm(n, k, a, b) {
       qhat = (1 << n) - 1;
    }
 
-   var mult[100] = long_scalar_mult(n, k, qhat, b);
+   var mult[20] = long_scalar_mult(n, k, qhat, b);
    if (long_gt(n, k + 1, mult, a) == 1) {
       mult = long_sub(n, k + 1, mult, b);
       if (long_gt(n, k + 1, mult, a) == 1) {
@@ -238,9 +238,9 @@ function short_div_norm(n, k, a, b) {
 function short_div(n, k, a, b) {
     var scale = (1 << n) \ (1 + b[k - 1]);
     // k + 2 registers now
-    var norm_a[100] = long_scalar_mult(n, k + 1, scale, a);
+    var norm_a[20] = long_scalar_mult(n, k + 1, scale, a);
     // k + 1 registers now
-    var norm_b[100] = long_scalar_mult(n, k, scale, b);
+    var norm_b[20] = long_scalar_mult(n, k, scale, b);
     
     var ret;
     if (norm_b[k] != 0) {
@@ -326,7 +326,7 @@ function prod(n, k, a, b) {
 // adapted from BigMultShortLong2D and LongToShortNoEndCarry2 witness computation
 function prod2D(n, k, l, a, b) {
     // first compute the intermediate values. taken from BigMulShortLong
-    var prod_val[100][100]; // length is 2l - 1 by 2k - 1
+    var prod_val[20][20]; // length is 2l - 1 by 2k - 1
     for (var i = 0; i < 2 * k - 1; i++) {
         for (var j = 0; j < 2 * l - 1; j ++) {
             prod_val[j][i] = 0;
@@ -343,17 +343,17 @@ function prod2D(n, k, l, a, b) {
     }
 
     // now do a bunch of carrying to make sure registers not overflowed. taken from LongToShortNoEndCarry2
-    var out[100][100]; // length is 2 * l by 2 * k
+    var out[20][20]; // length is 2 * l by 2 * k
 
-    var split[100][100][3]; // second dimension has length 2 * k - 1
+    var split[20][20][3]; // second dimension has length 2 * k - 1
     for (var j = 0; j < 2 * l - 1; j ++) {
         for (var i = 0; i < 2 * k - 1; i++) {
             split[j][i] = SplitThreeFn(prod_val[j][i], n, n, n);
         }
     }
 
-    var carry[100][100]; // length is 2l-1 x 2k
-    var sumAndCarry[100][2];
+    var carry[20][20]; // length is 2l-1 x 2k
+    var sumAndCarry[20][2];
     for ( var j = 0; j < 2 * l - 1; j ++) {
         carry[j][0] = 0;
         out[j][0] = split[j][0][0];
@@ -458,7 +458,7 @@ function mod_exp(n, k, a, p, e) {
         if (eBits[i] == 1) {
             var temp[200]; // length 2 * k
             temp = prod(n, k, out, a);
-            var temp2[2][100];
+            var temp2[2][20];
             temp2 = long_div(n, k, temp, p);
             out = temp2[1];
         }
@@ -467,7 +467,7 @@ function mod_exp(n, k, a, p, e) {
         if (i > 0) {
             var temp[200]; // length 2 * k
             temp = prod(n, k, out, out);
-            var temp2[2][100];
+            var temp2[2][20];
             temp2 = long_div(n, k, temp, p);
             out = temp2[1];
         }
@@ -513,7 +513,7 @@ function mod_inv(n, k, a, p) {
     }
     two[0] = 2;
 
-    var pMinusTwo[100];
+    var pMinusTwo[20];
     pMinusTwo = long_sub(n, k, pCopy, two); // length k
     var out[100];
     out = mod_exp(n, k, a, pCopy, pMinusTwo);

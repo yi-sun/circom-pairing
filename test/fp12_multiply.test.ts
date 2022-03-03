@@ -184,3 +184,53 @@ describe("Fp12Compression n = 3, k = 2", function() {
     test_cases.forEach(test_compression_32);
 
 });
+
+
+describe("Fp12Invert n = 4, k = 2", function() {
+    this.timeout(1000 * 1000);
+
+    // runs circom compilation
+    let circuit: any;
+    before(async function () {
+        circuit = await wasm_tester(path.join(__dirname, "circuits", "test_fp12_invert_42.circom"));
+    });
+
+    // a0, a1, b0, b1, p, c0, c1
+    var test_cases: Array<number> = [2];
+
+    var test_field_invert_42 = function (x: number) {
+        var zero: bigint[] = bigint_to_array(4, 2, 0n);
+        let one: bigint[] = bigint_to_array(4, 2, 1n);
+        let three: bigint[] = bigint_to_array(4, 2, 3n);
+        let four: bigint[] = bigint_to_array(4, 2, 4n);
+        let seven: bigint[] = bigint_to_array(4, 2, 7n);
+        let eight: bigint[] = bigint_to_array(4, 2, 8n);
+        let nine: bigint[] = bigint_to_array(4, 2, 9n);
+        let eleven: bigint[] = bigint_to_array(4, 2, 11n);
+        let fourteen: bigint[] = bigint_to_array(4, 2, 14n);
+        let thirteen: bigint[] = bigint_to_array(4, 2, 13n);
+
+        let input: bigint[][][];
+        let output: bigint[][][];
+        if (x == 0) {
+            input = [[one, zero], [zero, zero], [zero, zero], [zero, zero], [zero, zero], [zero, zero]];
+            output = [[one, zero], [zero, zero], [zero, zero], [zero, zero], [zero, zero], [zero, zero]];
+        }
+        if (x == 1) {
+            input = [[zero, zero], [zero, zero], [one, zero], [zero, zero], [zero, zero], [zero, zero]];
+            output = [[zero, zero], [zero, zero], [zero, zero], [zero, zero], [nine, eight], [zero, zero]];
+        }
+        if (x == 2) {
+            input = [[zero, zero], [zero, zero], [one, zero], [zero, one], [zero, one], [zero, zero]];
+            output = [[fourteen, eleven], [seven, seven], [one, thirteen], [three, nine], [fourteen, four], [thirteen, zero]];
+        }
+
+        it('Testing case: ' + x, async function() {
+            let witness = await circuit.calculateWitness({"in": input});
+	    await circuit.assertOut(witness, {"out": output});
+            await circuit.checkConstraints(witness);
+        });
+    }
+
+    test_cases.forEach(test_field_invert_42);
+});
