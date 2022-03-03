@@ -954,44 +954,44 @@ template Fp6invert(n, k, p) {
     }
 }
 
-// // Call Fp12invert_func to compute inverse
-// // Then check out * in = 1, out is an array of shorts
-// template Fp12invert(n, k, p){
-//     signal input in[6][2][k];
-//     signal output out[6][2][k];
+// Call Fp12invert_func to compute inverse
+// Then check out * in = 1, out is an array of shorts
+template Fp12Invert(n, k, p){
+    signal input in[6][2][k];
+    signal output out[6][2][k];
 
-//     var inverse[6][2][100] = Fp12invert_func(n, k, p, in); // 6 x 2 x 100, only 6 x 2 x k relevant
-//     for (var i = 0; i < 6; i ++) {
-//         for (var j = 0; j < 2; j ++) {
-//             for (var m = 0; m < k; m ++) {
-//                 out[i][j][m] <-- inverse[i][j][m];
-//             }
-//         }
-//     }
+    var inverse[6][2][100] = Fp12invert_func(n, k, p, in); // 6 x 2 x 100, only 6 x 2 x k relevant
+    for (var i = 0; i < 6; i ++) {
+        for (var j = 0; j < 2; j ++) {
+            for (var m = 0; m < k; m ++) {
+                out[i][j][m] <-- inverse[i][j][m];
+            }
+        }
+    }
 
-//     //range checks
-//     component outRangeChecks[6][2][k];
-//     for(var i=0; i<6; i++) for(var j=0; j<2; j++) for(var m=0; m<k; m++) {
-//         outRangeChecks[i][j][m] = Num2Bits(n);
-//         outRangeChecks[i][j][m].in <== out[i][j][m];
-//     }
+    //range checks
+    component outRangeChecks[6][2][k];
+    for(var i=0; i<6; i++) for(var j=0; j<2; j++) for(var m=0; m<k; m++) {
+        outRangeChecks[i][j][m] = Num2Bits(n);
+        outRangeChecks[i][j][m].in <== out[i][j][m];
+    }
 
-//     component in_out = Fp12multiply(n, k, p);
-//     for(var i=0; i<6; i++) for(var j=0; j<2; j++) for(var m=0; m<k; m++) {
-//         in_out.a[i][j][m] <== in[i][j][m];
-//         in_out.b[i][j][m] <== out[i][j][m];
-//     }
-//     for (var i = 0; i < k; i ++) {
-//         in_out.p[i] <== p[i];
-//     }
+    component in_out = Fp12Multiply(n, k);
+    for(var i=0; i<6; i++) for(var j=0; j<2; j++) for(var m=0; m<k; m++) {
+        in_out.a[i][j][m] <== in[i][j][m];
+        in_out.b[i][j][m] <== out[i][j][m];
+    }
+    for (var i = 0; i < k; i ++) {
+        in_out.p[i] <== p[i];
+    }
 
-//     for(var i=0; i<6; i++)for(var j=0; j<2; j++) for(var m = 0; m < k; m ++) {
-//         if(i == 0 && j == 0 && m == 0)
-//             in_out.out[i][j][m] === 1;
-//         else
-//             in_out.out[i][j][m] === 0;
-//     }
-// }
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++) for(var m = 0; m < k; m ++) {
+        if(i == 0 && j == 0 && m == 0)
+            in_out.out[i][j][m] === 1;
+        else
+            in_out.out[i][j][m] === 0;
+    }
+}
 
 // assume input is an element of Fp12 in the cyclotomic subgroup GΦ₁₂
 // A cyclotomic group is a subgroup of Fp^n defined by

@@ -184,3 +184,37 @@ describe("Fp12Compression n = 3, k = 2", function() {
     test_cases.forEach(test_compression_32);
 
 });
+
+
+describe("Fp12Invert n = 4, k = 2", function() {
+    this.timeout(1000 * 1000);
+
+    // runs circom compilation
+    let circuit: any;
+    before(async function () {
+        circuit = await wasm_tester(path.join(__dirname, "circuits", "test_fp12_invert_42.circom"));
+    });
+
+    // a0, a1, b0, b1, p, c0, c1
+    var test_cases: Array<number> = [0];
+
+    var test_field_invert_42 = function (x: number) {
+        var zero: bigint[] = bigint_to_array(4, 2, 0n);
+        let one: bigint[] = bigint_to_array(4, 2, 0n);
+        let minus_one: bigint[] = bigint_to_array(4, 2, 16n);
+        let input: bigint[][][];
+        let output: bigint[][][];
+        if (x == 0) {
+            input = [[one, zero], [zero, zero], [zero, zero], [zero, zero], [zero, zero], [zero, zero]];
+            output = [[one, zero], [zero, zero], [zero, zero], [zero, zero], [zero, zero], [zero, zero]]
+        }
+
+        it('Testing case: ' + x, async function() {
+            let witness = await circuit.calculateWitness({"in": input});
+	    await circuit.assertOut(witness, {"out": output});
+            await circuit.checkConstraints(witness);
+        });
+    }
+
+    test_cases.forEach(test_field_invert_42);
+});
