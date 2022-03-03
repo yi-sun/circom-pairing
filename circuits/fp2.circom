@@ -42,10 +42,8 @@ template Fp2multiplyNoCarry(n, k){
     signal output out[4][2*k-1];
 
     // if a,b registers were in [0,2^n), then
-    // var l = 2;
     // var LOGK = 3;
-    // var LOGL = 1;
-    // assert(2*n + 1 + LOGK + LOGL <254);
+    // assert(2*n + 2 + LOGK <254);
 
     component ab[4][4];
     for(var i=0; i<4; i++)for(var j=0; j<4; j++){
@@ -128,10 +126,12 @@ template checkValidFp2(n, k, p){
 
 // copying format of Fp12CarryModP
 // solve for in0 - in1 + (in2 - in3) = p * X + out
-// assume X has at most m registers, lying in (-2^n, 2^n) 
+// X has registers lying in [-2^n, 2^n) 
+// X has at most Ceil( overflow / n ) registers 
 // assume in has registers in [0, 2^overflow) 
-template Fp2CarryModP(n, k, m, overflow, p){
+template Fp2CarryModP(n, k, overflow, p){
     signal input in[4][k]; 
+    var m = (overflow + n - 1) \ n; 
     signal output X[2][m];
     signal output out[2][k];
 
@@ -174,9 +174,9 @@ template Fp2multiply(n, k, p){
     signal input b[2][k];
     signal output out[2][k];
 
-    assert(k<7);
-    var LOGK = 6; // LOGK = ceil( log_2( (k+1)k ) )
-    assert(3*n + 1 + LOGK<254);
+    assert(k<=7); // k=7 probably works but best to be safe
+    var LOGK = 3; // LOGK = ceil( log_2( (k+1) ) )
+    assert(3*n + 2 + 2*LOGK<254);
 
     component c = Fp2multiplyNoCarryCompress(n, k, p); 
     for(var i=0; i<k; i++){
@@ -191,7 +191,7 @@ template Fp2multiply(n, k, p){
     }
     // bounds below say X[eps] will only require 4 registers max 
     var m = 4;
-    component carry_mod = Fp2CarryModP(n, k, m, 3*n+1+LOGK, p);
+    component carry_mod = Fp2CarryModP(n, k, 3*n+2+2*LOGK, p); // 3n+1+2*LOGK probably enough but safety first
     for(var i=0; i<4; i++)for(var j=0; j<k; j++)
         carry_mod.in[i][j] <== c.out[i][j]; 
     
@@ -199,18 +199,19 @@ template Fp2multiply(n, k, p){
         out[i][j] <== carry_mod.out[i][j]; 
 
     // out[0] constraint: X = X[0], Y = out[0] 
+    // c0 = a0b0, c1 = a1b1
     // constrain by Carry( c0 -' c1 - p *' X - Y ) = 0 
     // where all operations are performed without carry 
     // each register is an overflow representation in the range 
     //      (-(k+1)*k*2^{3n}-2^{2n}-2^n, (k+1)*k*2^{3n}+2^{2n} )
-    //      which is contained in (-2^{3n+LOGK+1}, 2^{3n+LOGK+1})
+    //      which is contained in (-2^{3n + 2*LOGK + 1}, 2^{3n + 2*LOGK + 1})
 
     // out[1] constraint: X = X[1], Y = out[1]
-    // c3 = 0 in this case
+    // c2 = a0b1 + a1b0, c3 = 0
     // constrain by Carry( c2 -' c3 -' p *' X - Y) = 0 
     // each register is an overflow representation in the range 
     //      (-2^{2n}-2^n, (k+1)*k*2^{3n+1} + 2^{2n} )
-    //      which is contained in (-2^{3n+LOGK+1}, 2^{3n+LOGK+1})
+    //      which is contained in (-2^{3n+2*LOGK+1}, 2^{3n+2*LOGK+1 +1}) // extra +1 just to be safe..
    
 }
 
@@ -290,6 +291,91 @@ template Fp2invert(n, k, p){
         else
             in_out.out[i][j] === 0;
     }
+}
+
+// a, b are two elements of Fp2 where we use the 4 x k format that remembers negatives 
+// solve for out * b - a = p * X 
+// assume X has at most m registers, lying in [-2^{n+1}, 2^{n+1} )   NOTE n+1 not n DIFFERENT FROM Fp2CarryModP
+// assume a has registers in [0, 2^overflow), b has registers in [0, 2^{overflow-2n-2*LOGK-1}) 
+// assume 2n+1 + log( max(k, ceil(overflow/n) )) < overflow 
+// out has registers in [0, 2^n) 
+template Fp2invertCarryModP(n, k, overflow, p){
+    signal input a[4][k];
+    signal input b[4][k]; 
+    var m = (overflow + n - 1) \ n; // ceil(overflow/n) , i.e., 2^overflow <= 2^{n*m}
+    signal output X[2][m];
+    signal output out[2][k]; 
+
+    
+    // first precompute a, b mod p as shorts 
+    var a_mod[2][100]; 
+    var b_mod[2][100]; 
+    for(var eps=0; eps<2; eps++){
+        // 2^{overflow} <= 2^{n*ceil(overflow/n)} 
+        var temp1[2][100] = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, a[2*eps]),p);
+        var temp2[2][100] = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, a[2*eps+1]),p);
+        a_mod[eps] = long_sub_mod(n,k,temp1[1],temp2[1],p);
+
+        temp1 = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, b[2*eps]),p);
+        temp2 = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, b[2*eps+1]),p);
+        b_mod[eps] = long_sub_mod(n,k,temp1[1],temp2[1],p);
+    }
+
+    // precompute 1/b 
+    var b_inv[2][100] = Fp2invert_func(n, k, b_mod, p);
+    // precompute a/b
+    var out_var[2][100] = find_Fp2_product(n, k, a_mod, b_inv, p);
+
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++)
+        out[eps][i] <-- out_var[eps][i]; 
+
+    component check = checkValidFp2(n, k, p);
+    for(var eps=0; eps<2; eps++)for(var i=0; i<k; i++)
+        check.in[eps][i] <== out[eps][i];
+    
+    // constraint is a out * b = a + p * X 
+    // precompute out * b = p * X' + Y' and a = p * X'' + Y''
+    //            should have Y' = Y'' so X = X' - X''
+    
+    // out * b, registers overflow in 2*(k+1)*k * 2^{2n + (overflow - 2n - 2*LOGK - 1)} <= 2^{overflow}  
+    component mult = Fp2multiplyNoCarryCompress(n, k, p); 
+    for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
+        mult.a[2*eps][i] <== out[eps][i]; 
+        mult.a[2*eps+1][i] <== 0;
+        mult.b[2*eps][i] <== b[2*eps][i]; 
+        mult.b[2*eps+1][i] <== b[2*eps+1][i];
+    }
+    
+    // get mult = out * b = p*X' + Y'
+    var XY[2][2][100] = Fp2_long_div(n, k, m, mult.out, p); // total value is < 2^{n*k+overflow} <= 2^{n*(k+m)} so m extra registers is enough
+    // get a = p*X' + Y'
+    var XY1[2][2][100] = Fp2_long_div(n, k, m, a, p); // same as above, m extra registers enough
+
+    component X_range_checks[2][m];
+    for(var eps=0; eps<2; eps++){    
+        for(var i=0; i<m; i++){
+            // X'' = X-X'
+            X[eps][i] <-- XY[eps][0][i] - XY1[eps][0][i]; // each XY[eps][0] is in [-2^n, 2^n) so difference is in [-2^{n+1}, 2^{n+1})
+            X_range_checks[eps][i] = Num2Bits(n+2);
+            X_range_checks[eps][i].in <== X[eps][i] + (1<<(n+1)); // X[eps][i] should be between [-2^{n+1}, 2^{n+1})
+        }
+    }
+
+    // finally constrain out * b - a = p * X 
+    // out * b - a has overflow in (-2^{overflow+1}, 2^{overflow +1}) 
+    // assume n+1 < overflow - n - log(max(k,m)+1), for registers of X
+    component mod_check[2];  // overflow 9*(k+1)*k * 2^{3n+1} + 2*2^n < 2^{3n+LOGK+5} 
+    for(var eps=0; eps<2; eps++){
+        mod_check[eps] = checkBigMod(n, k, m, overflow + 1, p);
+        for(var i=0; i<k; i++){
+            mod_check[eps].in[i] <== mult.out[2*eps][i] - mult.out[2*eps+1][i] - a[2*eps][i] + a[2*eps+1][i];
+            mod_check[eps].Y[i] <== 0;
+        }
+        for(var i=0; i<m; i++){
+            mod_check[eps].X[i] <== X[eps][i];
+        }
+    }
+    
 }
 
 // input: a+b u

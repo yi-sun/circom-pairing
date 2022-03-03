@@ -748,7 +748,7 @@ template CheckCarryToZero(n, m, k) {
 // For i >= k, we precompute X^i = r[i] mod p 
 //      where r[i] represented as k registers with r[i][j] in [0, 2^n) 
 // Output has k registers where in[i] * X^i is replaced by sum_j in[i] * r[i][j] * X^j
-// if in[i] in (-B, B) for all i, then out[i] < (-2^n * B * m, 2^n * B * m)
+// if in[i] in (-B, B) for all i, then out[i] < (-2^n * B * (m+1), 2^n * B * (m+1))
 template primeTrickCompression(n, k, m, p){
     signal input in[m+k]; 
     signal output out[k];
@@ -909,6 +909,7 @@ template BigMultShortLong2DUnequal(n, ka, kb, la, lb) {
 
 // constrain in = p * X + Y 
 // in[i] in (-2^overflow, 2^overflow) 
+// assume registers of X have abs value < 2^{overflow - n - log(max(k,m)+1)} 
 template checkBigMod(n, k, m, overflow, p){
     signal input in[k]; 
     signal input X[m];
@@ -921,6 +922,7 @@ template checkBigMod(n, k, m, overflow, p){
     else maxkm = k;
 
     pX = BigMultShortLong(n, maxkm); // p has k registers, X has m registers, so output really has k+m-1 registers 
+    // overflow register in  (-2^overflow , 2^overflow)
     for(var i=0; i<maxkm; i++){
         if(i < k)
             pX.a[i] <== p[i];
@@ -931,7 +933,8 @@ template checkBigMod(n, k, m, overflow, p){
         else 
             pX.b[i] <== 0;
     }
-    carry_check = CheckCarryToZero(n, overflow+1, k+m-1 ); 
+    // in - p*X has registers in (-2^{overflow+1}, 2^{overflow+1})
+    carry_check = CheckCarryToZero(n, overflow+2, k+m-1 ); 
     for(var i=0; i<k; i++){
         carry_check.in[i] <== in[i] - pX.out[i] - Y[i]; 
     }
