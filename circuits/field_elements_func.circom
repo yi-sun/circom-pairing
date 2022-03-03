@@ -9,7 +9,7 @@ pragma circom 2.0.2;
 // out[i][0] has m registers in range [-2^n, 2^n)
 // out[i][1] has k registers in range [0, 2^n)
 function Fp2_long_div(n, k, m, a, p){
-    var out[2][2][100];
+    var out[2][2][20];
     // solve for X and Y such that a0*b0 + (p-a1)*b1 = p*X + Y with Y in [0,p) 
     // -a1*b1 = (p-a1)*b1 mod p
     var a_short[4][100];
@@ -21,7 +21,7 @@ function Fp2_long_div(n, k, m, a, p){
         for(var j=k+m; j<100; j++)
             assert( a_short[i][j] == 0 );
 
-    var X[4][2][100];
+    var X[4][2][20];
     for(var i=0; i<4; i++)
         X[i] = long_div2(n, k, m, a_short[i], p);    
 
@@ -48,8 +48,8 @@ function Fp2_long_div(n, k, m, a, p){
 // (a0 + a1 u)*(b0 + b1 u) = (a0*b0 - a1*b1) + (a0*b1 + a1*b0)u 
 // this is a direct computation - totally distinct from the combo of Fp2multiplyNoCarry and Fp2_long_div
 function find_Fp2_product(n, k, a, b, p){
-    var out[2][100];
-    var ab[2][2][100]; 
+    var out[2][20];
+    var ab[2][2][20]; 
     for(var i=0; i<2; i++)for(var j=0; j<2; j++){
         ab[i][j] = prod_mod(n,k,a[i],b[j],p);
     }
@@ -63,7 +63,7 @@ function find_Fp2_product(n, k, a, b, p){
 // a[2][k], b[2][k] all registers in [0, 2^n) 
 // this is a direct computation
 function find_Fp2_sum(n, k, a, b, p){
-    var out[2][100];
+    var out[2][20];
     out[0] = long_add_mod(n,k,a[0],b[0],p); 
     out[1] = long_add_mod(n,k,a[1],b[1],p);
     return out;
@@ -73,21 +73,21 @@ function find_Fp2_sum(n, k, a, b, p){
 // a[2][k], b[2][k] all registers in [0, 2^n) 
 // this is a direct computation
 function find_Fp2_diff(n, k, a, b, p){
-    var out[2][100];
+    var out[2][20];
     out[0] = long_sub_mod(n,k,a[0],b[0],p); 
     out[1] = long_sub_mod(n,k,a[1],b[1],p);
     return out;
 }
 
 function find_Fp12_sum(n, k, a, b, p) {
-    var out[6][2][100];
+    var out[6][2][20];
     for(var i=0; i<6; i++)
         out[i] = find_Fp2_sum(n, k, a[i], b[i], p);
     return out;
 }
 
 function find_Fp12_diff(n, k, a, b, p) {
-    var out[6][2][100];
+    var out[6][2][20];
     for(var i=0; i<6; i++)
         out[i] = find_Fp2_diff(n, k, a[i], b[i], p);
     return out;
@@ -95,13 +95,13 @@ function find_Fp12_diff(n, k, a, b, p) {
 
 function find_Fp12_product(n, k, a, b, p) {
     var l = 6;
-    var a0[l][100];
-    var a1[l][100];
-    var b0[l][100];
-    var b1[l][100];
-    var neg_b0[l][100];
-    var neg_b1[l][100];
-    var out[l][2][100];
+    var a0[l][20];
+    var a1[l][20];
+    var b0[l][20];
+    var b1[l][20];
+    var neg_b0[l][20];
+    var neg_b1[l][20];
+    var out[l][2][20];
     for (var i = 0; i < l; i ++) { 
         for ( var j = 0; j < k; j ++) {
             a0[i][j] = a[i][0][j];
@@ -115,27 +115,27 @@ function find_Fp12_product(n, k, a, b, p) {
         neg_b1[i] = long_sub(n, k, p, b1[i]);
     }
 
-    var real_init[2*l-1][100];
-    var imag_init[2*l-1][100];
-    var imag_init_neg[2*l-1][100];
-    var real[l][2][100];
-    var imag[l][2][100];
+    var real_init[2*l-1][20];
+    var imag_init[2*l-1][20];
+    var imag_init_neg[2*l-1][20];
+    // var real[l][2][100];
+    // var imag[l][2][100];
     // each product will be 2l-1 x 2k
-    var a0b0_var[100][100] = prod2D(n, k, l, a0, b0);
-    var a1b1_neg[100][100] = prod2D(n, k, l, a1, neg_b1);
-    var a0b1_var[100][100] = prod2D(n, k, l, a0, b1);
-    var a1b0_var[100][100] = prod2D(n, k, l, a1, b0);
-    var a0b1_neg[100][100] = prod2D(n, k, l, a0, neg_b1);
-    var a1b0_neg[100][100] = prod2D(n, k, l, a1, neg_b0);
+    var a0b0_var[20][20] = prod2D(n, k, l, a0, b0);
+    var a1b1_neg[20][20] = prod2D(n, k, l, a1, neg_b1);
+    var a0b1_var[20][20] = prod2D(n, k, l, a0, b1);
+    var a1b0_var[20][20] = prod2D(n, k, l, a1, b0);
+    var a0b1_neg[20][20] = prod2D(n, k, l, a0, neg_b1);
+    var a1b0_neg[20][20] = prod2D(n, k, l, a1, neg_b0);
     for (var i = 0; i < 2*l - 1; i ++) { // compute initial rep (deg w = 10)
         real_init[i] = long_add(n, 2*k, a0b0_var[i], a1b1_neg[i]); // 2*k+1 registers each
         imag_init[i] = long_add(n, 2*k, a0b1_var[i], a1b0_var[i]);
         imag_init_neg[i] = long_add(n, 2*k, a0b1_neg[i], a1b0_neg[i]);
     }
-    var real_carry[l][100];
-    var imag_carry[l][100];
-    var real_final[l][100];
-    var imag_final[l][100];
+    var real_carry[l][20];
+    var imag_carry[l][20];
+    var real_final[l][20];
+    var imag_final[l][20];
     var zeros[100]; // to balance register sizes
     for (var i = 0; i < 100; i ++) {
         zeros[i] = 0;
@@ -153,8 +153,8 @@ function find_Fp12_product(n, k, a, b, p) {
         real_final[i] = long_add_unequal(n, 2*k+2, 2*k+1, real_carry[i], real_init[i]); // now 2*k+3 registers
         imag_final[i] = long_add_unequal(n, 2*k+2, 2*k+1, imag_carry[i], imag_init[i]);
     }
-    var XYreal_temp[l][2][100];
-    var XYimag_temp[l][2][100];
+    var XYreal_temp[l][2][20];
+    var XYimag_temp[l][2][20];
     for (var i = 0; i < l; i ++) {
         XYreal_temp[i] = long_div2(n, k, k+3, real_final[i], p); // k+4 register quotient, k register remainder
         XYimag_temp[i] = long_div2(n, k, k+3, imag_final[i], p);
@@ -203,18 +203,18 @@ function get_BLS12_381_prime(n, k){
 function Fp2invert_func(n, k, a, p) {
     var sq0[100] = prod(n, k, a[0], a[0]);
     var sq1[100] = prod(n, k, a[1], a[1]);
-    var sq_sum[100] = long_add(n, 2*k, sq0, sq1);
-    var sq_sum_div[2][100] = long_div2(n, k, k+1, sq_sum, p);
+    var sq_sum[20] = long_add(n, 2*k, sq0, sq1);
+    var sq_sum_div[2][20] = long_div2(n, k, k+1, sq_sum, p);
     // lambda = 1/(sq_sum)%p
     var lambda[100] = mod_inv(n, k, sq_sum_div[1], p);
     var out0[100] = prod(n, k, lambda, a[0]);
-    var out0_div[2][100] = long_div(n, k, out0, p);
-    var out[2][100];
+    var out0_div[2][20] = long_div(n, k, out0, p);
+    var out[2][20];
     out[0] = out0_div[1];
     
-    var out1_pre[100] = long_sub(n, k, p, a[1]);
+    var out1_pre[20] = long_sub(n, k, p, a[1]);
     var out1[100] = prod(n, k, lambda, out1_pre);
-    var out1_div[2][100] = long_div(n, k, out1, p);
+    var out1_div[2][20] = long_div(n, k, out1, p);
     out[1] = out1_div[1];
     return out;
 }
@@ -223,9 +223,9 @@ function Fp2invert_func(n, k, a, p) {
 // compute inverse. first multiply by conjugate a + bw (a,b in Fp^6, w^6=1+u, u^2=-1)
 // then reduce to inverting in Fp^6
 function Fp12invert_func(n, k, p, a) {
-    var A[6][2][100];
-    var B[6][2][100];
-    var Bw[6][2][100];
+    var A[6][2][20];
+    var B[6][2][20];
+    var Bw[6][2][20];
     for (var i = 0; i < 3; i ++) {
         for (var j = 0; j < 2; j ++) {
             for (var m = 0; m < k; m ++) {
@@ -238,35 +238,35 @@ function Fp12invert_func(n, k, p, a) {
             }
         }
     }
-    var A2[6][2][100] = find_Fp12_product(n, k, A, A, p);
-    var B2[6][2][100] = find_Fp12_product(n, k, B, B, p);
-    // var conj[6][2][100] = find_Fp12_diff(n, k, A, Bw, p);
-    // var w2[6][2][100];
-    // for (var i = 0; i < 6; i ++) {
-    //     for (var j = 0; j < 2; j ++) {
-    //         for (var m = 0; m < k; m ++) {
-    //             if (i == 2 && j == 0 && m == 0) {
-    //                 w2[i][j][m] = 1;
-    //             } else {
-    //                 w2[i][j][m] = 0;
-    //             }
-    //         }
-    //     }
-    // }
-    // var B2w2[6][2][100] = find_Fp12_product(n, k, B2, w2, p);
-    // var conjProd[6][2][100] = find_Fp12_sum(n, k, A2, B2w2, p);
-    // var a0[2][100];
-    // var a1[2][100];
-    // var a2[2][100];
-    // for (var i = 0; i < 2; i ++) {
-    //     for (var m = 0; m < k; m ++) {
-    //         a0[i][m] = conjProd[0][i][m];
-    //         a1[i][m] = conjProd[2][i][m];
-    //         a2[i][m] = conjProd[4][i][m];
-    //     }
-    // }
-    // var conjProdInv[6][2][100] = Fp6invert_func(n, k, p, a0, a1, a2);
-    var out[6][2][100];// = find_Fp12_product(n, k, conj, conjProdInv, p);
+    var A2[6][2][20] = find_Fp12_product(n, k, A, A, p);
+    var B2[6][2][20] = find_Fp12_product(n, k, B, B, p);
+    var conj[6][2][20] = find_Fp12_diff(n, k, A, Bw, p);
+    var w2[6][2][20];
+    for (var i = 0; i < 6; i ++) {
+        for (var j = 0; j < 2; j ++) {
+            for (var m = 0; m < k; m ++) {
+                if (i == 2 && j == 0 && m == 0) {
+                    w2[i][j][m] = 1;
+                } else {
+                    w2[i][j][m] = 0;
+                }
+            }
+        }
+    }
+    var B2w2[6][2][20] = find_Fp12_product(n, k, B2, w2, p);
+    var conjProd[6][2][20] = find_Fp12_diff(n, k, A2, B2w2, p);
+    var a0[2][20];
+    var a1[2][20];
+    var a2[2][20];
+    for (var i = 0; i < 2; i ++) {
+        for (var m = 0; m < k; m ++) {
+            a0[i][m] = conjProd[0][i][m];
+            a1[i][m] = conjProd[2][i][m];
+            a2[i][m] = conjProd[4][i][m];
+        }
+    }
+    var conjProdInv[6][2][20] = Fp6invert_func(n, k, p, a0, a1, a2);
+    var out[6][2][20] = find_Fp12_product(n, k, conj, conjProdInv, p);
     return out;
 }
 
@@ -274,17 +274,17 @@ function Fp12invert_func(n, k, p, a) {
 // v^3 = 1+u, u^2 = -1, a0 a1 a2 in Fp2 (2 x k)
 // returns an element in standard Fp12 representation (6 x 2 x k)
 function Fp6invert_func(n, k, p, a0, a1, a2) {
-    var out[6][2][100];
+    var out[6][2][20];
 
-    var a0_squared[2][100] = find_Fp2_product(n, k, a0, a0, p);
-    var a1_squared[2][100] = find_Fp2_product(n, k, a1, a1, p);
-    var a2_squared[2][100] = find_Fp2_product(n, k, a2, a2, p);
-    var a0a1[2][100] = find_Fp2_product(n, k, a0, a1, p);
-    var a0a2[2][100] = find_Fp2_product(n, k, a0, a2, p);
-    var a1a2[2][100] = find_Fp2_product(n, k, a1, a2, p);
-    var a0a1a2[2][100] = find_Fp2_product(n, k, a0a1, a2, p);
+    var a0_squared[2][20] = find_Fp2_product(n, k, a0, a0, p);
+    var a1_squared[2][20] = find_Fp2_product(n, k, a1, a1, p);
+    var a2_squared[2][20] = find_Fp2_product(n, k, a2, a2, p);
+    var a0a1[2][20] = find_Fp2_product(n, k, a0, a1, p);
+    var a0a2[2][20] = find_Fp2_product(n, k, a0, a2, p);
+    var a1a2[2][20] = find_Fp2_product(n, k, a1, a2, p);
+    var a0a1a2[2][20] = find_Fp2_product(n, k, a0a1, a2, p);
 
-    var v3[2][100]; // v^3 = 1 + u
+    var v3[2][20]; // v^3 = 1 + u
     for (var i = 0; i < 2; i ++) {
         for (var j = 0; j < k; j ++) {
             if (j == 0) {
@@ -295,7 +295,7 @@ function Fp6invert_func(n, k, p, a0, a1, a2) {
         }
     }
 
-    var three_v3[2][100]; // 3v^3 = 3 + 3u
+    var three_v3[2][20]; // 3v^3 = 3 + 3u
     for (var i = 0; i < 2; i ++) {
         for (var j = 0; j < k; j ++) {
             if (j == 0) {
@@ -306,7 +306,7 @@ function Fp6invert_func(n, k, p, a0, a1, a2) {
         }
     }
 
-    var v6[2][100]; // v^6 = 2u
+    var v6[2][20]; // v^6 = 2u
     for (var i = 0; i < 2; i ++) {
         for (var j = 0; j < k; j ++) {
             if (i == 1 && j == 0) {
@@ -317,32 +317,32 @@ function Fp6invert_func(n, k, p, a0, a1, a2) {
         }
     }
 
-    var v0_1[2][100] = find_Fp2_product(n, k, a1a2, v3, p);
-    var v0_temp[2][100] = find_Fp2_diff(n, k, a0_squared, v0_1, p); // a0^2 - a1a2v^3
-    var v1_1[2][100] = find_Fp2_product(n, k, a2_squared, v3, p);
-    var v1_temp[2][100] = find_Fp2_diff(n, k, v1_1, a0a1, p); // v^3a2^2 - a0a1
-    var v2_temp[2][100] = find_Fp2_diff(n, k, a1_squared, a0a2, p); // a1^2 - a0a2
+    var v0_1[2][20] = find_Fp2_product(n, k, a1a2, v3, p);
+    var v0_temp[2][20] = find_Fp2_diff(n, k, a0_squared, v0_1, p); // a0^2 - a1a2v^3
+    var v1_1[2][20] = find_Fp2_product(n, k, a2_squared, v3, p);
+    var v1_temp[2][20] = find_Fp2_diff(n, k, v1_1, a0a1, p); // v^3a2^2 - a0a1
+    var v2_temp[2][20] = find_Fp2_diff(n, k, a1_squared, a0a2, p); // a1^2 - a0a2
 
-    var a0_cubed[2][100] = find_Fp2_product(n, k, a0, a0_squared, p);
-    var a1_cubed[2][100] = find_Fp2_product(n, k, a1, a1_squared, p);
-    var a2_cubed[2][100] = find_Fp2_product(n, k, a2, a2_squared, p);
-    var a13v3[2][100] = find_Fp2_product(n, k, a1_cubed, v3, p);
-    var a23v6[2][100] = find_Fp2_product(n, k, a2_cubed, v6, p);
-    var a0a1a23v3[2][100] = find_Fp2_product(n, k, a0a1a2, three_v3, p);
+    var a0_cubed[2][20] = find_Fp2_product(n, k, a0, a0_squared, p);
+    var a1_cubed[2][20] = find_Fp2_product(n, k, a1, a1_squared, p);
+    var a2_cubed[2][20] = find_Fp2_product(n, k, a2, a2_squared, p);
+    var a13v3[2][20] = find_Fp2_product(n, k, a1_cubed, v3, p);
+    var a23v6[2][20] = find_Fp2_product(n, k, a2_cubed, v6, p);
+    var a0a1a23v3[2][20] = find_Fp2_product(n, k, a0a1a2, three_v3, p);
 
-    var denom_1[2][100] = find_Fp2_sum(n, k, a0_cubed, a13v3, p);
-    var denom_2[2][100] = find_Fp2_diff(n, k, a23v6, a0a1a23v3, p);
-    var denom[2][100] = find_Fp2_sum(n, k, denom_1, denom_2, p); // a0^3 + a1^3v^3 + a2^3v^6 - 3a0a1a2v^3
+    var denom_1[2][20] = find_Fp2_sum(n, k, a0_cubed, a13v3, p);
+    var denom_2[2][20] = find_Fp2_diff(n, k, a23v6, a0a1a23v3, p);
+    var denom[2][20] = find_Fp2_sum(n, k, denom_1, denom_2, p); // a0^3 + a1^3v^3 + a2^3v^6 - 3a0a1a2v^3
 
-    var denom_inv[2][100] = Fp2invert_func(n, k, denom, p);
+    var denom_inv[2][20] = Fp2invert_func(n, k, denom, p);
 
-    var v0_final[2][100] = find_Fp2_product(n, k, v0_temp, denom_inv, p);
-    var v1_final[2][100] = find_Fp2_product(n, k, v1_temp, denom_inv, p);
-    var v2_final[2][100] = find_Fp2_product(n, k, v2_temp, denom_inv, p);
+    var v0_final[2][20] = find_Fp2_product(n, k, v0_temp, denom_inv, p);
+    var v1_final[2][20] = find_Fp2_product(n, k, v1_temp, denom_inv, p);
+    var v2_final[2][20] = find_Fp2_product(n, k, v2_temp, denom_inv, p);
 
     for (var i = 1; i < 6; i = i + 2) {
         for (var j = 0; j < 2; j ++) {
-            for (var m = 0; m < 100; m ++) {
+            for (var m = 0; m < 20; m ++) {
                 if (i > 1)
                 out[i][j][m] = 0;
                 else 
