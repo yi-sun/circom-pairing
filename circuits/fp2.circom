@@ -135,6 +135,8 @@ template Fp2CarryModP(n, k, overflow, p){
     signal output X[2][m];
     signal output out[2][k];
 
+    assert( overflow < 253 );
+
     var Xvar[2][2][20] = Fp2_long_div(n, k, m, in, p); 
     component range_check = checkValidFp2(n, k, p);
     component X_range_checks[2][m];
@@ -305,8 +307,10 @@ template Fp2invertCarryModP(n, k, overflow, p){
     var m = (overflow + n - 1) \ n; // ceil(overflow/n) , i.e., 2^overflow <= 2^{n*m}
     signal output X[2][m];
     signal output out[2][k]; 
-
-    
+    assert( overflow < 252 );
+     
+    //log(m);
+    //log(overflow);
     // first precompute a, b mod p as shorts 
     var a_mod[2][20]; 
     var b_mod[2][20]; 
@@ -328,7 +332,7 @@ template Fp2invertCarryModP(n, k, overflow, p){
 
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++)
         out[eps][i] <-- out_var[eps][i]; 
-
+    
     component check = checkValidFp2(n, k, p);
     for(var eps=0; eps<2; eps++)for(var i=0; i<k; i++)
         check.in[eps][i] <== out[eps][i];
@@ -360,11 +364,12 @@ template Fp2invertCarryModP(n, k, overflow, p){
             X_range_checks[eps][i].in <== X[eps][i] + (1<<(n+1)); // X[eps][i] should be between [-2^{n+1}, 2^{n+1})
         }
     }
-
+    
     // finally constrain out * b - a = p * X 
     // out * b - a has overflow in (-2^{overflow+1}, 2^{overflow +1}) 
     // assume n+1 < overflow - n - log(max(k,m)+1), for registers of X
     component mod_check[2];  // overflow 9*(k+1)*k * 2^{3n+1} + 2*2^n < 2^{3n+LOGK+5} 
+    //log(0);
     for(var eps=0; eps<2; eps++){
         mod_check[eps] = checkBigMod(n, k, m, overflow + 1, p);
         for(var i=0; i<k; i++){
@@ -375,7 +380,7 @@ template Fp2invertCarryModP(n, k, overflow, p){
             mod_check[eps].X[i] <== X[eps][i];
         }
     }
-    
+    //log(0);
 }
 
 // input: a+b u

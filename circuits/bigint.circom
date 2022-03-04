@@ -915,6 +915,7 @@ template checkBigMod(n, k, m, overflow, p){
     signal input X[m];
     signal input Y[k];
 
+    assert( overflow < 253 );
     component pX;
     component carry_check;
     var maxkm;

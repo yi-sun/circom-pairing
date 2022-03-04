@@ -8,7 +8,7 @@ template Fp12frobeniusMap(n, k, power){
     signal input in[6][2][k];
     signal output out[6][2][k];
 
-    var p = get_BLS12_381_prime(n, k);
+    var p[20] = get_BLS12_381_prime(n, k);
     var FP12_FROBENIUS_COEFFICIENTS[12][6][2][5] = get_Fp12_frobenius(n, k);
     var pow = power % 12;
  
@@ -62,7 +62,6 @@ template Fp12frobeniusMap(n, k, power){
                     mult_odd[i].a[eps][j] <== in_frob[i].out[eps][j];
                     mult_odd[i].b[eps][j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][eps][j];
                 }
-                mult_odd[i].p[j] <== p[j];
             }
             for(var j=0; j<k; j++){
                 out[i][0][j] <== mult_odd[i].out[0][j];

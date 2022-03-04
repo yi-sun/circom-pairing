@@ -79,6 +79,20 @@ function find_Fp2_diff(n, k, a, b, p){
     return out;
 }
 
+// a[4][k] elt in Fp2 
+// output multiplies by 1+u
+function Fp2multc(k, a){
+    var out[4][20];
+    for(var i=0; i<k; i++){
+        out[0][i] = a[0][i] + a[3][i];
+        out[1][i] = a[1][i] + a[2][i];
+        out[2][i] = a[0][i] + a[2][i];
+        out[3][i] = a[1][i] + a[3][i];
+    }
+    return out;
+}
+
+
 function find_Fp12_sum(n, k, a, b, p) {
     var out[6][2][20];
     for(var i=0; i<6; i++)
