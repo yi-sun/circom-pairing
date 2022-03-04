@@ -135,7 +135,7 @@ template Fp2CarryModP(n, k, overflow, p){
     signal output X[2][m];
     signal output out[2][k];
 
-    var Xvar[2][2][100] = Fp2_long_div(n, k, m, in, p); 
+    var Xvar[2][2][20] = Fp2_long_div(n, k, m, in, p); 
     component range_check = checkValidFp2(n, k, p);
     component X_range_checks[2][m];
     
@@ -265,7 +265,7 @@ template Fp2invert(n, k, p){
     signal input in[2][k];
     signal output out[2][k];
 
-    var inverse[2][100] = Fp2invert_func(n, k, in, p); // 2 x 100, only 2 x k relevant
+    var inverse[2][20] = Fp2invert_func(n, k, in, p); // 2 x 20, only 2 x k relevant
     for (var i = 0; i < 2; i ++) {
         for (var j = 0; j < k; j ++) {
             out[i][j] <-- inverse[i][j];
@@ -308,12 +308,12 @@ template Fp2invertCarryModP(n, k, overflow, p){
 
     
     // first precompute a, b mod p as shorts 
-    var a_mod[2][100]; 
-    var b_mod[2][100]; 
+    var a_mod[2][20]; 
+    var b_mod[2][20]; 
     for(var eps=0; eps<2; eps++){
         // 2^{overflow} <= 2^{n*ceil(overflow/n)} 
-        var temp1[2][100] = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, a[2*eps]),p);
-        var temp2[2][100] = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, a[2*eps+1]),p);
+        var temp1[2][20] = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, a[2*eps]),p);
+        var temp2[2][20] = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, a[2*eps+1]),p);
         a_mod[eps] = long_sub_mod(n,k,temp1[1],temp2[1],p);
 
         temp1 = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, b[2*eps]),p);
@@ -322,9 +322,9 @@ template Fp2invertCarryModP(n, k, overflow, p){
     }
 
     // precompute 1/b 
-    var b_inv[2][100] = Fp2invert_func(n, k, b_mod, p);
+    var b_inv[2][20] = Fp2invert_func(n, k, b_mod, p);
     // precompute a/b
-    var out_var[2][100] = find_Fp2_product(n, k, a_mod, b_inv, p);
+    var out_var[2][20] = find_Fp2_product(n, k, a_mod, b_inv, p);
 
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++)
         out[eps][i] <-- out_var[eps][i]; 
@@ -347,9 +347,9 @@ template Fp2invertCarryModP(n, k, overflow, p){
     }
     
     // get mult = out * b = p*X' + Y'
-    var XY[2][2][100] = Fp2_long_div(n, k, m, mult.out, p); // total value is < 2^{n*k+overflow} <= 2^{n*(k+m)} so m extra registers is enough
+    var XY[2][2][20] = Fp2_long_div(n, k, m, mult.out, p); // total value is < 2^{n*k+overflow} <= 2^{n*(k+m)} so m extra registers is enough
     // get a = p*X' + Y'
-    var XY1[2][2][100] = Fp2_long_div(n, k, m, a, p); // same as above, m extra registers enough
+    var XY1[2][2][20] = Fp2_long_div(n, k, m, a, p); // same as above, m extra registers enough
 
     component X_range_checks[2][m];
     for(var eps=0; eps<2; eps++){    

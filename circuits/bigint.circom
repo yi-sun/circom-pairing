@@ -429,7 +429,7 @@ template BigMod(n, k) {
     signal output div[k + 1];
     signal output mod[k];
 
-    var longdiv[2][100] = long_div(n, k, a, b);
+    var longdiv[2][20] = long_div(n, k, a, b);
     for (var i = 0; i < k; i++) {
         div[i] <-- longdiv[0][i];
         mod[i] <-- longdiv[1][i];
@@ -494,7 +494,7 @@ template BigMod2(n, k, m) {
     signal output div[m - k + 1];
     signal output mod[k];
 
-    var longdiv[2][100] = long_div2(n, k, m-k, a, b);
+    var longdiv[2][20] = long_div2(n, k, m-k, a, b);
     for (var i = 0; i < k; i++) {
         mod[i] <-- longdiv[1][i];
     }
@@ -680,7 +680,7 @@ template BigModInv(n, k) {
     signal output out[k];
 
     // length k
-    var inv[100] = mod_inv(n, k, in, p);
+    var inv[20] = mod_inv(n, k, in, p);
     for (var i = 0; i < k; i++) {
         out[i] <-- inv[i];
     }
@@ -753,14 +753,14 @@ template primeTrickCompression(n, k, m, p){
     signal input in[m+k]; 
     signal output out[k];
 
-    var two[100]; 
-    var e[100];
-    for(var i=1; i<100; i++){
+    var two[20]; 
+    var e[20];
+    for(var i=1; i<20; i++){
         two[i]=0;
         e[i]=0;
     }
     two[0] = 2;
-    var r[20][100]; 
+    var r[20][20]; 
     for(var i=0; i<m; i++){
         e[0] = n*(k+i);
         r[i] = mod_exp(n, k, two, p, e );

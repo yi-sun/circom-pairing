@@ -344,8 +344,8 @@ template Fp12MultiplyThree(n, k) {
     var b1[l][k];
     var c0[l][k];
     var c1[l][k];
-    var neg_a0[l][100];
-    var neg_a1[l][100];
+    var neg_a0[l][20];
+    var neg_a1[l][20];
    for (var i = 0; i < l; i ++) { 
         for ( var j = 0; j < k; j ++) {
             a0[i][j] = a[i][0][j];
@@ -361,26 +361,26 @@ template Fp12MultiplyThree(n, k) {
         neg_a1[i] = long_sub(n, k, p, a1[i]);
     }
 
-    var real_init[3*l-1][100];
-    var imag_init[3*l-1][100];
-    var imag_init_neg[3*l-1][100];
-    var real[l][2][100];
-    var imag[l][2][100];
+    var real_init[3*l-1][20];
+    var imag_init[3*l-1][20];
+    var imag_init_neg[3*l-1][20];
+    var real[l][2][20];
+    var imag[l][2][20];
     // each product will be 3l-1 x 3k
-    var a0b0c0_var[100][100] = prod3D(n, k, l, a0, b0, c0);
-    var a1b1c0_neg[100][100] = prod3D(n, k, l, neg_a1, b1, c0);
-    var a1b0c1_neg[100][100] = prod3D(n, k, l, neg_a1, b0, c1);
-    var a0b1c1_neg[100][100] = prod3D(n, k, l, neg_a0, b1, c1);
+    var a0b0c0_var[20][20] = prod3D(n, k, l, a0, b0, c0);
+    var a1b1c0_neg[20][20] = prod3D(n, k, l, neg_a1, b1, c0);
+    var a1b0c1_neg[20][20] = prod3D(n, k, l, neg_a1, b0, c1);
+    var a0b1c1_neg[20][20] = prod3D(n, k, l, neg_a0, b1, c1);
 
-    var a1b0c0_var[100][100] = prod3D(n, k, l, a1, b0, c0);
-    var a0b1c0_var[100][100] = prod3D(n, k, l, a0, b1, c0);
-    var a0b0c1_var[100][100] = prod3D(n, k, l, a0, b0, c1);
-    var a1b1c1_neg[100][100] = prod3D(n, k, l, neg_a0, b1, c1);
+    var a1b0c0_var[20][20] = prod3D(n, k, l, a1, b0, c0);
+    var a0b1c0_var[20][20] = prod3D(n, k, l, a0, b1, c0);
+    var a0b0c1_var[20][20] = prod3D(n, k, l, a0, b0, c1);
+    var a1b1c1_neg[20][20] = prod3D(n, k, l, neg_a0, b1, c1);
 
-    var a1b0c0_neg[100][100] = prod3D(n, k, l, neg_a1, b0, c0);
-    var a0b1c0_neg[100][100] = prod3D(n, k, l, neg_a0, b1, c0);
-    var a0b0c1_neg[100][100] = prod3D(n, k, l, neg_a0, b0, c1);
-    var a1b1c1_var[100][100] = prod3D(n, k, l, a0, b1, c1);
+    var a1b0c0_neg[20][20] = prod3D(n, k, l, neg_a1, b0, c0);
+    var a0b1c0_neg[20][20] = prod3D(n, k, l, neg_a0, b1, c0);
+    var a0b0c1_neg[20][20] = prod3D(n, k, l, neg_a0, b0, c1);
+    var a1b1c1_var[20][20] = prod3D(n, k, l, a0, b1, c1);
 
     for (var i = 0; i < 3 * l - 1; i ++) { // compute initial rep (deg w = 10)
         real_init[i] = long_add4(n, 3 * k, a0b0c0_var[i], a1b1c0_neg[i], a1b0c1_neg[i], a0b1c1_neg[i]); // 3 * k + 1 registers each
@@ -389,12 +389,12 @@ template Fp12MultiplyThree(n, k) {
     }
 
     // carries using w^6 = u + 1, w^12 = 2 u
-    var real_carry[l][100];
-    var imag_carry[l][100];
-    var real_final[l][100];
-    var imag_final[l][100];
-    var zeros[100]; // to balance register sizes
-    for (var i = 0; i < 100; i ++) {
+    var real_carry[l][20];
+    var imag_carry[l][20];
+    var real_final[l][20];
+    var imag_final[l][20];
+    var zeros[20]; // to balance register sizes
+    for (var i = 0; i < 20; i ++) {
         zeros[i] = 0;
     }
     for (var i = 0; i < l; i ++) {
@@ -412,8 +412,8 @@ template Fp12MultiplyThree(n, k) {
     }
 
     // reduction mod p
-    var prod_real_temp[l][2][100];
-    var prod_imag_temp[l][2][100];
+    var prod_real_temp[l][2][20];
+    var prod_imag_temp[l][2][20];
 
     // prod_real[*][0][2 * k + 4] * p + prod_real[*][1][k] = real_final[*]
     // prod_imag[*][0][2 * k + 4] * p + prod_imag[*][1][k] = imag_final[*]
@@ -753,12 +753,12 @@ template Fp12MultiplyNoCarry(n, k, p) {
 // a - b = out0 * p + out1
 // assumes out0 has at most kX registers
 function get_fp12_carry_witness(n, k, kX, p, a, b) {
-    var out[2][100];
+    var out[2][20];
 
-    var a_short[100] = long_to_short(n, k, a);
-    var b_short[100] = long_to_short(n, k, b);
+    var a_short[20] = long_to_short(n, k, a);
+    var b_short[20] = long_to_short(n, k, b);
 
-    var X[2][2][100];
+    var X[2][2][20];
     X[0] = long_div2(n, k, kX, a_short, p);
     X[1] = long_div2(n, k, kX, b_short, p);
     
@@ -792,9 +792,9 @@ template Fp12CarryModP(n, k, kX, p) {
     assert(k < 7);
 
     // dimension [l, 2, k]
-    var Xvar0[100][2][100];
+    var Xvar0[20][2][20];
     // dimension [l, 2, kX]
-    var Xvar1[100][2][100];
+    var Xvar1[20][2][20];
     for (var i = 0; i < l; i++) {
 	Xvar0[i] = get_fp12_carry_witness(n, k, kX, p, in[i][0], in[i][2]);
 	Xvar1[i] = get_fp12_carry_witness(n, k, kX, p, in[i][1], in[i][3]);
@@ -943,7 +943,7 @@ template Fp6invert(n, k, p) {
     signal input a0[2][k];
     signal input a1[2][k];
     signal input a2[2][k];
-    var out[6][2][100] = Fp6invert_func(n, k, p, a0, a1, a2);
+    var out[6][2][20] = Fp6invert_func(n, k, p, a0, a1, a2);
     signal output real_out[6][2][k];
     for (var i = 0; i < 6; i++) {
         for (var j = 0; j < 2; j ++) {
@@ -960,7 +960,7 @@ template Fp12Invert(n, k, p){
     signal input in[6][2][k];
     signal output out[6][2][k];
 
-    var inverse[6][2][20] = Fp12invert_func(n, k, p, in); // 6 x 2 x 100, only 6 x 2 x k relevant
+    var inverse[6][2][20] = Fp12invert_func(n, k, p, in); // 6 x 2 x 20, only 6 x 2 x k relevant
     for (var i = 0; i < 6; i ++) {
         for (var j = 0; j < 2; j ++) {
             for (var m = 0; m < k; m ++) {

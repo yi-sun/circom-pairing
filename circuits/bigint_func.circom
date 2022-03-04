@@ -56,7 +56,7 @@ function long_add(n, k, a, b){
 // output has k+1 registers
 function long_add4(n, k, a, b, c, d){
     var carry = 0;
-    var sum[100];
+    var sum[20];
     for(var i=0; i < k; i++){
         var sumAndCarry[2] = SplitFn(a[i] + b[i] + c[i] + d[i] + carry, n, n);
         sum[i] = sumAndCarry[0];
@@ -133,7 +133,7 @@ function long_sub_mod(n, k, a, b, p) {
 }
 
 function prod_mod(n, k, a, b, p) {
-    var prod[100] = prod(n,k,a,b);
+    var prod[20] = prod(n,k,a,b);
     var temp[2][20] = long_div(n,k,prod,p);
     return temp[1];
 }
@@ -255,20 +255,20 @@ function short_div(n, k, a, b) {
 // a = a0 + a1 * X + ... + a[k-1] * X^{k-1} with X = 2^n
 //      works as long as a[i-1]/2^n + a[i] doesn't overflow, e.g. a[i] in [0, 2^252)
 // output is the value of a as a BigInt with registers not overflowed 
-//      assuming that output has <100 registers 
+//      assuming that output has <20 registers 
 function long_to_short(n, k, a){
-    var out[100];
-    var temp[100];
+    var out[20];
+    var temp[20];
     for(var i=0; i<k; i++) temp[i] = a[i];
-    for(var i=k; i<100; i++) temp[i] = 0;
+    for(var i=k; i<20; i++) temp[i] = 0;
 
     var carry=0;
-    for(var i=0; i<99; i++){
+    for(var i=0; i<19; i++){
         out[i] = temp[i] % (1<<n);
         temp[i+1] += temp[i] \ (1<<n);
     }
-    assert(temp[99] < (1<<n)); // otherwise 100 is not enough registers! 
-    out[99] = temp[99];
+    assert(temp[19] < (1<<n)); // otherwise 20 is not enough registers! 
+    out[19] = temp[19];
     return out;
 }
 
@@ -278,7 +278,7 @@ function long_to_short(n, k, a){
 // adapted from BigMulShortLong and LongToShortNoEndCarry witness computation
 function prod(n, k, a, b) {
     // first compute the intermediate values. taken from BigMulShortLong
-    var prod_val[100]; // length is 2 * k - 1
+    var prod_val[20]; // length is 2 * k - 1
     for (var i = 0; i < 2 * k - 1; i++) {
         prod_val[i] = 0;
         if (i < k) {
@@ -293,14 +293,14 @@ function prod(n, k, a, b) {
     }
 
     // now do a bunch of carrying to make sure registers not overflowed. taken from LongToShortNoEndCarry
-    var out[100]; // length is 2 * k
+    var out[20]; // length is 2 * k
 
-    var split[100][3]; // first dimension has length 2 * k - 1
+    var split[20][3]; // first dimension has length 2 * k - 1
     for (var i = 0; i < 2 * k - 1; i++) {
         split[i] = SplitThreeFn(prod_val[i], n, n, n);
     }
 
-    var carry[100]; // length is 2 * k - 1
+    var carry[20]; // length is 2 * k - 1
     carry[0] = 0;
     out[0] = split[0][0];
     if (2 * k - 1 > 1) {
@@ -378,7 +378,7 @@ function prod2D(n, k, l, a, b) {
 // adapted from BigMultShortLong2D and LongToShortNoEndCarry2 witness computation
 function prod3D(n, k, l, a, b, c) {
     // first compute the intermediate values. taken from BigMulShortLong
-    var prod_val[100][100]; // length is 3l - 2 by 3k - 2
+    var prod_val[20][20]; // length is 3l - 2 by 3k - 2
     for (var i = 0; i < 3 * k; i++) {
         for (var j = 0; j < 3 * l; j ++) {
             prod_val[j][i] = 0;
@@ -399,17 +399,17 @@ function prod3D(n, k, l, a, b, c) {
     }
 
     // now do a bunch of carrying to make sure registers not overflowed. taken from LongToShortNoEndCarry2
-    var out[100][100]; // length is 3 * l by 3 * k
+    var out[20][20]; // length is 3 * l by 3 * k
 
-    var split[100][100][3]; // second dimension has length 3 * k - 1
+    var split[20][20][3]; // second dimension has length 3 * k - 1
     for (var j = 0; j < 3 * l - 1; j ++) {
         for (var i = 0; i < 3 * k - 1; i++) {
             split[j][i] = SplitThreeFn(prod_val[j][i], n, n, n);
         }
     }
 
-    var carry[100][100]; // length is 3l-1 x 3k
-    var sumAndCarry[100][2];
+    var carry[20][20]; // length is 3l-1 x 3k
+    var sumAndCarry[20][2];
     for ( var j = 0; j < 3 * l - 1; j ++) {
         carry[j][0] = 0;
         out[j][0] = split[j][0][0];
@@ -446,8 +446,8 @@ function mod_exp(n, k, a, p, e) {
         }
     }
 
-    var out[100]; // length is k
-    for (var i = 0; i < 100; i++) {
+    var out[20]; // length is k
+    for (var i = 0; i < 20; i++) {
         out[i] = 0;
     }
     out[0] = 1;
@@ -491,15 +491,15 @@ function mod_inv(n, k, a, p) {
         }
     }
     if (isZero == 1) {
-        var ret[100];
+        var ret[20];
         for (var i = 0; i < k; i++) {
             ret[i] = 0;
         }
         return ret;
     }
 
-    var pCopy[100];
-    for (var i = 0; i < 100; i++) {
+    var pCopy[20];
+    for (var i = 0; i < 20; i++) {
         if (i < k) {
             pCopy[i] = p[i];
         } else {
@@ -507,15 +507,15 @@ function mod_inv(n, k, a, p) {
         }
     }
 
-    var two[100];
-    for (var i = 0; i < 100; i++) {
+    var two[20];
+    for (var i = 0; i < 20; i++) {
         two[i] = 0;
     }
     two[0] = 2;
 
     var pMinusTwo[20];
     pMinusTwo = long_sub(n, k, pCopy, two); // length k
-    var out[100];
+    var out[20];
     out = mod_exp(n, k, a, pCopy, pMinusTwo);
     return out;
 }

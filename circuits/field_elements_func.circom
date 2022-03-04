@@ -12,13 +12,13 @@ function Fp2_long_div(n, k, m, a, p){
     var out[2][2][20];
     // solve for X and Y such that a0*b0 + (p-a1)*b1 = p*X + Y with Y in [0,p) 
     // -a1*b1 = (p-a1)*b1 mod p
-    var a_short[4][100];
+    var a_short[4][20];
     for(var i=0; i<4; i++)
         a_short[i] = long_to_short(n, k, a[i]); 
 
     // let me make sure everything is in <= k+m registers
     for(var i=0; i<4; i++)
-        for(var j=k+m; j<100; j++)
+        for(var j=k+m; j<20; j++)
             assert( a_short[i][j] == 0 );
 
     var X[4][2][20];
@@ -118,8 +118,8 @@ function find_Fp12_product(n, k, a, b, p) {
     var real_init[2*l-1][20];
     var imag_init[2*l-1][20];
     var imag_init_neg[2*l-1][20];
-    // var real[l][2][100];
-    // var imag[l][2][100];
+    // var real[l][2][20];
+    // var imag[l][2][20];
     // each product will be 2l-1 x 2k
     var a0b0_var[20][20] = prod2D(n, k, l, a0, b0);
     var a1b1_neg[20][20] = prod2D(n, k, l, a1, neg_b1);
@@ -136,8 +136,8 @@ function find_Fp12_product(n, k, a, b, p) {
     var imag_carry[l][20];
     var real_final[l][20];
     var imag_final[l][20];
-    var zeros[100]; // to balance register sizes
-    for (var i = 0; i < 100; i ++) {
+    var zeros[20]; // to balance register sizes
+    for (var i = 0; i < 20; i ++) {
         zeros[i] = 0;
     }
     for (var i = 0; i < l; i ++) {
@@ -173,7 +173,7 @@ function get_BLS12_381_parameter(){
 }
 
 function get_BLS12_381_prime(n, k){
-    var p[100];
+    var p[20];
     assert( (n==96 && k==4) || (n==77 && k==5) );
     if( n==96 && k==4 ){
         p = [54880396502181392957329877675, 31935979117156477062286671870, 20826981314825584179608359615, 8047903782086192180586325942];
@@ -201,19 +201,19 @@ function get_BLS12_381_prime(n, k){
 // This gives that (a - bu)/(a² + b²) is the inverse
 // of (a + bu). 
 function Fp2invert_func(n, k, a, p) {
-    var sq0[100] = prod(n, k, a[0], a[0]);
-    var sq1[100] = prod(n, k, a[1], a[1]);
+    var sq0[20] = prod(n, k, a[0], a[0]);
+    var sq1[20] = prod(n, k, a[1], a[1]);
     var sq_sum[20] = long_add(n, 2*k, sq0, sq1);
     var sq_sum_div[2][20] = long_div2(n, k, k+1, sq_sum, p);
     // lambda = 1/(sq_sum)%p
-    var lambda[100] = mod_inv(n, k, sq_sum_div[1], p);
-    var out0[100] = prod(n, k, lambda, a[0]);
+    var lambda[20] = mod_inv(n, k, sq_sum_div[1], p);
+    var out0[20] = prod(n, k, lambda, a[0]);
     var out0_div[2][20] = long_div(n, k, out0, p);
     var out[2][20];
     out[0] = out0_div[1];
     
     var out1_pre[20] = long_sub(n, k, p, a[1]);
-    var out1[100] = prod(n, k, lambda, out1_pre);
+    var out1[20] = prod(n, k, lambda, out1_pre);
     var out1_div[2][20] = long_div(n, k, out1, p);
     out[1] = out1_div[1];
     return out;

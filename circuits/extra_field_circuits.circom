@@ -218,20 +218,20 @@ template Fp2square(n, k){
 // out[i][1] has k registers in short BigInt format
 // a * b = out[0][1] + out[1][1] * u in Fp2 
 function Fp2prod(n, k, a, b, p){
-    var out[2][2][100];
+    var out[2][2][20];
     // solve for X and Y such that a0*b0 + (p-a1)*b1 = p*X + Y with Y in [0,p) 
     // -a1*b1 = (p-a1)*b1 mod p
-    var a0b0_var[100] = prod(n, k, a[0], b[0]);
-    var a1_neg[100] = long_sub(n, k, p, a[1]); 
-    var a1b1_neg[100] = prod(n, k, a1_neg, b[1]);
-    var diff[100] = long_add(n, 2*k, a0b0_var, a1b1_neg); // 2*k+1 registers
+    var a0b0_var[20] = prod(n, k, a[0], b[0]);
+    var a1_neg[20] = long_sub(n, k, p, a[1]); 
+    var a1b1_neg[20] = prod(n, k, a1_neg, b[1]);
+    var diff[20] = long_add(n, 2*k, a0b0_var, a1b1_neg); // 2*k+1 registers
     out[0] = long_div2(n, k, k+1, diff, p); 
     // X = out[0][0] has k+2 registers, Y = out[0][1] has k registers 
     
     // solve for X and Y such that a0*b1 + a1*b0 = p*X + Y with Y in [0,p) 
-    var a0b1_var[100] = prod(n, k, a[0], b[1]);
-    var a1b0_var[100] = prod(n, k, a[1], b[0]);
-    var sum[100] = long_add(n, 2*k, a0b1_var, a1b0_var); // output 2*k+1 registers
+    var a0b1_var[20] = prod(n, k, a[0], b[1]);
+    var a1b0_var[20] = prod(n, k, a[1], b[0]);
+    var sum[20] = long_add(n, 2*k, a0b1_var, a1b0_var); // output 2*k+1 registers
     out[1] = long_div2(n, k, k+1, sum, p); 
     // X = out[1][0] has k+2 registers, Y = out[1][1] has k registers 
 
@@ -290,7 +290,7 @@ template Fp2multiply(n, k){
     assert(k<7);
     assert(2*n + 1 + LOGK<254);
 
-    var Xvar[2][2][100] = Fp2prod(n, k, a, b, p); 
+    var Xvar[2][2][20] = Fp2prod(n, k, a, b, p); 
     component range_checks[2][k];
     component lt[2];
     signal X[2][k+2]; 

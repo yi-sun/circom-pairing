@@ -178,13 +178,13 @@ template Fp12cyclotomicDecompress(n, k, p) {
         threeg3g4.b[2*eps+1][i] <== 0;
     }
     // 2 g1^2 + g2 g5 - 3 g3 g4 
-    var temp[4][100]; 
+    var temp[4][20]; 
     for(var i=0; i<len; i++)for(var eps=0; eps<2; eps++){
         temp[2*eps][i] = twog1sq.out[2*eps][i] + g2g5.out[2*eps][i] + threeg3g4.out[2*eps+1][i];
         temp[2*eps+1][i] = twog1sq.out[2*eps+1][i] + g2g5.out[2*eps+1][i] + threeg3g4.out[2*eps][i];
     }
     // (2 g1^2 + g2 g5 - 3 g3 g4)(1+u)
-    var tempc[4][100]; // overflow 2*6*(k+1) * 2^{2n+1}
+    var tempc[4][20]; // overflow 2*6*(k+1) * 2^{2n+1}
     for(var i=0; i<len; i++){
         tempc[0][i] = temp[0][i] + temp[3][i];
         tempc[1][i] = temp[1][i] + temp[2][i];

@@ -18,11 +18,11 @@ template EllipticCurveAddUnequal3Reg(n, q0, q1, q2) {
 
     signal output out[2][k];
 
-    var q[100];
+    var q[20];
     q[0] = q0;
     q[1] = q1;
     q[2] = q2;
-    for (var idx = 3; idx < 100; idx++) {
+    for (var idx = 3; idx < 20; idx++) {
 	q[idx] = 0;
     }
     
@@ -43,9 +43,9 @@ template EllipticCurveAddUnequal3Reg(n, q0, q1, q2) {
     }
 
     signal lambda[k];
-    var sub0inv[100] = mod_inv(n, k, sub0.out, q);
-    var sub1_sub0inv[100] = prod(n, k, sub1.out, sub0inv);
-    var lamb_arr[2][100] = long_div(n, k, sub1_sub0inv, q);
+    var sub0inv[20] = mod_inv(n, k, sub0.out, q);
+    var sub1_sub0inv[20] = prod(n, k, sub1.out, sub0inv);
+    var lamb_arr[2][20] = long_div(n, k, sub1_sub0inv, q);
     for (var i = 0; i < k; i++) {
         lambda[i] <-- lamb_arr[1][i];
     }
@@ -129,12 +129,12 @@ template EllipticCurveAddUnequal4Reg(n, q0, q1, q2, q3) {
 
     signal output out[2][k];
 
-    var q[100];
+    var q[20];
     q[0] = q0;
     q[1] = q1;
     q[2] = q2;
     q[3] = q3;
-    for (var idx = 4; idx < 100; idx++) {
+    for (var idx = 4; idx < 20; idx++) {
 	q[idx] = 0;
     }
     
@@ -155,9 +155,9 @@ template EllipticCurveAddUnequal4Reg(n, q0, q1, q2, q3) {
     }
 
     signal lambda[k];
-    var sub0inv[100] = mod_inv(n, k, sub0.out, q);
-    var sub1_sub0inv[100] = prod(n, k, sub1.out, sub0inv);
-    var lamb_arr[2][100] = long_div(n, k, sub1_sub0inv, q);
+    var sub0inv[20] = mod_inv(n, k, sub0.out, q);
+    var sub1_sub0inv[20] = prod(n, k, sub1.out, sub0inv);
+    var lamb_arr[2][20] = long_div(n, k, sub1_sub0inv, q);
     for (var i = 0; i < k; i++) {
         lambda[i] <-- lamb_arr[1][i];
     }
@@ -246,19 +246,19 @@ template EllipticCurveDouble(n, k, a, q0, q1, q2, q3) {
     // assuming q < 2**(4n) 
     // represent q = q0 + q1 * 2**n + q2 * 2**(2n) + q3 * 2**(3n)
     // not sure how I feel about this convention...
-    var q[100];
+    var q[20];
     q[0] = q0;
     q[1] = q1;
     q[2] = q2;
     q[3] = q3;
-    for (var idx = 4; idx < 100; idx++) {
+    for (var idx = 4; idx < 20; idx++) {
 	    q[idx] = 0;
     }
 
     // assuming a is small 
-    var long_a[100];
+    var long_a[20];
     long_a[0] = a;
-    for (var i = 1; i < 100; i++) {
+    for (var i = 1; i < 20; i++) {
         long_a[i] = 0;   
     }
 
@@ -269,8 +269,8 @@ template EllipticCurveDouble(n, k, a, q0, q1, q2, q3) {
         in0_sq.p[i] <== q[i];
     }
 
-    var long_2[100];
-    var long_3[100];
+    var long_2[20];
+    var long_3[20];
     long_2[0] = 2;
     long_3[0] = 3;
     for (var i = 1; i < k; i++) {
@@ -278,9 +278,9 @@ template EllipticCurveDouble(n, k, a, q0, q1, q2, q3) {
         long_2[i] = 0;
         long_3[i] = 0;
     }
-    var inv_2[100] = mod_inv(n, k, long_2, q);
-    var long_3_div_2[100] = prod(n, k, long_3, inv_2);
-    var long_3_div_2_mod_q[2][100] = long_div(n, k, long_3_div_2, q);
+    var inv_2[20] = mod_inv(n, k, long_2, q);
+    var long_3_div_2[20] = prod(n, k, long_3, inv_2);
+    var long_3_div_2_mod_q[2][20] = long_div(n, k, long_3_div_2, q);
 
     // numerator = 3/2 * in[0]**2 + a
     // numer1 = 3/2 * in[0]**2
@@ -298,9 +298,9 @@ template EllipticCurveDouble(n, k, a, q0, q1, q2, q3) {
     }
 
     signal lambda[k];
-    var denom_inv[100] = mod_inv(n, k, in[1], q);
-    var product[100] = prod(n, k, numer.out, denom_inv);
-    var lamb_arr[2][100] = long_div(n, k, product, q);
+    var denom_inv[20] = mod_inv(n, k, in[1], q);
+    var product[20] = prod(n, k, numer.out, denom_inv);
+    var lamb_arr[2][20] = long_div(n, k, product, q);
     for (var i = 0; i < k; i++) {
         lambda[i] <-- lamb_arr[1][i];
     }
