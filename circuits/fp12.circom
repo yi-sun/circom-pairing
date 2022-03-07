@@ -95,11 +95,11 @@ template Fp12Add(n, k) {
 // a = sum w^i u^j a_ij for w^6=u+1, u^2=-1. similarly for b
 // we first write a = A + B u, b = C + D u and compute 
 // ab = (AC + B(p-D)) + (AD+BC) u, and then simplify the representation
-template Fp12Multiply(n, k) {
+template Fp12Multiply(n, k, p) {
     var l = 6;
     signal input a[l][2][k];
     signal input b[l][2][k];
-    signal input p[k];
+//    signal input p[k];
     signal output out[l][2][k];
 
 
@@ -914,13 +914,12 @@ template Fp12Multiply2(n, k, p) {
 
 
 // unoptimized squaring, just takes two elements of Fp12 and multiplies them
-template Fp12square(n, k) {
+template Fp12square(n, k, p) {
     signal input in[6][2][k];
-    signal input p[k];
     signal output out[6][2][k];
 
     // for now just use plain multiplication, this can be optimized later
-    component square = Fp12Multiply(n, k);
+    component square = Fp12Multiply(n, k, p);
     for(var i=0; i<6; i++)for(var j=0; j<k; j++){
         square.a[i][0][j] <== in[i][0][j];
         square.a[i][1][j] <== in[i][1][j];
@@ -928,7 +927,6 @@ template Fp12square(n, k) {
         square.b[i][0][j] <== in[i][0][j];
         square.b[i][1][j] <== in[i][1][j];
     }
-    for(var i=0; i<k; i++) square.p[i] <== p[i];
 
     for(var i=0; i<6; i++)for(var j=0; j<k; j++){
         out[i][0][j] <== square.out[i][0][j];
@@ -974,13 +972,10 @@ template Fp12Invert(n, k, p){
         outRangeChecks[i][j][m].in <== out[i][j][m];
     }
 
-    component in_out = Fp12Multiply(n, k);
+    component in_out = Fp12Multiply(n, k, p);
     for(var i=0; i<6; i++) for(var j=0; j<2; j++) for(var m=0; m<k; m++) {
         in_out.a[i][j][m] <== in[i][j][m];
         in_out.b[i][j][m] <== out[i][j][m];
-    }
-    for (var i = 0; i < k; i ++) {
-        in_out.p[i] <== p[i];
     }
 
     for(var i=0; i<6; i++)for(var j=0; j<2; j++) for(var m = 0; m < k; m ++) {
@@ -995,11 +990,10 @@ template Fp12Invert(n, k, p){
 // output is input raised to the e-th power
 // use the square and multiply method
 // assume 0 < e < 2^254
-template Fp12exp(n, k, e) {
+template Fp12exp(n, k, e, p) {
     assert( e > 0 );
 
     signal input in[6][2][k];
-    signal input p[k];
     signal output out[6][2][k];
 
     var temp = e;
@@ -1019,7 +1013,7 @@ template Fp12exp(n, k, e) {
     for(var i=0; i<BITLENGTH; i++){
         // compute pow2[i] = pow2[i-1]**2
         if( i > 0 ){ // pow2[0] is never defined since there is no squaring involved
-            pow2[i] = Fp12square(n, k);
+            pow2[i] = Fp12square(n, k, p);
             for(var j=0; j<k; j++) pow2[i].p[j] <== p[j];
             if( i == 1 ){
                 for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
@@ -1040,8 +1034,7 @@ template Fp12exp(n, k, e) {
                 }
             }else{
                 // multiply what we already have with pow2[i]
-                mult[curid] = Fp12Multiply(n, k); 
-                for(var j=0; j<k; j++) mult[curid].p[j] <== p[j];
+                mult[curid] = Fp12Multiply(n, k, p); 
                 for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
                     mult[curid].a[id][eps][j] <== pow2[i].out[id][eps][j];
                 if(curid == 1){

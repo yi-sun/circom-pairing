@@ -376,7 +376,7 @@ template Fp12cyclotomicExp(n, k, e, p) {
                 }
             }else{
                 // multiply what we already have with pow2[i]
-                mult[curid] = Fp12Multiply2(n, k, p); 
+                mult[curid] = Fp12Multiply(n, k, p); 
                 for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
                     mult[curid].a[id][eps][j] <== Dpow2[curid].out[id][eps][j];
                 if(curid == 1){
@@ -484,4 +484,60 @@ template hard_part(n, k, p){
     
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
         out[id][eps][j] <== pow13.out[id][eps][j];
+}
+
+// easy part of final exponentiation 
+// out = in^{ (q^6 - 1)*(q^2 + 1) }
+template easy_part(n, k, p){
+    signal input in[6][2][k];
+    signal output out[6][2][k];
+    
+    // in^{q^6} 
+    component f1 = Fp12frobeniusMap(n, k, 6); 
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        f1.in[id][eps][j] <== in[id][eps][j];
+
+    // in^{-1}
+    component f2 = Fp12Invert(n, k, p);
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        f2.in[id][eps][j] <== in[id][eps][j];
+
+    // in^{q^6 - 1}
+    component f3 = Fp12Multiply2(n, k, p);
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
+        f3.a[id][eps][j] <== f1.out[id][eps][j];
+        f3.b[id][eps][j] <== f2.out[id][eps][j];
+    }
+    
+    // in^{(q^6-1)*q^2} = f3^{q^2}
+    component f4 = Fp12frobeniusMap(n, k, 2); 
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        f4.in[id][eps][j] <== f3.out[id][eps][j];
+    
+    // in^{(q^6-1)(q^2+1)} = f4 * f3
+    component f5 = Fp12Multiply2(n, k, p);
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
+        f5.a[id][eps][j] <== f3.out[id][eps][j];
+        f5.b[id][eps][j] <== f4.out[id][eps][j];
+    }
+    
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        out[id][eps][j] <== f5.out[id][eps][j];
+}
+
+// out = in^{(q^12-1)/r} = hard_part( easy_part(in) )
+template finalExponentiate(n, k, p){
+    signal input in[6][2][k];
+    signal output out[6][2][k];
+
+    component f1 = easy_part(n, k, p);
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        f1.in[id][eps][j] <== in[id][eps][j];
+    
+    component f = hard_part(n, k, p);
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        f.in[id][eps][j] <== f1.out[id][eps][j];
+    
+    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        out[id][eps][j] <== f.out[id][eps][j];
 }
