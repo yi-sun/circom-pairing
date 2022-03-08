@@ -362,7 +362,7 @@ template Fp12cyclotomicPow4(n, k, p) {
 // output is input raised to the e-th power
 // use the square and multiply method
 // assume 0 < e < 2^253
-template Fp12cyclotomicExp(n, k, e, p) {
+template Fp12cyclotomicExp2(n, k, e, p) {
     assert( e > 0 );
 
     signal input in[6][2][k];
@@ -448,7 +448,7 @@ template Fp12cyclotomicExp(n, k, e, p) {
 // output is input raised to the e-th power
 // use the "4th power and multiply" method, where 1st, 2nd, 3rd powers are precomputed and stored
 // assume 0 < e < 2^253
-template Fp12cyclotomicExp4(n, k, e, p) {
+template Fp12cyclotomicExp(n, k, e, p) {
     assert( e > 0 );
 
     signal input in[6][2][k];
