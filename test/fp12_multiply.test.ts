@@ -309,6 +309,63 @@ describe("Fp12cyclotomicSquare n = 3, k = 2", function() {
 });
 
 
+describe("Fp12cyclotomicPow4 n = 3, k = 2", function() {
+    this.timeout(1000 * 1000);
+
+    // runs circom compilation
+    let circuit: any;
+    before(async function () {
+        circuit = await wasm_tester(path.join(__dirname, "circuits", "test_fp12_pow4_32.circom"));
+    });
+
+    let p: bigint = 19n;
+    Fp.ORDER = p;
+    Fp2.ORDER = p;
+
+    var Csq = function (g: [Fp2, Fp2, Fp2, Fp2]) {
+        const [g2, g3, g4, g5] = g;
+        let c: Fp2 = Fp2.fromBigTuple([1n, 1n]);
+        let A23: Fp2 = (g2.add(g3)).multiply(g2.add(c.multiply(g3))); 
+        let A45: Fp2 = (g4.add(g5)).multiply(g4.add(c.multiply(g5))); 
+        let B23: Fp2 = g2.multiply(g3);
+        let B45: Fp2 = g4.multiply(g5);
+        let h2: Fp2 = (g2.add(c.multiply(B45).multiply(3n))).multiply(2n);
+        let h3: Fp2 = (A45.subtract( (c.add(Fp2.ONE)).multiply(B45) )).multiply(3n).subtract(g3.multiply(2n)); 
+        let h4: Fp2 = (A23.subtract( (c.add(Fp2.ONE)).multiply(B23) )).multiply(3n).subtract(g4.multiply(2n)); 
+        let h5: Fp2 = (g5.add(B23.multiply(3n))).multiply(2n);
+        return [h2, h3, h4, h5];
+    }
+    var test_pow4_32 = function (g: [Fp2, Fp2, Fp2, Fp2]) {
+        const [g2, g3, g4, g5] = g;
+        const [f2, f3, f4, f5] = Csq(g);
+        const [h2, h3, h4, h5] = Csq( [f2, f3, f4, f5] );
+
+        let in_array: bigint[][][] = [ Fp2_to_array(3, 2, g2), Fp2_to_array(3, 2, g3), Fp2_to_array(3, 2, g4), Fp2_to_array(3, 2, g5) ];
+        
+        let out_array: bigint[][][] = [ Fp2_to_array(3, 2, h2), Fp2_to_array(3, 2, h3), Fp2_to_array(3, 2, h4), Fp2_to_array(3, 2, h5) ];
+        
+        it('Testing: in: ' + in_array + ', out: ' + out_array + 
+            ' p: ' + p, async function() {
+            let witness = await circuit.calculateWitness({"in": in_array });
+	    await circuit.assertOut(witness, {"out": out_array });
+            await circuit.checkConstraints(witness);
+        });
+    }
+
+    var test_cases: Array<[Fp2, Fp2, Fp2, Fp2]> = [];
+    for(var test_id = 0; test_id < 10; test_id++){
+        let rand_g: [Fp2, Fp2, Fp2, Fp2] = [ Fp2.ONE, Fp2.ONE, Fp2.ONE, Fp2.ONE ];
+        for( let i = 0; i < 4; i++){
+            rand_g[i] = Fp2.fromBigTuple([ BigInt(Math.floor(Math.random() * 19)), BigInt(Math.floor(Math.random() * 19))]);
+        }
+        test_cases.push(rand_g);
+    }
+
+    test_cases.forEach(test_pow4_32);
+
+});
+
+
 describe("Fp12cyclotomicExp n = 3, k = 2", function() {
     this.timeout(1000 * 1000);
 
@@ -338,13 +395,8 @@ describe("Fp12cyclotomicExp n = 3, k = 2", function() {
             a_array[i] = [ a0.value, a1.value ];
         }
 
-        it('Testing a0: ' + a_array[0][0] + ', ' + a_array[0][1] + 
-            ' a1: ' + a_array[1][0] + ', ' + a_array[1][1] + 
-            ' a2: ' + a_array[2][0] + ', ' + a_array[2][1] + 
-            ' a3: ' + a_array[3][0] + ', ' + a_array[3][1] + 
-            ' a4: ' + a_array[4][0] + ', ' + a_array[4][1] + 
-            ' a5: ' + a_array[5][0] + ', ' + a_array[5][1] + 
-            ' e: ' + e + 
+        it('Testing in: ' + in_array + 
+            ' e: ' + e + ' out: ' + out_array + 
             ' p: ' + p, async function() {
             let witness = await circuit.calculateWitness({"in": in_array });
 	    await circuit.assertOut(witness, {"out": out_array });
@@ -369,5 +421,4 @@ describe("Fp12cyclotomicExp n = 3, k = 2", function() {
     test_cases.forEach(test_cycloexp_32);
 
 }); 
-
 

@@ -137,7 +137,7 @@ template Fp2CarryModP(n, k, overflow, p){
 
     assert( overflow < 253 );
 
-    var Xvar[2][2][20] = Fp2_long_div(n, k, m, in, p); 
+    var Xvar[2][2][40] = Fp2_long_div(n, k, m, in, p); 
     component range_check = checkValidFp2(n, k, p);
     component X_range_checks[2][m];
     
@@ -176,8 +176,8 @@ template Fp2multiply(n, k, p){
     signal input b[2][k];
     signal output out[2][k];
 
-    assert(k<=7); // k=7 probably works but best to be safe
-    var LOGK = 3; // LOGK = ceil( log_2( (k+1) ) )
+    assert(k<=15); // k=7 probably works but best to be safe
+    var LOGK = 4; // LOGK = ceil( log_2( (k+1) ) )
     assert(3*n + 2 + 2*LOGK<254);
 
     component c = Fp2multiplyNoCarryCompress(n, k, p); 
@@ -267,7 +267,7 @@ template Fp2invert(n, k, p){
     signal input in[2][k];
     signal output out[2][k];
 
-    var inverse[2][20] = Fp2invert_func(n, k, in, p); // 2 x 20, only 2 x k relevant
+    var inverse[2][40] = Fp2invert_func(n, k, in, p); // 2 x 40, only 2 x k relevant
     for (var i = 0; i < 2; i ++) {
         for (var j = 0; j < k; j ++) {
             out[i][j] <-- inverse[i][j];
@@ -312,12 +312,12 @@ template Fp2invertCarryModP(n, k, overflow, p){
     //log(m);
     //log(overflow);
     // first precompute a, b mod p as shorts 
-    var a_mod[2][20]; 
-    var b_mod[2][20]; 
+    var a_mod[2][40]; 
+    var b_mod[2][40]; 
     for(var eps=0; eps<2; eps++){
         // 2^{overflow} <= 2^{n*ceil(overflow/n)} 
-        var temp1[2][20] = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, a[2*eps]),p);
-        var temp2[2][20] = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, a[2*eps+1]),p);
+        var temp1[2][40] = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, a[2*eps]),p);
+        var temp2[2][40] = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, a[2*eps+1]),p);
         a_mod[eps] = long_sub_mod(n,k,temp1[1],temp2[1],p);
 
         temp1 = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, b[2*eps]),p);
@@ -326,9 +326,9 @@ template Fp2invertCarryModP(n, k, overflow, p){
     }
 
     // precompute 1/b 
-    var b_inv[2][20] = Fp2invert_func(n, k, b_mod, p);
+    var b_inv[2][40] = Fp2invert_func(n, k, b_mod, p);
     // precompute a/b
-    var out_var[2][20] = find_Fp2_product(n, k, a_mod, b_inv, p);
+    var out_var[2][40] = find_Fp2_product(n, k, a_mod, b_inv, p);
 
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++)
         out[eps][i] <-- out_var[eps][i]; 
@@ -351,9 +351,9 @@ template Fp2invertCarryModP(n, k, overflow, p){
     }
     
     // get mult = out * b = p*X' + Y'
-    var XY[2][2][20] = Fp2_long_div(n, k, m, mult.out, p); // total value is < 2^{n*k+overflow} <= 2^{n*(k+m)} so m extra registers is enough
+    var XY[2][2][40] = Fp2_long_div(n, k, m, mult.out, p); // total value is < 2^{n*k+overflow} <= 2^{n*(k+m)} so m extra registers is enough
     // get a = p*X' + Y'
-    var XY1[2][2][20] = Fp2_long_div(n, k, m, a, p); // same as above, m extra registers enough
+    var XY1[2][2][40] = Fp2_long_div(n, k, m, a, p); // same as above, m extra registers enough
 
     component X_range_checks[2][m];
     for(var eps=0; eps<2; eps++){    
@@ -387,9 +387,8 @@ template Fp2invertCarryModP(n, k, overflow, p){
 // output: a-b u 
 // IF p = 3 mod 4 THEN a - b u = (a+b u)^p <-- Frobenius map 
 // aka Fp2frobeniusMap(n, k)
-template Fp2conjugate(n, k){
+template Fp2conjugate(n, k, p){
     signal input in[2][k]; 
-    signal input p[k];
     signal output out[2][k];
     
     component neg1 = BigSub(n, k);
@@ -404,9 +403,8 @@ template Fp2conjugate(n, k){
 }
 
 // raises to q^power-th power 
-template Fp2frobeniusMap(n, k, power){
+template Fp2frobeniusMap(n, k, power, p){
     signal input in[2][k];
-    signal input p[k];
     signal output out[2][k];
     
     var pow = power % 2;

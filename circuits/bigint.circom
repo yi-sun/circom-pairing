@@ -429,7 +429,7 @@ template BigMod(n, k) {
     signal output div[k + 1];
     signal output mod[k];
 
-    var longdiv[2][20] = long_div(n, k, a, b);
+    var longdiv[2][40] = long_div(n, k, a, b);
     for (var i = 0; i < k; i++) {
         div[i] <-- longdiv[0][i];
         mod[i] <-- longdiv[1][i];
@@ -494,7 +494,7 @@ template BigMod2(n, k, m) {
     signal output div[m - k + 1];
     signal output mod[k];
 
-    var longdiv[2][20] = long_div2(n, k, m-k, a, b);
+    var longdiv[2][40] = long_div2(n, k, m-k, a, b);
     for (var i = 0; i < k; i++) {
         mod[i] <-- longdiv[1][i];
     }
@@ -680,7 +680,7 @@ template BigModInv(n, k) {
     signal output out[k];
 
     // length k
-    var inv[20] = mod_inv(n, k, in, p);
+    var inv[40] = mod_inv(n, k, in, p);
     for (var i = 0; i < k; i++) {
         out[i] <-- inv[i];
     }
@@ -739,7 +739,7 @@ template CheckCarryToZero(n, m, k) {
     
 }
 
-// generalization of secp prime trick according to https://discord.com/channels/913953234777931796/920131476333420634/947186676558606446
+// generalization of secp prime trick according to https://discord.com/channels/913953234777931796/940131476333440634/947186676558606446
 // X = 2^n 
 // in has k + m registers 
 //      in[0] + in[1] * X + ... + in[k+m-1] * X^{k+m-1} 
@@ -753,19 +753,17 @@ template primeTrickCompression(n, k, m, p){
     signal input in[m+k]; 
     signal output out[k];
 
-    var two[20]; 
-    var e[20];
-    for(var i=1; i<20; i++){
+    var two[40]; 
+    for(var i=1; i<40; i++)
         two[i]=0;
-        e[i]=0;
-    }
     two[0] = 2;
-    var r[20][20]; 
+
+    var r[40][40]; 
     for(var i=0; i<m; i++){
-        e[0] = n*(k+i);
-        r[i] = mod_exp(n, k, two, p, e );
+        // warning: don't use mod_exp because it assumes e[] has registers lying in [0,2^n)
+        r[i] = mod_exp_native(n, k, two, p, n*(k+i) ); 
     } 
-    var out_sum[20]; 
+    var out_sum[40]; 
     for(var i=0; i<k; i++)
         out_sum[i] = in[i];
     for(var i=0; i<m; i++)

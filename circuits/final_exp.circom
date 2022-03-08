@@ -42,8 +42,8 @@ template Fp12cyclotomicDecompress(n, k, p) {
     signal input in[4][2][k];
     signal output out[6][2][k]; 
 
-    assert(k<7);
-    var LOGK = 3; // LOGK = ceil( log_2( k+1 ) )
+    assert(k<=15);
+    var LOGK = 4; // LOGK = ceil( log_2( k+1 ) )
     assert(3*n + 4 + LOGK < 252);
 
     var len = 2*k-1; // number of registers in output of Fp2multiplyNoCarry
@@ -79,7 +79,7 @@ template Fp12cyclotomicDecompress(n, k, p) {
         g5sq.b[2*eps+1][i] <== 0;
     }
     // c = 1+u, g5^2 * (1+u)
-    var g5sqc[4][20] = Fp2multc(len, g5sq.out); // overflow 2*2^{2n+1+LOGK}
+    var g5sqc[4][40] = Fp2multc(len, g5sq.out); // overflow 2*2^{2n+1+LOGK}
     component g4sq3 = Fp2multiplyNoCarry(n, k); // overflow 3*(k+1)* 2^{2n+1} <= 3*2^{2n+1+LOGK}
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
         g4sq3.a[2*eps][i] <== 3*in[2][eps][i];
@@ -167,12 +167,12 @@ template Fp12cyclotomicDecompress(n, k, p) {
         threeg3g4.b[2*eps+1][i] <== 0;
     }
     // 2 g1^2 + g2 g5 - 3 g3 g4 
-    var temp[4][20]; 
+    var temp[4][40]; 
     for(var i=0; i<4; i++)for(var j=0; j<len; j++)
         temp[i][j] = twog1sq.out[i][j] + g2g5.out[i][j] + threeg3g4.out[i ^ 1][j];
     
     // (2 g1^2 + g2 g5 - 3 g3 g4)(1+u)
-    var tempc[4][20] = Fp2multc(len, temp); // overflow 2*6*(k+1) * 2^{2n+1}
+    var tempc[4][40] = Fp2multc(len, temp); // overflow 2*6*(k+1) * 2^{2n+1}
     // (2 g1^2 + g2 g5 - 3 g3 g4)(1+u) + 1 < 2^{2n+LOGK+5}  
     tempc[0][0]++;
     component compress01 = Fp2Compress(n, k, k-1, p); // overflow < 2^{3n+2*LOGK+5} 
@@ -234,7 +234,7 @@ template Fp12cyclotomicDecompress(n, k, p) {
 // everything computed with no carries 
 // out[4][4][2*k-1] has registers with overflow in [0, ...) where we keep track of positives and negatives 
 //  If registers of in[] are in [0, 2^N), then registers of out[] are in [0, 2^{2N + LOGK + 6}) 
-//      If moreover in[1] = 0 and in[3]=0, i.e., in[] has no negatives, then registers of out[] are in [0, 2^{2N + LOGK + 6}) 
+//      If moreover in[1] = 0 and in[3]=0, i.e., in[] has no negatives, then registers of out[] are in [0, 2^{2N + LOGK + 7}) 
 template Fp12cyclotomicSquareNoCarry(n, k) {
     signal input in[4][4][k];
     signal output out[4][4][2*k-1];
@@ -252,8 +252,8 @@ template Fp12cyclotomicSquareNoCarry(n, k) {
     component A23 = Fp2multiplyNoCarry(n, k); // overflow in 4*6*(k+1)*2^{2N}     
     component A45 = Fp2multiplyNoCarry(n, k);
     // c*g3 = (1+u)*g3
-    var cg3[4][20] = Fp2multc(k, in[1]); 
-    var cg5[4][20] = Fp2multc(k, in[3]);
+    var cg3[4][40] = Fp2multc(k, in[1]); 
+    var cg5[4][40] = Fp2multc(k, in[3]);
     for(var i=0; i<4; i++)for(var j=0; j<k; j++){
         A23.a[i][j] <== in[0][i][j] + in[1][i][j];  // 2*2^{2N}
         A23.b[i][j] <== in[0][i][j] + cg3[i][j];    // 3*2^{2N}
@@ -262,8 +262,8 @@ template Fp12cyclotomicSquareNoCarry(n, k) {
         A45.b[i][j] <== in[2][i][j] + cg5[i][j];
     }
     
-    var cB45[4][20] = Fp2multc(2*k-1, B45.out);  // 8*(k+1)*2^{2N}
-    var cB23[4][20] = Fp2multc(2*k-1, B23.out); 
+    var cB45[4][40] = Fp2multc(2*k-1, B45.out);  // 8*(k+1)*2^{2N}
+    var cB23[4][40] = Fp2multc(2*k-1, B23.out); 
     for(var i=0; i<4; i++)for(var j=0; j<2*k-1; j++){
         if(j < k){
             out[0][i][j] <== 2*(in[0][i][j] + 3*cB45[i][j]);    // 2*2^N + 6*8*(k+1)*2^{2N} < 2^{2N+LOGK+6}  if in[] has no negatives, < 2^{2N+LOGK+5} 
@@ -289,8 +289,8 @@ template Fp12cyclotomicSquare(n, k, p) {
     signal input in[4][2][k]; 
     signal output out[4][2][k];
 
-    var LOGK = 3;
-    assert(k <= 7); 
+    var LOGK = 4;
+    assert(k <= 15); 
     assert(3*n + 2*LOGK + 7 < 253);
 
     component sq = Fp12cyclotomicSquareNoCarry(n, k);
@@ -298,8 +298,7 @@ template Fp12cyclotomicSquare(n, k, p) {
         sq.in[i][2*eps][j] <== in[i][eps][j]; 
         sq.in[i][2*eps+1][j] <== 0; 
     }
-    // sq.in has no negatives
-    // by comments above, sq.out has registers in [0, 2^{2n + LOGK + 6}) 
+    // by comments above, sq.out has registers in [0, 2^{2n + LOGK + 7}) 
     component sqRed[4]; 
     component sqMod[4];
     for(var i=0; i<4; i++){
@@ -315,10 +314,54 @@ template Fp12cyclotomicSquare(n, k, p) {
         out[i][eps][j] <== sqMod[i].out[eps][j];
 }
 
+
+// input is [g2, g3, g4, g5] = C(g) is output of Fp12cyclotomicCompress 
+// assume in[4][2][k] has registers in [0, 2^n) with in[i][j] in [0, p)
+// output is C(g^4) 
+// we compute Fp12cyclotomicSquareNoCarry twice and then prime reduce at the end 
+// out[4][2][k] has registers in [0, 2^n) with out[i][j] in [0, p) 
+template Fp12cyclotomicPow4(n, k, p) {
+    signal input in[4][2][k]; 
+    signal output out[4][2][k];
+
+    assert(k <= 10); 
+    assert(5*n + 37 < 253); // satisfied by n=43, k=9
+
+    component sq = Fp12cyclotomicSquareNoCarry(n, k);
+    for(var i=0; i<4; i++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){
+        sq.in[i][2*eps][j] <== in[i][eps][j]; 
+        sq.in[i][2*eps+1][j] <== 0; 
+    }
+    // sq.out has 2*k-1 registers, lying in [0, 109*(k+1)*2^{2n}) 
+    
+    component pow4 = Fp12cyclotomicSquareNoCarry(n, 2*k-1); 
+    for(var id=0; id<4; id++)for(var i=0; i<4; i++)for(var j=0; j<2*k-1; j++)
+        pow4.in[id][i][j] <== sq.out[id][i][j];
+    // pow4.out has 2*(2k-1)-1 = 4k-3 registers, lying in [0, 109*(2k)* 109^2 * (k+1)^2 * 2^{4n} )
+
+    component Red[4]; 
+    component Mod[4];
+    for(var i=0; i<4; i++){
+        Red[i] = Fp2Compress(n, k, 3*k-3, p); 
+        for(var eps=0; eps<4; eps++)for(var j=0; j<4*k-3; j++)
+            Red[i].in[eps][j] <== pow4.out[i][eps][j]; 
+        // Red[i].out has registers in [0, (3k-2)*k*(k+1)^2 * 109^3 * 2^{5n+1} < 2^{5n+ 37} ) if k<=10  | can get down to 2^{5n+36} if k<=9
+        Mod[i] = Fp2CarryModP(n, k, 5*n + 37, p);
+        for(var eps=0; eps<4; eps++)for(var j=0; j<k; j++)
+            Mod[i].in[eps][j] <== Red[i].out[eps][j]; 
+    }
+
+
+    for(var i=0; i<4; i++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        out[i][eps][j] <== Mod[i].out[eps][j];
+}
+
+
+
 // assume input is an element of Fp12 in the cyclotomic subgroup GΦ12
 // output is input raised to the e-th power
 // use the square and multiply method
-// assume 0 < e < 2^254
+// assume 0 < e < 2^253
 template Fp12cyclotomicExp(n, k, e, p) {
     assert( e > 0 );
 
@@ -400,13 +443,108 @@ template Fp12cyclotomicExp(n, k, e, p) {
     }
 }
 
+
+// assume input is an element of Fp12 in the cyclotomic subgroup GΦ12
+// output is input raised to the e-th power
+// use the "4th power and multiply" method, where 1st, 2nd, 3rd powers are precomputed and stored
+// assume 0 < e < 2^253
+template Fp12cyclotomicExp4(n, k, e, p) {
+    assert( e > 0 );
+
+    signal input in[6][2][k];
+    signal output out[6][2][k];
+
+    var temp = e;
+    // get bitlength of e 
+    var BITLENGTH;
+    for(var i=0; i<254; i++){
+        if( temp != 0 )
+            BITLENGTH = i; 
+        temp = temp>>1;
+    }
+    BITLENGTH++;
+
+    // Compress in[]
+    component Cin = Fp12cyclotomicCompress(n, k);
+    for(var i=0; i<6; i++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+        Cin.in[i][eps][j] <== in[i][eps][j];
+    
+    var LEN = (BITLENGTH + 1) \ 2; // ceil(BITLENGTH/2) 
+    component pow4[LEN]; // pow4[i] = C(in^{4^i})
+    component Dpow4[LEN];
+    component mult[LEN];
+    component exp[LEN];
+
+    signal first[6][2][k];
+    var curid = 0; // tracks current index in mult[] 
+
+    // write e = e_0 + e_1 * 4 + e_2 * 4^2 + ... 
+    // then in^e = in^{e_0} * pow4[1]^{e_1} * pow4[2]^{e_2} * ... 
+    for(var i=0; i < LEN; i++){
+        // compute pow4[i] = pow4[i-1]**4
+        if( i > 0 ){ // pow4[0] is never defined since there is no squaring involved
+            pow4[i] = Fp12cyclotomicPow4(n, k, p);
+            if( i == 1 ){
+                for(var id=0; id<4; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+                    pow4[i].in[id][eps][j] <== Cin.out[id][eps][j];
+            }else{
+                for(var id=0; id<4; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+                    pow4[i].in[id][eps][j] <== pow4[i-1].out[id][eps][j];
+            }
+        }
+        if( (e % 4) != 0 ){ 
+            // compute pow4[i]^{e%4}
+            exp[curid] = Fp12exp(n, k, e % 4, p); // use un-optimized exponentiation to get low power 
+            if( i > 0 ){
+                // decompress pow4[i] so we can use it 
+                Dpow4[curid] = Fp12cyclotomicDecompress(n, k, p);
+                for(var id=0; id<4; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+                    Dpow4[curid].in[id][eps][j] <== pow4[i].out[id][eps][j];
+                for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+                    exp[curid].in[id][eps][j] <== Dpow4[curid].out[id][eps][j];
+            }else{
+                for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+                    exp[curid].in[id][eps][j] <== in[id][eps][j];
+            }
+            if(curid == 0){ // this is the least significant bit
+                for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+                    first[id][eps][j] <== exp[curid].out[id][eps][j];
+            }else{
+                // multiply what we already have with exp[curid].out
+                mult[curid] = Fp12Multiply2(n, k, p); 
+                for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+                    mult[curid].a[id][eps][j] <== exp[curid].out[id][eps][j];
+                if(curid == 1){
+                    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+                        mult[curid].b[id][eps][j] <== first[id][eps][j];
+                }else{
+                    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+                        mult[curid].b[id][eps][j] <== mult[curid-1].out[id][eps][j];
+                }
+            } 
+            curid++; 
+        }
+        e = e >> 2;
+    }
+    curid--;
+    if(curid == 0){
+        for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+            out[id][eps][j] <== first[id][eps][j];
+    }else{
+        for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
+            out[id][eps][j] <== mult[curid].out[id][eps][j];
+    }
+}
+
+
 // hard part of final exponentiation
 // use equation at top of p.14 from https://eprint.iacr.org/2020/875.pdf
-template hard_part(n, k, p){
+template hard_part(n, k, p, FP12_FROBENIUS_COEFFICIENTS){
     signal input in[6][2][k]; 
     signal output out[6][2][k];
 
     var x = get_BLS12_381_parameter();  // absolute value of parameter for BLS12-381
+    // var FP12_FROBENIUS_COEFFICIENTS[12][6][2][40] = get_Fp12_frobenius(n, k, p);
     
     // in^{(x+1)/3} 
     component pow1 = Fp12cyclotomicExp(n, k, (x+1)\3, p); 
@@ -419,7 +557,7 @@ template hard_part(n, k, p){
         pow2.in[id][eps][j] <== pow1.out[id][eps][j];
 
     // in^{(x+1)^2/3 * -1} = pow2^-1  inverse = frob(6) in cyclotomic subgroup
-    component pow3 = Fp12frobeniusMap(n, k, 6);
+    component pow3 = Fp12frobeniusMap(n, k, 6, p, FP12_FROBENIUS_COEFFICIENTS);
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
         pow3.in[id][eps][j] <== pow2.out[id][eps][j];
 
@@ -429,7 +567,7 @@ template hard_part(n, k, p){
         pow4.in[id][eps][j] <== pow3.out[id][eps][j];
 
     // in^{(x+1)^2/3 * p} = pow2^p 
-    component pow5 = Fp12frobeniusMap(n, k, 1);
+    component pow5 = Fp12frobeniusMap(n, k, 1, p, FP12_FROBENIUS_COEFFICIENTS);
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
         pow5.in[id][eps][j] <== pow2.out[id][eps][j];
 
@@ -451,12 +589,12 @@ template hard_part(n, k, p){
         pow8.in[id][eps][j] <== pow7.out[id][eps][j];
 
     // in^{(x+1)^2/3 * (-x+p) * q^2} = pow6^{q^2}
-    component pow9 = Fp12frobeniusMap(n, k, 2);
+    component pow9 = Fp12frobeniusMap(n, k, 2, p, FP12_FROBENIUS_COEFFICIENTS);
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
         pow9.in[id][eps][j] <== pow6.out[id][eps][j];
     
     // in^{(x+1)^2/3 * (-x+p) * -1} = pow6^{-1} = pow6^{q^6}
-    component pow10 = Fp12frobeniusMap(n, k, 6);
+    component pow10 = Fp12frobeniusMap(n, k, 6, p, FP12_FROBENIUS_COEFFICIENTS);
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
         pow10.in[id][eps][j] <== pow6.out[id][eps][j];
     
@@ -488,12 +626,14 @@ template hard_part(n, k, p){
 
 // easy part of final exponentiation 
 // out = in^{ (q^6 - 1)*(q^2 + 1) }
-template easy_part(n, k, p){
+template easy_part(n, k, p, FP12_FROBENIUS_COEFFICIENTS){
     signal input in[6][2][k];
     signal output out[6][2][k];
     
+    // var FP12_FROBENIUS_COEFFICIENTS[12][6][2][40] = get_Fp12_frobenius(n, k, p);
+
     // in^{q^6} 
-    component f1 = Fp12frobeniusMap(n, k, 6); 
+    component f1 = Fp12frobeniusMap(n, k, 6, p, FP12_FROBENIUS_COEFFICIENTS); 
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
         f1.in[id][eps][j] <== in[id][eps][j];
 
@@ -510,7 +650,7 @@ template easy_part(n, k, p){
     }
     
     // in^{(q^6-1)*q^2} = f3^{q^2}
-    component f4 = Fp12frobeniusMap(n, k, 2); 
+    component f4 = Fp12frobeniusMap(n, k, 2, p, FP12_FROBENIUS_COEFFICIENTS); 
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
         f4.in[id][eps][j] <== f3.out[id][eps][j];
     
@@ -530,11 +670,14 @@ template finalExponentiate(n, k, p){
     signal input in[6][2][k];
     signal output out[6][2][k];
 
-    component f1 = easy_part(n, k, p);
+    var FP12_FROBENIUS_COEFFICIENTS[12][6][2][40] = get_Fp12_frobenius(n, k, p);
+
+    log(0);
+    component f1 = easy_part(n, k, p, FP12_FROBENIUS_COEFFICIENTS);
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
         f1.in[id][eps][j] <== in[id][eps][j];
     
-    component f = hard_part(n, k, p);
+    component f = hard_part(n, k, p, FP12_FROBENIUS_COEFFICIENTS);
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
         f.in[id][eps][j] <== f1.out[id][eps][j];
     
