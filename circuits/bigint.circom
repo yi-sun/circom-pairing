@@ -252,41 +252,6 @@ template BigMultShortLong(n, k) {
    }
 }
 
-// adapted from Fp2multiplyNoCarry and Fp12multiplyNoCarry
-// perhaps we should make Fp12multiplyNoCarry into a general Fp^k-multiplyNoCarry template?
-//
-// inputs:
-//  a[2][k] allow overflow, all registers are "positive"
-//  b[2][k] 
-// output:
-//  out[2][2*k-1] such that:
-// (a[0] - a[1]) * (b[0] - b[1]) = out[0] - out[1] as BigInts 
-// computed without carrying 
-// we keep track of "positives" and "negatives" since circom isn't able to 
-// if all registers of a, b are in [0, B) then out has registers in [0, 2*(k+1)*B^2 )
-template BigMultNoCarry(n, k){
-    signal input a[2][k];
-    signal input b[2][k];
-    signal output out[2][2*k-1];
-
-    // if a,b have registers in [0, 2^n), then 
-    // assert( 2n + 1 + log(k+1) < 254 );
-
-    component ab[2][2];
-    for(var i=0; i<2; i++)for(var j=0; j<2; j++){
-        ab[i][j] = BigMultShortLong(n, k); 
-        for(var l=0; l<k; l++){
-            ab[i][j].a[l] <== a[i][l];
-            ab[i][j].b[l] <== b[j][l];
-        }
-    }
-
-    for(var j=0; j<2*k-1; j++){
-        out[0][j] <== ab[0][0].out[j] + ab[1][1].out[j];
-        out[1][j] <== ab[0][1].out[j] + ab[1][0].out[j];
-    }
-}
-
 // a[i] and b[i] are short unsigned integers
 // out[i] is a long unsigned integer
 template BigMultShortLongUnequal(n, ka, kb) {
@@ -976,4 +941,84 @@ template checkBigMod(n, k, m, overflow, p){
     }
     for(var i=k; i<k+m-1; i++)
         carry_check.in[i] <== -pX.out[i];
+}
+
+// adapted from Fp2multiplyNoCarry and Fp12multiplyNoCarry
+// perhaps we should make Fp12multiplyNoCarry into a general Fp^k-multiplyNoCarry template?
+//
+// inputs:
+//  a[2][k] allow overflow, all registers are "positive"
+//  b[2][k] 
+// output:
+//  out[2][2*k-1] such that:
+// (a[0] - a[1]) * (b[0] - b[1]) = out[0] - out[1] as BigInts 
+// computed without carrying 
+// we keep track of "positives" and "negatives" since circom isn't able to 
+// if all registers of a, b are in [0, B) then out has registers in [0, 2*(k+1)*B^2 )
+template BigMultNoCarry(n, k){
+    signal input a[2][k];
+    signal input b[2][k];
+    signal output out[2][2*k-1];
+
+    // if a,b have registers in [0, 2^n), then 
+    // assert( 2n + 1 + log(k+1) < 254 );
+
+    component ab[2][2];
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++){
+        ab[i][j] = BigMultShortLong(n, k); 
+        for(var l=0; l<k; l++){
+            ab[i][j].a[l] <== a[i][l];
+            ab[i][j].b[l] <== b[j][l];
+        }
+    }
+
+    for(var j=0; j<2*k-1; j++){
+        out[0][j] <== ab[0][0].out[j] + ab[1][1].out[j];
+        out[1][j] <== ab[0][1].out[j] + ab[1][0].out[j];
+    }
+}
+
+
+// copying format of Fp12CarryModP
+// solve for in0 - in1 = p * X + out
+// assume in has registers in [0, 2^overflow) 
+// X has registers lying in [-2^n, 2^n) 
+// X has at most Ceil( overflow / n ) registers 
+template CarryModP(n, k, overflow, p){
+    signal input in[2][k]; 
+    var m = (overflow + n - 1) \ n; 
+    signal output X[m];
+    signal output out[k];
+
+    assert( overflow < 253 );
+
+    var Xvar[2][20] = get_fp_carry_witness(n, k, m, in, p); 
+    component range_checks[k]; 
+    component X_range_checks[m];
+    component lt = BigLessThan(n, k);
+
+    for(var i=0; i<k; i++){
+        out[i] <-- Xvar[1][i];
+        range_checks[i] = Num2Bits(n);
+        range_checks[i].in <== out[i];
+
+        lt.a[i] <== out[i];
+        lt.b[i] <== p[i];
+    }
+    lt.out === 1;
+    
+    for(var i=0; i<m; i++){
+        X[i] <-- Xvar[0][i];
+        X_range_checks[i] = Num2Bits(n+1);
+        X_range_checks[i].in <== X[i] + (1<<n); // X[i] should be between [-2^n, 2^n)
+    }
+    
+    component mod_check = checkBigMod(n, k, m, overflow, p);
+    for(var i=0; i<k; i++){
+        mod_check.in[i] <== in[0][i] - in[1][i];
+        mod_check.Y[i] <== out[i];
+    }
+    for(var i=0; i<m; i++){
+        mod_check.X[i] <== X[i];
+    }
 }

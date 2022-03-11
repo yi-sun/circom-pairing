@@ -519,3 +519,44 @@ function mod_inv(n, k, a, p) {
     out = mod_exp(n, k, a, pCopy, pMinusTwo);
     return out;
 }
+
+
+// a[2][k] registers can overflow - let's say in [0, B) 
+//  assume actual value of each a[i] < 2^{k+m} 
+// p[k] registers in [0, 2^n)
+// out[2][k] solving
+//      a[0] - a[1] = p * out[0] + out[1] with out[1] in [0,p) 
+// out[0] has m registers in range [-2^n, 2^n)
+// out[1] has k registers in range [0, 2^n)
+function get_fp_carry_witness(n, k, m, a, p){
+    var out[2][20];
+    // solve for X and Y such that a0*b0 + (p-a1)*b1 = p*X + Y with Y in [0,p) 
+    // -a1*b1 = (p-a1)*b1 mod p
+    var a_short[2][20];
+    for(var i=0; i<2; i++)
+        a_short[i] = long_to_short(n, k, a[i]); 
+
+    // let me make sure everything is in <= k+m registers
+    for(var i=0; i<2; i++)
+        for(var j=k+m; j<20; j++)
+            assert( a_short[i][j] == 0 );
+
+    var X[2][2][20];
+    for(var i=0; i<2; i++)
+        X[i] = long_div2(n, k, m, a_short[i], p);    
+
+    // compute X[0][1] - X[1][1] mod p 
+    var gt = long_gt(n, k, X[1][1], X[0][1]);
+    if(gt == 0){
+        out[1] = long_sub(n, k, X[0][1], X[1][1]); 
+        for(var i=0; i<m; i++)
+            out[0][i] = X[0][0][i] - X[1][0][i];
+    }else{
+        // X[0][1] - X[1][1] + p 
+        out[1] = long_add(n, k, X[0][1], long_sub(n, k, p, X[1][1]) );
+        out[0][0] = X[0][0][0] - X[1][0][0] - 1;
+        for(var i=1; i<m; i++)
+            out[0][0][i] = X[0][0][i] - X[1][0][i]; 
+    }
+    return out;
+}
