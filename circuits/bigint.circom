@@ -252,6 +252,41 @@ template BigMultShortLong(n, k) {
    }
 }
 
+// adapted from Fp2multiplyNoCarry and Fp12multiplyNoCarry
+// perhaps we should make Fp12multiplyNoCarry into a general Fp^k-multiplyNoCarry template?
+//
+// inputs:
+//  a[2][k] allow overflow, all registers are "positive"
+//  b[2][k] 
+// output:
+//  out[2][2*k-1] such that:
+// (a[0] - a[1]) * (b[0] - b[1]) = out[0] - out[1] as BigInts 
+// computed without carrying 
+// we keep track of "positives" and "negatives" since circom isn't able to 
+// if all registers of a, b are in [0, B) then out has registers in [0, 2*(k+1)*B^2 )
+template BigMultNoCarry(n, k){
+    signal input a[2][k];
+    signal input b[2][k];
+    signal output out[2][2*k-1];
+
+    // if a,b have registers in [0, 2^n), then 
+    // assert( 2n + 1 + log(k+1) < 254 );
+
+    component ab[2][2];
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++){
+        ab[i][j] = BigMultShortLong(n, k); 
+        for(var l=0; l<k; l++){
+            ab[i][j].a[l] <== a[i][l];
+            ab[i][j].b[l] <== b[j][l];
+        }
+    }
+
+    for(var j=0; j<2*k-1; j++){
+        out[0][j] <== ab[0][0].out[j] + ab[1][1].out[j];
+        out[1][j] <== ab[0][1].out[j] + ab[1][0].out[j];
+    }
+}
+
 // a[i] and b[i] are short unsigned integers
 // out[i] is a long unsigned integer
 template BigMultShortLongUnequal(n, ka, kb) {
