@@ -1022,3 +1022,37 @@ template CarryModP(n, k, overflow, p){
         mod_check.X[i] <== X[i];
     }
 }
+
+
+// Constrain in0 - in1 = 0 mod p by solving for in0 - in1 = p * X
+// assume in has registers in [0, 2^overflow) 
+// X has registers lying in [-2^n, 2^n) 
+// X has at most Ceil( overflow / n ) registers 
+
+// saves a range checks and BigLessThan comparison compared to CarryModP
+template CheckCarryModToZero(n, k, overflow, p){
+    signal input in[2][k]; 
+    var m = (overflow + n - 1) \ n; 
+    signal output X[m];
+
+    assert( overflow < 253 );
+
+    var Xvar[2][20] = get_fp_carry_witness(n, k, m, in, p); 
+    component X_range_checks[m];
+
+    for(var i=0; i<m; i++){
+        X[i] <-- Xvar[0][i];
+        X_range_checks[i] = Num2Bits(n+1);
+        X_range_checks[i].in <== X[i] + (1<<n); // X[i] should be between [-2^n, 2^n)
+    }
+    
+    component mod_check = checkBigMod(n, k, m, overflow, p);
+    for(var i=0; i<k; i++){
+        mod_check.in[i] <== in[0][i] - in[1][i];
+        mod_check.Y[i] <== 0;
+    }
+    for(var i=0; i<m; i++){
+        mod_check.X[i] <== X[i];
+    }
+}
+

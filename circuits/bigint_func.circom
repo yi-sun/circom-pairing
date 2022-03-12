@@ -118,26 +118,6 @@ function long_sub(n, k, a, b) {
     return diff;
 }
 
-function long_add_mod(n, k, a, b, p) {
-    var sum[20] = long_add(n,k,a,b); 
-    var temp[2][20] = long_div2(n,k,1,sum,p);
-    return temp[1];
-}
-
-function long_sub_mod(n, k, a, b, p) {
-    if(long_gt(n, k, b, a) == 1){
-        return long_add(n, k, a, long_sub(n,k,p,b));
-    }else{
-        return long_sub(n, k, a, b);
-    }
-}
-
-function prod_mod(n, k, a, b, p) {
-    var prod[20] = prod(n,k,a,b);
-    var temp[2][20] = long_div(n,k,prod,p);
-    return temp[1];
-}
-
 // a is a n-bit scalar
 // b has k registers
 function long_scalar_mult(n, k, a, b) {
@@ -431,6 +411,30 @@ function prod3D(n, k, l, a, b, c) {
     return out;
 }
 
+// Put all modular arithmetic, aka F_p field stuff, at the end
+// possibly split off into separate file if necessary
+
+function long_add_mod(n, k, a, b, p) {
+    var sum[20] = long_add(n,k,a,b); 
+    var temp[2][20] = long_div2(n,k,1,sum,p);
+    return temp[1];
+}
+
+function long_sub_mod(n, k, a, b, p) {
+    if(long_gt(n, k, b, a) == 1){
+        return long_add(n, k, a, long_sub(n,k,p,b));
+    }else{
+        return long_sub(n, k, a, b);
+    }
+}
+
+function prod_mod(n, k, a, b, p) {
+    var prod[20] = prod(n,k,a,b);
+    var temp[2][20] = long_div(n,k,prod,p);
+    return temp[1];
+}
+
+
 // n bits per register
 // a has k registers
 // p has k registers
@@ -521,6 +525,9 @@ function mod_inv(n, k, a, p) {
 }
 
 
+
+
+
 // a[2][k] registers can overflow - let's say in [0, B) 
 //  assume actual value of each a[i] < 2^{k+m} 
 // p[k] registers in [0, 2^n)
@@ -556,7 +563,7 @@ function get_fp_carry_witness(n, k, m, a, p){
         out[1] = long_add(n, k, X[0][1], long_sub(n, k, p, X[1][1]) );
         out[0][0] = X[0][0][0] - X[1][0][0] - 1;
         for(var i=1; i<m; i++)
-            out[0][0][i] = X[0][0][i] - X[1][0][i]; 
+            out[0][i] = X[0][0][i] - X[1][0][i]; 
     }
     return out;
 }
