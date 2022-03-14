@@ -132,15 +132,15 @@ template PointOnTangent(n, k, a, p){
     assert(4*n + 3*LOGK + 3 < 253);
     component x_sq = BigMultShortLong(n, k); // 2k-1 registers in [0, (k+1)2^{2n}) 
     for(var i=0; i<k; i++){
-        x_sq.a[i] <== in[0][i];
-        x_sq.b[i] <== in[0][i];
+        x_sq.a[i] <== in[0][0][i];
+        x_sq.b[i] <== in[0][0][i];
     }
     component right = BigMultNoCarry(n, 2*k-1); // 3k-2 registers in [0, 3*(k+1)^2*2^{3n} + (k+1)2^{2n} ) 
     for(var i=0; i<2*k-1; i++){
         if(i == 0)
-            right.a[0][i] <== 3*x_sq.out[i] + a; // registers in [0, 3*(k+1)2^{2n} + 2^n )  
+            right.a[0][i] <== 3 * x_sq.out[i] + a; // registers in [0, 3*(k+1)2^{2n} + 2^n )  
         else
-            right.a[0][i] <== 3*x_sq; 
+            right.a[0][i] <== 3 * x_sq.out[i]; 
         right.a[1][i] <== 0;
 
         if(i < k){
