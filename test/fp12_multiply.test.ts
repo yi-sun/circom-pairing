@@ -55,7 +55,7 @@ describe("Fp12Multiply n = 3, k = 2", function() {
 
     // a0, a1, b0, b1, p, c0, c1
     var test_cases: Array<[bigint, bigint, bigint, bigint, bigint, bigint, bigint]> = [];
-    let p: bigint = 13n;
+    let p: bigint = 19n;
     for (var a0 = 0n; a0 < p; a0 = a0 + 5n) {
         for (var b0 = 0n; b0 < p; b0 = b0 + 5n) {
             for (var a1 = 0n; a1 < p; a1 = a1 + 5n) {
@@ -84,7 +84,7 @@ describe("Fp12Multiply n = 3, k = 2", function() {
 
         it('Testing a0: ' + a0 + ' a1: ' + a1 + ' b0: ' + b0 + ' b1: ' + b1 + ' p: ' + p + ' c0: ' + c0 + ' c1: ' + c1, async function() {
             let witness = await circuit.calculateWitness({"a": [[zero, zero], [zero, zero], [zero, zero], [a0_array, a1_array], [zero, zero], [a0_array, a1_array]], 
-            "b": [[b0_array, b1_array], [zero, zero], [zero, zero], [b0_array, b1_array], [zero, zero], [zero, zero]], "p": p_array});
+            "b": [[b0_array, b1_array], [zero, zero], [zero, zero], [b0_array, b1_array], [zero, zero], [zero, zero]]});
 	    await circuit.assertOut(witness, {"out": [[c0i_array, c1i_array], [zero, zero], [c0i_array, c1i_array ], 
     [c0_array, c1_array], [zero, zero], [c0_array, c1_array]]});
             await circuit.checkConstraints(witness);
@@ -94,6 +94,7 @@ describe("Fp12Multiply n = 3, k = 2", function() {
     test_cases.forEach(test_field_multiply_32);
 });
 
+/*
 describe("Fp12Multiply2 n = 3, k = 2", function() {
     this.timeout(1000 * 1000);
 
@@ -142,6 +143,7 @@ describe("Fp12Multiply2 n = 3, k = 2", function() {
 
     test_cases.forEach(test_field_multiply_32);
 });
+*/
 
 describe("Fp12Compression n = 3, k = 2", function() {
     this.timeout(1000 * 1000);

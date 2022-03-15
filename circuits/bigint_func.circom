@@ -535,7 +535,7 @@ function mod_inv(n, k, a, p) {
 //      a[0] - a[1] = p * out[0] + out[1] with out[1] in [0,p) 
 // out[0] has m registers in range [-2^n, 2^n)
 // out[1] has k registers in range [0, 2^n)
-function get_fp_carry_witness(n, k, m, a, p){
+function get_Fp_carry_witness(n, k, m, a, p){
     var out[2][20];
     // solve for X and Y such that a0*b0 + (p-a1)*b1 = p*X + Y with Y in [0,p) 
     // -a1*b1 = (p-a1)*b1 mod p

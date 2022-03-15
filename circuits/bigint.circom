@@ -518,10 +518,6 @@ template BigMod2(n, k, m) {
         mul.b[i] <== 0;
     }
 
-    for (var i = 0; i < 2*(m-k)+2; i++) {
-        //log(mul.out[i]);
-    }
-
     // mul shouldn't have more registers than a
     for (var i = m; i < 2*(m-k)+2; i++) {
         mul.out[i] === 0;
@@ -535,10 +531,6 @@ template BigMod2(n, k, m) {
         } else {
             add.b[i] <== 0;
         }
-    }
-
-    for (var i = 0; i < m+1; i++) {
-        //log(add.out[i]);
     }
 
     for (var i = 0; i < m; i++) {
@@ -749,7 +741,7 @@ template CheckCarryToZero(n, m, k) {
 //      where r[i] represented as k registers with r[i][j] in [0, 2^n) 
 // Output has k registers where in[i] * X^i is replaced by sum_j in[i] * r[i][j] * X^j
 // if in[i] in (-B, B) for all i, then out[i] < (-2^n * B * (m+1), 2^n * B * (m+1))
-template primeTrickCompression(n, k, m, p){
+template PrimeReduce(n, k, m, p){
     signal input in[m+k]; 
     signal output out[k];
 
@@ -907,42 +899,6 @@ template BigMultShortLong2DUnequal(n, ka, kb, la, lb) {
 
 
 
-// constrain in = p * X + Y 
-// in[i] in (-2^overflow, 2^overflow) 
-// assume registers of X have abs value < 2^{overflow - n - log(max(k,m)+1)} 
-template checkBigMod(n, k, m, overflow, p){
-    signal input in[k]; 
-    signal input X[m];
-    signal input Y[k];
-
-    assert( overflow < 253 );
-    component pX;
-    component carry_check;
-    var maxkm;
-    if(k < m) maxkm = m;
-    else maxkm = k;
-
-    pX = BigMultShortLong(n, maxkm); // p has k registers, X has m registers, so output really has k+m-1 registers 
-    // overflow register in  (-2^overflow , 2^overflow)
-    for(var i=0; i<maxkm; i++){
-        if(i < k)
-            pX.a[i] <== p[i];
-        else
-            pX.a[i] <== 0;
-        if(i < m)
-            pX.b[i] <== X[i];
-        else 
-            pX.b[i] <== 0;
-    }
-    // in - p*X has registers in (-2^{overflow+1}, 2^{overflow+1})
-    carry_check = CheckCarryToZero(n, overflow+2, k+m-1 ); 
-    for(var i=0; i<k; i++){
-        carry_check.in[i] <== in[i] - pX.out[i] - Y[i]; 
-    }
-    for(var i=k; i<k+m-1; i++)
-        carry_check.in[i] <== -pX.out[i];
-}
-
 // adapted from Fp2multiplyNoCarry and Fp12multiplyNoCarry
 // perhaps we should make Fp12multiplyNoCarry into a general Fp^k-multiplyNoCarry template?
 //
@@ -978,81 +934,4 @@ template BigMultNoCarry(n, k){
     }
 }
 
-
-// copying format of Fp12CarryModP
-// solve for in0 - in1 = p * X + out
-// assume in has registers in [0, 2^overflow) 
-// X has registers lying in [-2^n, 2^n) 
-// X has at most Ceil( overflow / n ) registers 
-template CarryModP(n, k, overflow, p){
-    signal input in[2][k]; 
-    var m = (overflow + n - 1) \ n; 
-    signal output X[m];
-    signal output out[k];
-
-    assert( overflow < 253 );
-
-    var Xvar[2][20] = get_fp_carry_witness(n, k, m, in, p); 
-    component range_checks[k]; 
-    component X_range_checks[m];
-    component lt = BigLessThan(n, k);
-
-    for(var i=0; i<k; i++){
-        out[i] <-- Xvar[1][i];
-        range_checks[i] = Num2Bits(n);
-        range_checks[i].in <== out[i];
-
-        lt.a[i] <== out[i];
-        lt.b[i] <== p[i];
-    }
-    lt.out === 1;
-    
-    for(var i=0; i<m; i++){
-        X[i] <-- Xvar[0][i];
-        X_range_checks[i] = Num2Bits(n+1);
-        X_range_checks[i].in <== X[i] + (1<<n); // X[i] should be between [-2^n, 2^n)
-    }
-    
-    component mod_check = checkBigMod(n, k, m, overflow, p);
-    for(var i=0; i<k; i++){
-        mod_check.in[i] <== in[0][i] - in[1][i];
-        mod_check.Y[i] <== out[i];
-    }
-    for(var i=0; i<m; i++){
-        mod_check.X[i] <== X[i];
-    }
-}
-
-
-// Constrain in0 - in1 = 0 mod p by solving for in0 - in1 = p * X
-// assume in has registers in [0, 2^overflow) 
-// X has registers lying in [-2^n, 2^n) 
-// X has at most Ceil( overflow / n ) registers 
-
-// saves a range checks and BigLessThan comparison compared to CarryModP
-template CheckCarryModToZero(n, k, overflow, p){
-    signal input in[2][k]; 
-    var m = (overflow + n - 1) \ n; 
-    signal output X[m];
-
-    assert( overflow < 253 );
-
-    var Xvar[2][20] = get_fp_carry_witness(n, k, m, in, p); 
-    component X_range_checks[m];
-
-    for(var i=0; i<m; i++){
-        X[i] <-- Xvar[0][i];
-        X_range_checks[i] = Num2Bits(n+1);
-        X_range_checks[i].in <== X[i] + (1<<n); // X[i] should be between [-2^n, 2^n)
-    }
-    
-    component mod_check = checkBigMod(n, k, m, overflow, p);
-    for(var i=0; i<k; i++){
-        mod_check.in[i] <== in[0][i] - in[1][i];
-        mod_check.Y[i] <== 0;
-    }
-    for(var i=0; i<m; i++){
-        mod_check.X[i] <== X[i];
-    }
-}
 

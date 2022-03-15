@@ -2,24 +2,23 @@ pragma circom 2.0.2;
 
 include "bigint.circom";
 include "field_elements_func.circom";
+include "fp.circom";
 
 // add two elements in Fp2
-template Fp2Add(n, k) {
+template Fp2Add(n, k, p) {
     signal input a[2][k];
     signal input b[2][k];
-    signal input p[k];
-    signal output c[2][k];
+    signal output out[2][k];
 
     component adders[2];
     for (var i = 0; i < 2; i++) {
-        adders[i] = BigAddModP(n, k);
+        adders[i] = FpAdd(n, k, p);
         for (var j = 0; j < k; j++) {
             adders[i].a[j] <== a[i][j];
             adders[i].b[j] <== b[i][j];
-            adders[i].p[j] <== p[j];
         }   
         for (var j = 0; j < k; j ++) {
-            c[i][j] <== adders[i].out[j];
+            out[i][j] <== adders[i].out[j];
         }
     }
 }
@@ -36,7 +35,7 @@ template Fp2Add(n, k) {
 //      we keep track of "positive" and "negatives" since circom isn't able to 
 //      if each a[i][j] is in [0, B) then out[i][j] is in [0, 4*(k+1)*B^2 )
 //  out[i] has 2*k-1 registers since that's output of BigMultShortLong
-template Fp2multiplyNoCarry(n, k){
+template Fp2MultiplyNoCarry(n, k){
     signal input a[4][k];
     signal input b[4][k];
     signal output out[4][2*k-1];
@@ -71,7 +70,7 @@ template Fp2Compress(n, k, m, p){
     
     component c[4];
     for(var i=0; i<4; i++){
-        c[i] = primeTrickCompression(n, k, m, p);
+        c[i] = PrimeReduce(n, k, m, p);
         for(var j=0; j<k+m; j++)
             c[i].in[j] <== in[i][j]; 
     }
@@ -86,12 +85,12 @@ template Fp2Compress(n, k, m, p){
 //          (k+1)B^2 from BigMultShortLong
 //          *4 from adding 
 //          *k*2^n from prime trick
-template Fp2multiplyNoCarryCompress(n, k, p){
+template Fp2MultiplyNoCarryCompress(n, k, p){
     signal input a[4][k];
     signal input b[4][k];
     signal output out[4][k];
     
-    component ab = Fp2multiplyNoCarry(n, k);
+    component ab = Fp2MultiplyNoCarry(n, k);
     for(var i=0; i<4; i++)for(var j=0; j<k; j++){
         ab.a[i][j] <== a[i][j];
         ab.b[i][j] <== b[i][j]; 
@@ -106,7 +105,7 @@ template Fp2multiplyNoCarryCompress(n, k, p){
 }
 
 // check if in[0] + in[0]*u is a valid point of Fp2 with in[0],in[1] both with k registers in [0,2^n) and in[i] in [0,p)
-template checkValidFp2(n, k, p){
+template CheckValidFp2(n, k, p){
     signal input in[2][k];
     component range_checks[2][k];
     component lt[2];
@@ -137,8 +136,8 @@ template Fp2CarryModP(n, k, overflow, p){
 
     assert( overflow < 253 );
 
-    var Xvar[2][2][20] = Fp2_long_div(n, k, m, in, p); 
-    component range_check = checkValidFp2(n, k, p);
+    var Xvar[2][2][20] = get_Fp2_carry_witness(n, k, m, in, p); 
+    component range_check = CheckValidFp2(n, k, p);
     component X_range_checks[2][m];
     
     for(var eps=0; eps<2; eps++){
@@ -156,7 +155,7 @@ template Fp2CarryModP(n, k, overflow, p){
 
     component mod_check[2];
     for(var eps=0; eps<2; eps++){
-        mod_check[eps] = checkBigMod(n, k, m, overflow, p);
+        mod_check[eps] = CheckCarryModP(n, k, m, overflow, p);
         for(var i=0; i<k; i++){
             mod_check[eps].in[i] <== in[2*eps][i] - in[2*eps+1][i];
             mod_check[eps].Y[i] <== out[eps][i];
@@ -166,63 +165,87 @@ template Fp2CarryModP(n, k, overflow, p){
         }
     }
 }
-// multiplication specialized to Fp2
+
+
+template Fp2PolynomialReduce(n, k, p) {
+    var l = 2;
+    signal input a[2*l-1][k];
+    var poly[2] = [1, 0]; // x^2 + 1 = 0
+    signal output out[l][k];
+
+    for (var i = 0; i < k; i ++) {
+        out[1][i] <== a[1][i];
+    }
+    component sub = FpSubtract(n, k, p);
+    for (var i = 0; i < k; i ++) {
+        sub.a[i] <== a[0][i];
+        sub.b[i] <== a[2][i];
+    }
+    for (var i = 0; i < k; i ++) {
+        out[0][i] <== sub.out[i];
+    }
+}
+
+
 // outputs a*b in Fp2 
 // (a0 + a1 u)*(b0 + b1 u) = (a0*b0 - a1*b1) + (a0*b1 + a1*b0)u 
 // out[i] has k registers each in [0, 2^n)
 // out[i] in [0, p)
-template Fp2multiply(n, k, p){
-    signal input a[2][k];
-    signal input b[2][k];
-    signal output out[2][k];
+// A similar circuit can do multiplication in different fields. 
+// The only difference is that Fp2PolynomialReduce (which reduces quadratics by x^2+1) 
+// must be replaced with a different circuit specialized to the minimal polynomial
+template Fp2Multiply(n, k, p) {
+    // l is always 2. poly is always [1, 0]
+    var l = 2;
+    signal input a[l][k];
+    signal input b[l][k];
+    signal output out[l][k];
 
-    assert(k<=7); // k=7 probably works but best to be safe
-    var LOGK = 3; // LOGK = ceil( log_2( (k+1) ) )
-    assert(3*n + 2 + 2*LOGK<254);
-
-    component c = Fp2multiplyNoCarryCompress(n, k, p); 
-    for(var i=0; i<k; i++){
-        c.a[0][i] <== a[0][i];
-        c.a[1][i] <== 0;
-        c.a[2][i] <== a[1][i];
-        c.a[3][i] <== 0;
-        c.b[0][i] <== b[0][i];
-        c.b[1][i] <== 0;
-        c.b[2][i] <== b[1][i];
-        c.b[3][i] <== 0;
-    }
-    // bounds below say X[eps] will only require 4 registers max 
-    var m = 4;
-    component carry_mod = Fp2CarryModP(n, k, 3*n+2+2*LOGK, p); // 3n+1+2*LOGK probably enough but safety first
-    for(var i=0; i<4; i++)for(var j=0; j<k; j++)
-        carry_mod.in[i][j] <== c.out[i][j]; 
-    
-    for(var i=0; i<2; i++)for(var j=0; j<k; j++)
-        out[i][j] <== carry_mod.out[i][j]; 
-
-    // out[0] constraint: X = X[0], Y = out[0] 
-    // c0 = a0b0, c1 = a1b1
-    // constrain by Carry( c0 -' c1 - p *' X - Y ) = 0 
-    // where all operations are performed without carry 
-    // each register is an overflow representation in the range 
-    //      (-(k+1)*k*2^{3n}-2^{2n}-2^n, (k+1)*k*2^{3n}+2^{2n} )
-    //      which is contained in (-2^{3n + 2*LOGK + 1}, 2^{3n + 2*LOGK + 1})
-
-    // out[1] constraint: X = X[1], Y = out[1]
-    // c2 = a0b1 + a1b0, c3 = 0
-    // constrain by Carry( c2 -' c3 -' p *' X - Y) = 0 
-    // each register is an overflow representation in the range 
-    //      (-2^{2n}-2^n, (k+1)*k*2^{3n+1} + 2^{2n} )
-    //      which is contained in (-2^{3n+2*LOGK+1}, 2^{3n+2*LOGK+1 +1}) // extra +1 just to be safe..
-   
+    component mult = BigMultShortLong2D(n, k, l);
+    for (var i = 0; i < l; i ++) {
+        for (var j = 0; j < k; j ++) {
+            mult.a[i][j] <== a[i][j];
+            mult.b[i][j] <== b[i][j];
+        }
+    } // out: 2l-1 x 2k-1 array of longs
+    component longshorts[2*l-1];
+    for (var i = 0; i < 2*l-1; i++) {
+        longshorts[i] = LongToShortNoEndCarry(n, 2*k-1);
+        for (var j = 0; j < 2*k-1; j ++) {
+            longshorts[i].in[j] <== mult.out[i][j];
+        }
+    } // out: 2l-1 x 2k array of shorts
+    component bigmods[2*l-1];
+    for (var i = 0; i < 2*l-1; i ++) {
+        bigmods[i] = BigMod(n, k);
+        for (var j = 0; j < 2*k; j ++) {
+            bigmods[i].a[j] <== longshorts[i].out[j];
+        }
+        for (var j = 0; j < k; j ++) {
+            bigmods[i].b[j] <== p[j];
+        }
+    } // out: 2l-1 x k array of shorts
+    component reduce = Fp2PolynomialReduce(n, k, p);
+    for (var i = 0; i < 2*l-1; i ++) {
+        for (var j = 0; j < k; j ++) {
+            reduce.a[i][j] <== bigmods[i].mod[j];
+        }
+    } // out: l x k array of shorts
+    for (var i = 0; i < l; i++) {
+        for (var j = 0; j < k; j++) {
+            out[i][j] <== reduce.out[i][j];
+        }
+    } // out: l x k array of shorts
 }
+
+
+
 
 // input: in[0] + in[1] u
 // output: (p-in[0]) + (p-in[1]) u
 // assume 0 <= in < p
-template Fp2negate(n, k){
+template Fp2Negate(n, k, p){
     signal input in[2][k]; 
-    signal input p[k];
     signal output out[2][k];
     
     component neg0 = BigSub(n, k);
@@ -241,14 +264,13 @@ template Fp2negate(n, k){
 
 // input: a0 + a1 u, b0 + b1 u
 // output: (a0-b0) + (a1-b1)u
-template Fp2subtract(n, k){
+template Fp2Subtract(n, k, p){
     signal input a[2][k];
     signal input b[2][k];
-    signal input p[k];
     signal output out[2][k];
     
-    component sub0 = BigSubModP(n, k);
-    component sub1 = BigSubModP(n, k);
+    component sub0 = FpSubtract(n, k, p);
+    component sub1 = FpSubtract(n, k, p);
     for(var i=0; i<k; i++){
         sub0.a[i] <== a[0][i];
         sub0.b[i] <== b[0][i];
@@ -261,13 +283,13 @@ template Fp2subtract(n, k){
     }
 }
 
-// Call Fp2invert_func to compute inverse
+// Call find_Fp2_inverse to compute inverse
 // Then check out * in = 1, out is an array of shorts
-template Fp2invert(n, k, p){
+template Fp2Invert(n, k, p){
     signal input in[2][k];
     signal output out[2][k];
 
-    var inverse[2][20] = Fp2invert_func(n, k, in, p); // 2 x 20, only 2 x k relevant
+    var inverse[2][20] = find_Fp2_inverse(n, k, in, p); // 2 x 20, only 2 x k relevant
     for (var i = 0; i < 2; i ++) {
         for (var j = 0; j < k; j ++) {
             out[i][j] <-- inverse[i][j];
@@ -281,7 +303,7 @@ template Fp2invert(n, k, p){
         outRangeChecks[i][j].in <== out[i][j];
     }
 
-    component in_out = Fp2multiply(n, k, p);
+    component in_out = Fp2Multiply(n, k, p);
     for(var i=0; i<2; i++)for(var j=0; j<k; j++){
         in_out.a[i][j] <== in[i][j];
         in_out.b[i][j] <== out[i][j];
@@ -301,7 +323,7 @@ template Fp2invert(n, k, p){
 // assume a has registers in [0, 2^overflow), b has registers in [0, 2^{overflow-2n-2*LOGK-1}) 
 // assume 2n+1 + log( max(k, ceil(overflow/n) )) < overflow 
 // out has registers in [0, 2^n) 
-template Fp2invertCarryModP(n, k, overflow, p){
+template Fp2Divide(n, k, overflow, p){
     signal input a[4][k];
     signal input b[4][k]; 
     var m = (overflow + n - 1) \ n; // ceil(overflow/n) , i.e., 2^overflow <= 2^{n*m}
@@ -326,14 +348,14 @@ template Fp2invertCarryModP(n, k, overflow, p){
     }
 
     // precompute 1/b 
-    var b_inv[2][20] = Fp2invert_func(n, k, b_mod, p);
+    var b_inv[2][20] = find_Fp2_inverse(n, k, b_mod, p);
     // precompute a/b
     var out_var[2][20] = find_Fp2_product(n, k, a_mod, b_inv, p);
 
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++)
         out[eps][i] <-- out_var[eps][i]; 
     
-    component check = checkValidFp2(n, k, p);
+    component check = CheckValidFp2(n, k, p);
     for(var eps=0; eps<2; eps++)for(var i=0; i<k; i++)
         check.in[eps][i] <== out[eps][i];
     
@@ -342,7 +364,7 @@ template Fp2invertCarryModP(n, k, overflow, p){
     //            should have Y' = Y'' so X = X' - X''
     
     // out * b, registers overflow in 2*(k+1)*k * 2^{2n + (overflow - 2n - 2*LOGK - 1)} <= 2^{overflow}  
-    component mult = Fp2multiplyNoCarryCompress(n, k, p); 
+    component mult = Fp2MultiplyNoCarryCompress(n, k, p); 
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
         mult.a[2*eps][i] <== out[eps][i]; 
         mult.a[2*eps+1][i] <== 0;
@@ -351,9 +373,9 @@ template Fp2invertCarryModP(n, k, overflow, p){
     }
     
     // get mult = out * b = p*X' + Y'
-    var XY[2][2][20] = Fp2_long_div(n, k, m, mult.out, p); // total value is < 2^{n*k+overflow} <= 2^{n*(k+m)} so m extra registers is enough
+    var XY[2][2][20] = get_Fp2_carry_witness(n, k, m, mult.out, p); // total value is < 2^{n*k+overflow} <= 2^{n*(k+m)} so m extra registers is enough
     // get a = p*X' + Y'
-    var XY1[2][2][20] = Fp2_long_div(n, k, m, a, p); // same as above, m extra registers enough
+    var XY1[2][2][20] = get_Fp2_carry_witness(n, k, m, a, p); // same as above, m extra registers enough
 
     component X_range_checks[2][m];
     for(var eps=0; eps<2; eps++){    
@@ -371,7 +393,7 @@ template Fp2invertCarryModP(n, k, overflow, p){
     component mod_check[2];  // overflow 9*(k+1)*k * 2^{3n+1} + 2*2^n < 2^{3n+LOGK+5} 
     //log(0);
     for(var eps=0; eps<2; eps++){
-        mod_check[eps] = checkBigMod(n, k, m, overflow + 1, p);
+        mod_check[eps] = CheckCarryModP(n, k, m, overflow + 1, p);
         for(var i=0; i<k; i++){
             mod_check[eps].in[i] <== mult.out[2*eps][i] - mult.out[2*eps+1][i] - a[2*eps][i] + a[2*eps+1][i];
             mod_check[eps].Y[i] <== 0;
@@ -386,10 +408,9 @@ template Fp2invertCarryModP(n, k, overflow, p){
 // input: a+b u
 // output: a-b u 
 // IF p = 3 mod 4 THEN a - b u = (a+b u)^p <-- Frobenius map 
-// aka Fp2frobeniusMap(n, k)
-template Fp2conjugate(n, k){
+// aka Fp2FrobeniusMap(n, k)
+template Fp2Conjugate(n, k, p){
     signal input in[2][k]; 
-    signal input p[k];
     signal output out[2][k];
     
     component neg1 = BigSub(n, k);
@@ -404,9 +425,8 @@ template Fp2conjugate(n, k){
 }
 
 // raises to q^power-th power 
-template Fp2frobeniusMap(n, k, power){
+template Fp2FrobeniusMap(n, k, power, p){
     signal input in[2][k];
-    signal input p[k];
     signal output out[2][k];
     
     var pow = power % 2;

@@ -4,6 +4,7 @@ include "../node_modules/circomlib/circuits/bitify.circom";
 
 include "./bigint.circom";
 include "./bigint_func.circom";
+include "./fp.circom";
 include "./fp2.circom";
 
 // taken from https://zkrepl.dev/?gist=1e0a28ec3cc4967dc0994e30d316a8af
@@ -54,7 +55,7 @@ template PointOnLine(n, k, p) {
     
     component diff_red[2]; 
     for(var j=0; j<2; j++){
-        diff_red[j] = primeTrickCompression(n, k, k-1, p);
+        diff_red[j] = PrimeReduce(n, k, k-1, p);
         for(var i=0; i<2*k-1; i++)
             diff_red[j].in[i] <== left.out[j][i] + right.out[j^1][i];  
     }
@@ -94,7 +95,7 @@ template PointOnCurve(n, k, a, b, p){
             x_cu.b[i] <== 0;
     }
     // x_cu + a x + b has 3k-2 registers < (k+1)^2 * 2^{3n} + 2^{2n} + 2^n < 2^{3n + 2LOGK + 1} 
-    component cu_red = primeTrickCompression(n, k, 2*k-2, p);
+    component cu_red = PrimeReduce(n, k, 2*k-2, p);
     for(var i=0; i<3*k-2; i++){
         if(i == 0)
             cu_red.in[i] <== x_cu.out[i] + a * in[0][i] + b; 
@@ -107,7 +108,7 @@ template PointOnCurve(n, k, a, b, p){
     }
     // cu_red has k registers < (2k-1)*2^{4n + 2LOGK + 1} < 2^{4n + 3LOGK + 2}
 
-    component y_sq_red = primeTrickCompression(n, k, k-1, p);
+    component y_sq_red = PrimeReduce(n, k, k-1, p);
     for(var i=0; i<2*k-1; i++)
         y_sq_red.in[i] <== y_sq.out[i]; 
 
@@ -161,7 +162,7 @@ template PointOnTangent(n, k, a, p){
     // prime reduce right - left 
     component diff_red[2]; 
     for(var i=0; i<2; i++)
-        diff_red[i] = primeTrickCompression(n, k, 2*k-2, p);
+        diff_red[i] = PrimeReduce(n, k, 2*k-2, p);
     for(var i=0; i<3*k-2; i++){
         diff_red[0].in[i] <== right.out[0][i]; 
         if(i < 2*k-1) 
@@ -249,7 +250,7 @@ template EllipticCurveAddUnequal(n, k, p) { // changing q's to p's for my sanity
 
     component cubic_red[2]; 
     for(var j=0; j<2; j++){
-        cubic_red[j] = primeTrickCompression(n, k, 2*k-2, p);
+        cubic_red[j] = PrimeReduce(n, k, 2*k-2, p);
         for(var i=0; i<2*k-1; i++)
             cubic_red[j].in[i] <== cubic.out[j][i] + dy_sq.out[j ^ 1][i]; // registers in [0, 3*(k+1)^2*2^{3n+1} + (k+1)*2^{2n+1} < 2^{3n+2LOGK+3} )
         // j ^ 1 flips the bit so has the effect of subtracting  
@@ -274,7 +275,7 @@ template EllipticCurveAddUnequal(n, k, p) { // changing q's to p's for my sanity
 
     // check if out[][] has registers in [0, 2^n) and each out[i] is in [0, p)
     // re-using Fp2 code by considering (x_3, y_3) as a 2d-vector over Fp
-    component range_check = checkValidFp2(n, k, p);
+    component range_check = CheckValidFp2(n, k, p);
     for(var j=0; j<2; j++)for(var i=0; i<k; i++)
         range_check.in[j][i] <== out[j][i];
 }
@@ -332,7 +333,7 @@ template EllipticCurveDouble(n, k, a, b, p) {
     }
     // check if out[][] has registers in [0, 2^n) and each out[i] is in [0, p)
     // re-using Fp2 code by considering (x_3, y_3) as a 2d-vector over Fp
-    component range_check = checkValidFp2(n, k, p);
+    component range_check = CheckValidFp2(n, k, p);
     for(var j=0; j<2; j++)for(var i=0; i<k; i++)
         range_check.in[j][i] <== out[j][i];
 
