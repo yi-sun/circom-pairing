@@ -167,75 +167,54 @@ template Fp2CarryModP(n, k, overflow, p){
 }
 
 
-template Fp2PolynomialReduce(n, k, p) {
-    var l = 2;
-    signal input a[2*l-1][k];
-    var poly[2] = [1, 0]; // x^2 + 1 = 0
-    signal output out[l][k];
-
-    for (var i = 0; i < k; i ++) {
-        out[1][i] <== a[1][i];
-    }
-    component sub = FpSubtract(n, k, p);
-    for (var i = 0; i < k; i ++) {
-        sub.a[i] <== a[0][i];
-        sub.b[i] <== a[2][i];
-    }
-    for (var i = 0; i < k; i ++) {
-        out[0][i] <== sub.out[i];
-    }
-}
-
-
 // outputs a*b in Fp2 
 // (a0 + a1 u)*(b0 + b1 u) = (a0*b0 - a1*b1) + (a0*b1 + a1*b0)u 
 // out[i] has k registers each in [0, 2^n)
 // out[i] in [0, p)
-// A similar circuit can do multiplication in different fields. 
-// The only difference is that Fp2PolynomialReduce (which reduces quadratics by x^2+1) 
-// must be replaced with a different circuit specialized to the minimal polynomial
-template Fp2Multiply(n, k, p) {
-    // l is always 2. poly is always [1, 0]
-    var l = 2;
-    signal input a[l][k];
-    signal input b[l][k];
-    signal output out[l][k];
+template Fp2Multiply(n, k, p){
+    signal input a[2][k];
+    signal input b[2][k];
+    signal output out[2][k];
 
-    component mult = BigMultShortLong2D(n, k, l);
-    for (var i = 0; i < l; i ++) {
-        for (var j = 0; j < k; j ++) {
-            mult.a[i][j] <== a[i][j];
-            mult.b[i][j] <== b[i][j];
-        }
-    } // out: 2l-1 x 2k-1 array of longs
-    component longshorts[2*l-1];
-    for (var i = 0; i < 2*l-1; i++) {
-        longshorts[i] = LongToShortNoEndCarry(n, 2*k-1);
-        for (var j = 0; j < 2*k-1; j ++) {
-            longshorts[i].in[j] <== mult.out[i][j];
-        }
-    } // out: 2l-1 x 2k array of shorts
-    component bigmods[2*l-1];
-    for (var i = 0; i < 2*l-1; i ++) {
-        bigmods[i] = BigMod(n, k);
-        for (var j = 0; j < 2*k; j ++) {
-            bigmods[i].a[j] <== longshorts[i].out[j];
-        }
-        for (var j = 0; j < k; j ++) {
-            bigmods[i].b[j] <== p[j];
-        }
-    } // out: 2l-1 x k array of shorts
-    component reduce = Fp2PolynomialReduce(n, k, p);
-    for (var i = 0; i < 2*l-1; i ++) {
-        for (var j = 0; j < k; j ++) {
-            reduce.a[i][j] <== bigmods[i].mod[j];
-        }
-    } // out: l x k array of shorts
-    for (var i = 0; i < l; i++) {
-        for (var j = 0; j < k; j++) {
-            out[i][j] <== reduce.out[i][j];
-        }
-    } // out: l x k array of shorts
+    assert(k<=7); // k=7 probably works but best to be safe
+    var LOGK = 3; // LOGK = ceil( log_2( (k+1) ) )
+    assert(3*n + 2 + 2*LOGK<254);
+
+    component c = Fp2MultiplyNoCarryCompress(n, k, p); 
+    for(var i=0; i<k; i++){
+        c.a[0][i] <== a[0][i];
+        c.a[1][i] <== 0;
+        c.a[2][i] <== a[1][i];
+        c.a[3][i] <== 0;
+        c.b[0][i] <== b[0][i];
+        c.b[1][i] <== 0;
+        c.b[2][i] <== b[1][i];
+        c.b[3][i] <== 0;
+    }
+    // bounds below say X[eps] will only require 4 registers max 
+    var m = 4;
+    component carry_mod = Fp2CarryModP(n, k, 3*n+2+2*LOGK, p); // 3n+1+2*LOGK probably enough but safety first
+    for(var i=0; i<4; i++)for(var j=0; j<k; j++)
+        carry_mod.in[i][j] <== c.out[i][j]; 
+    
+    for(var i=0; i<2; i++)for(var j=0; j<k; j++)
+        out[i][j] <== carry_mod.out[i][j]; 
+
+    // out[0] constraint: X = X[0], Y = out[0] 
+    // c0 = a0b0, c1 = a1b1
+    // constrain by Carry( c0 -' c1 - p *' X - Y ) = 0 
+    // where all operations are performed without carry 
+    // each register is an overflow representation in the range 
+    //      (-(k+1)*k*2^{3n}-2^{2n}-2^n, (k+1)*k*2^{3n}+2^{2n} )
+    //      which is contained in (-2^{3n + 2*LOGK + 1}, 2^{3n + 2*LOGK + 1})
+
+    // out[1] constraint: X = X[1], Y = out[1]
+    // c2 = a0b1 + a1b0, c3 = 0
+    // constrain by Carry( c2 -' c3 -' p *' X - Y) = 0 
+    // each register is an overflow representation in the range 
+    //      (-2^{2n}-2^n, (k+1)*k*2^{3n+1} + 2^{2n} )
+    //      which is contained in (-2^{3n+2*LOGK+1}, 2^{3n+2*LOGK+1 +1}) // extra +1 just to be safe..
+   
 }
 
 
