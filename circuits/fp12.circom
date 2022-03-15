@@ -10,8 +10,8 @@ template Fp12FrobeniusMap(n, k, power){
     signal input in[6][2][k];
     signal output out[6][2][k];
 
-    var p[20] = get_BLS12_381_prime(n, k);
-    var FP12_FROBENIUS_COEFFICIENTS[12][6][2][5] = get_Fp12_frobenius(n, k);
+    var p[50] = get_BLS12_381_prime(n, k);
+    var FP12_FROBENIUS_COEFFICIENTS[12][6][2][20] = get_Fp12_frobenius(n, k);
     var pow = power % 12;
  
     component in_frob[6]; 
@@ -93,6 +93,52 @@ template Fp12Add(n, k, p) {
     }
 }
 
+// a is 2 x k array representing element a0 - a1 of Fp where we keep track of negatives
+// b is 6 x 4 x k array representing element (b0 - b2) + (b1 - b3) u of Fp12 keeping track of negatives
+//      where b_i = b[][i][] is 6 x k array
+// out is a*b in Fp12 as 6 x 4 x (2k-1) array
+template Fp12ScalarMultiplyNoCarry(n, k){
+    signal input a[2][k];
+    signal input b[6][4][k];
+    signal output out[6][4][2*k-1];
+
+    component ab[6][2]; 
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++){
+        ab[i][j] = BigMultNoCarry(n, k); // 2k-1 registers 
+
+        for(var eps=0; eps<2; eps++)for(var idx=0; idx<k; i++){
+            ab[i][j].a[eps][idx] <== a[eps][idx];
+            ab[i][j].b[eps][idx] <== b[i][j+2*eps][idx]; 
+        } 
+    }
+    
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++)
+        for(var eps=0; eps<2; eps++)for(var idx=0; idx<2*k-1; idx++)
+            out[i][j+2*eps][idx] <== ab[i][j].out[eps][idx];
+}
+
+
+template Fp12ScalarMultiplyNoCarryUnequal(n, ka, kb){
+    signal input a[2][ka];
+    signal input b[6][4][kb];
+    signal output out[6][4][ka+kb-1];
+
+    component ab[6][2]; 
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++){
+        ab[i][j] = BigMultNoCarryUnequal(n, ka, kb); // 2k-1 registers 
+
+        for(var eps=0; eps<2; eps++)for(var idx=0; idx<ka; i++)
+            ab[i][j].a[eps][idx] <== a[eps][idx];
+        for(var eps=0; eps<2; eps++)for(var idx=0; idx<kb; i++)
+            ab[i][j].b[eps][idx] <== b[i][j+2*eps][idx]; 
+    }
+    
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++)
+        for(var eps=0; eps<2; eps++)for(var idx=0; idx<ka+kb-1; idx++)
+            out[i][j+2*eps][idx] <== ab[i][j].out[eps][idx];
+}
+
+
 // a = sum w^i u^j a_ij for w^6=u+1, u^2=-1. similarly for b
 // we first write a = A + B u, b = C + D u and compute 
 // ab = (AC + B(p-D)) + (AD+BC) u, and then simplify the representation
@@ -113,8 +159,8 @@ template Fp12Multiply(n, k, p) {
     var a1[l][k];
     var b0[l][k];
     var b1[l][k];
-    var neg_b0[l][20];
-    var neg_b1[l][20];
+    var neg_b0[l][50];
+    var neg_b1[l][50];
     for (var i = 0; i < l; i ++) { 
         for ( var j = 0; j < k; j ++) {
             a0[i][j] = a[i][0][j];
@@ -128,29 +174,29 @@ template Fp12Multiply(n, k, p) {
         neg_b1[i] = long_sub(n, k, p, b1[i]);
     }
 
-    var real_init[2*l-1][20];
-    var imag_init[2*l-1][20];
-    var imag_init_neg[2*l-1][20];
-    var real[l][2][20];
-    var imag[l][2][20];
+    var real_init[2*l-1][50];
+    var imag_init[2*l-1][50];
+    var imag_init_neg[2*l-1][50];
+    var real[l][2][50];
+    var imag[l][2][50];
     // each product will be 2l-1 x 2k
-    var a0b0_var[20][20] = prod2D(n, k, l, a0, b0);
-    var a1b1_neg[20][20] = prod2D(n, k, l, a1, neg_b1);
-    var a0b1_var[20][20] = prod2D(n, k, l, a0, b1);
-    var a1b0_var[20][20] = prod2D(n, k, l, a1, b0);
-    var a0b1_neg[20][20] = prod2D(n, k, l, a0, neg_b1);
-    var a1b0_neg[20][20] = prod2D(n, k, l, a1, neg_b0);
+    var a0b0_var[20][50] = prod2D(n, k, l, a0, b0);
+    var a1b1_neg[20][50] = prod2D(n, k, l, a1, neg_b1);
+    var a0b1_var[20][50] = prod2D(n, k, l, a0, b1);
+    var a1b0_var[20][50] = prod2D(n, k, l, a1, b0);
+    var a0b1_neg[20][50] = prod2D(n, k, l, a0, neg_b1);
+    var a1b0_neg[20][50] = prod2D(n, k, l, a1, neg_b0);
     for (var i = 0; i < 2*l - 1; i ++) { // compute initial rep (deg w = 10)
         real_init[i] = long_add(n, 2*k, a0b0_var[i], a1b1_neg[i]); // 2*k+1 registers each
         imag_init[i] = long_add(n, 2*k, a0b1_var[i], a1b0_var[i]);
         imag_init_neg[i] = long_add(n, 2*k, a0b1_neg[i], a1b0_neg[i]);
     }
-    var real_carry[l][20];
-    var imag_carry[l][20];
-    var real_final[l][20];
-    var imag_final[l][20];
-    var zeros[20]; // to balance register sizes
-    for (var i = 0; i < 20; i ++) {
+    var real_carry[l][50];
+    var imag_carry[l][50];
+    var real_final[l][50];
+    var imag_final[l][50];
+    var zeros[50]; // to balance register sizes
+    for (var i = 0; i < 50; i ++) {
         zeros[i] = 0;
     }
     for (var i = 0; i < l; i ++) {
@@ -166,8 +212,8 @@ template Fp12Multiply(n, k, p) {
         real_final[i] = long_add_unequal(n, 2*k+2, 2*k+1, real_carry[i], real_init[i]); // now 2*k+3 registers
         imag_final[i] = long_add_unequal(n, 2*k+2, 2*k+1, imag_carry[i], imag_init[i]);
     }
-    var XYreal_temp[l][2][20];
-    var XYimag_temp[l][2][20];
+    var XYreal_temp[l][2][50];
+    var XYimag_temp[l][2][50];
     signal XYreal[l][2][k+4];
     signal XYimag[l][2][k+4];
     for (var i = 0; i < l; i ++) {
@@ -460,9 +506,9 @@ template Fp12CarryModP(n, k, kX, p) {
     assert(k < 7);
 
     // dimension [l, 2, k]
-    var Xvar0[20][2][20];
+    var Xvar0[l][2][50];
     // dimension [l, 2, kX]
-    var Xvar1[20][2][20];
+    var Xvar1[l][2][50];
     for (var i = 0; i < l; i++) {
 	Xvar0[i] = get_Fp12_carry_witness(n, k, kX, p, in[i][0], in[i][2]);
 	Xvar1[i] = get_Fp12_carry_witness(n, k, kX, p, in[i][1], in[i][3]);
@@ -558,7 +604,7 @@ template Fp6Invert(n, k, p) {
     signal input a0[2][k];
     signal input a1[2][k];
     signal input a2[2][k];
-    var out[6][2][20] = find_Fp6_inverse(n, k, p, a0, a1, a2);
+    var out[6][2][50] = find_Fp6_inverse(n, k, p, a0, a1, a2);
     signal output real_out[6][2][k];
     for (var i = 0; i < 6; i++) {
         for (var j = 0; j < 2; j ++) {
@@ -575,7 +621,7 @@ template Fp12Invert(n, k, p){
     signal input in[6][2][k];
     signal output out[6][2][k];
 
-    var inverse[6][2][20] = find_Fp12_inverse(n, k, p, in); // 6 x 2 x 20, only 6 x 2 x k relevant
+    var inverse[6][2][50] = find_Fp12_inverse(n, k, p, in); // 6 x 2 x 50, only 6 x 2 x k relevant
     for (var i = 0; i < 6; i ++) {
         for (var j = 0; j < 2; j ++) {
             for (var m = 0; m < k; m ++) {

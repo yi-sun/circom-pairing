@@ -136,7 +136,7 @@ template FpCarryModP(n, k, overflow, p){
 
     assert( overflow < 253 );
 
-    var Xvar[2][20] = get_Fp_carry_witness(n, k, m, in, p); 
+    var Xvar[2][50] = get_Fp_carry_witness(n, k, m, in, p); 
     component range_checks[k]; 
     component X_range_checks[m];
     component lt = BigLessThan(n, k);
@@ -181,7 +181,7 @@ template CheckCarryModToZero(n, k, overflow, p){
 
     assert( overflow < 253 );
 
-    var Xvar[2][20] = get_Fp_carry_witness(n, k, m, in, p); 
+    var Xvar[2][50] = get_Fp_carry_witness(n, k, m, in, p); 
     component X_range_checks[m];
 
     for(var i=0; i<m; i++){

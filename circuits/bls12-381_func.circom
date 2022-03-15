@@ -6,7 +6,7 @@ function get_BLS12_381_parameter(){
 }
 
 function get_BLS12_381_prime(n, k){
-    var p[20];
+    var p[50];
     assert( (n==96 && k==4) || (n==77 && k==5) );
     if( n==96 && k==4 ){
         p = [54880396502181392957329877675, 31935979117156477062286671870, 20826981314825584179608359615, 8047903782086192180586325942];
@@ -19,7 +19,7 @@ function get_BLS12_381_prime(n, k){
 
 function get_Fp12_frobenius(n, k){
     assert( (n==96 && k==4) || (n==77 && k==5) );
-    var coeff[12][6][2][5]; // 
+    var coeff[12][6][2][20]; // 
     // coeff[j][i] represents an element in F_q^2
     // F_q^12 = F_q^2[w] / (w^6 - (u+1)) 
     // Apply Frobenius j times to w^i: (w^i)^(q^j) = coeff[j][i] * w^i 

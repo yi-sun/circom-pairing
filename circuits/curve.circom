@@ -86,14 +86,12 @@ template PointOnCurve(n, k, a, b, p){
         y_sq.a[i] <== in[1][i];
         y_sq.b[i] <== in[1][i];
     }
-    component x_cu = BigMultShortLong(n, 2*k-1); // 3k-2 registers in [0, (k+1)^2 * 2^{3n}) 
-    for(var i=0; i<2*k-1; i++){
+    component x_cu = BigMultShortLongUnequal(n, 2*k-1, k); // 3k-2 registers in [0, (k+1)^2 * 2^{3n}) 
+    for(var i=0; i<2*k-1; i++)
         x_cu.a[i] <== x_sq.out[i];
-        if(i < k)
-            x_cu.b[i] <== in[0][i];
-        else
-            x_cu.b[i] <== 0;
-    }
+    for(var i=0; i<k; i++)
+        x_cu.b[i] <== in[0][i];
+
     // x_cu + a x + b has 3k-2 registers < (k+1)^2 * 2^{3n} + 2^{2n} + 2^n < 2^{3n + 2LOGK + 1} 
     component cu_red = PrimeReduce(n, k, 2*k-2, p);
     for(var i=0; i<3*k-2; i++){
@@ -136,21 +134,17 @@ template PointOnTangent(n, k, a, p){
         x_sq.a[i] <== in[0][0][i];
         x_sq.b[i] <== in[0][0][i];
     }
-    component right = BigMultNoCarry(n, 2*k-1); // 3k-2 registers in [0, 3*(k+1)^2*2^{3n} + (k+1)2^{2n} ) 
+    component right = BigMultNoCarryUnequal(n, 2*k-1, k); // 3k-2 registers in [0, 3*(k+1)^2*2^{3n} + (k+1)2^{2n} ) 
     for(var i=0; i<2*k-1; i++){
         if(i == 0)
             right.a[0][i] <== 3 * x_sq.out[i] + a; // registers in [0, 3*(k+1)2^{2n} + 2^n )  
         else
             right.a[0][i] <== 3 * x_sq.out[i]; 
         right.a[1][i] <== 0;
-
-        if(i < k){
-            right.b[0][i] <== in[0][0][i];
-            right.b[1][i] <== in[1][0][i]; 
-        }else{
-            right.b[0][i] <== 0;
-            right.b[1][i] <== 0;
-        }
+    }
+    for(var i=0; i<k; i++){
+        right.b[0][i] <== in[0][0][i];
+        right.b[1][i] <== in[1][0][i]; 
     }
     
     component left = BigMultShortLong(n, k); // 2k-1 registers in [0, (k+1) 2^{2n+2})
@@ -204,15 +198,15 @@ template EllipticCurveAddUnequal(n, k, p) { // changing q's to p's for my sanity
     assert(4*n + 3*LOGK +4 < 253);
 
     // precompute lambda and x_3 and then y_3
-    var dy[20] = long_sub_mod(n, k, b[1], a[1], p);
-    var dx[20] = long_sub_mod(n, k, b[0], a[0], p); 
-    var dx_inv[20] = mod_inv(n, k, dx, p);
-    var lambda[20] = prod_mod(n, k, dy, dx_inv, p);
-    var lambda_sq[20] = prod_mod(n, k, lambda, lambda, p);
+    var dy[50] = long_sub_mod(n, k, b[1], a[1], p);
+    var dx[50] = long_sub_mod(n, k, b[0], a[0], p); 
+    var dx_inv[50] = mod_inv(n, k, dx, p);
+    var lambda[50] = prod_mod(n, k, dy, dx_inv, p);
+    var lambda_sq[50] = prod_mod(n, k, lambda, lambda, p);
     // out[0] = x_3 = lamb^2 - a[0] - b[0] % p
     // out[1] = y_3 = lamb * (a[0] - x_3) - a[1] % p
-    var x3[20] = long_sub_mod(n, k, long_sub_mod(n, k, lambda_sq, a[0], p), b[0], p);
-    var y3[20] = long_sub_mod(n, k, prod_mod(n, k, lambda, long_sub_mod(n, k, a[0], x3, p), p), a[1], p);
+    var x3[50] = long_sub_mod(n, k, long_sub_mod(n, k, lambda_sq, a[0], p), b[0], p);
+    var y3[50] = long_sub_mod(n, k, prod_mod(n, k, lambda, long_sub_mod(n, k, a[0], x3, p), p), a[1], p);
 
     for(var i = 0; i < k; i++){
         out[0][i] <-- x3[i];
@@ -309,8 +303,8 @@ template EllipticCurveDouble(n, k, a, b, p) {
     assert(4*n + 3*LOGK + 3 < 253);
     */
 
-    var long_a[20];
-    var long_3[20];
+    var long_a[k];
+    var long_3[k];
     long_a[0] = a;
     long_3[0] = 3;
     for (var i = 1; i < k; i++) {
@@ -319,13 +313,13 @@ template EllipticCurveDouble(n, k, a, b, p) {
     }
 
     // precompute lambda 
-    var lamb_num[20] = long_add_mod(n, k, long_a, prod_mod(n, k, long_3, prod_mod(n, k, in[0], in[0], p), p), p);
-    var lamb_denom[20] = long_add_mod(n, k, in[1], in[1], p);
-    var lamb[20] = prod_mod(n, k, lamb_num, mod_inv(n, k, lamb_denom, p), p);
+    var lamb_num[50] = long_add_mod(n, k, long_a, prod_mod(n, k, long_3, prod_mod(n, k, in[0], in[0], p), p), p);
+    var lamb_denom[50] = long_add_mod(n, k, in[1], in[1], p);
+    var lamb[50] = prod_mod(n, k, lamb_num, mod_inv(n, k, lamb_denom, p), p);
 
     // precompute x_3, y_3
-    var x3[20] = long_sub_mod(n, k, prod_mod(n, k, lamb, lamb, p), long_add_mod(n, k, in[0], in[0], p), p);
-    var y3[20] = long_sub_mod(n, k, prod_mod(n, k, lamb, long_sub_mod(n, k, in[0], x3, p), p), in[1], p);
+    var x3[50] = long_sub_mod(n, k, prod_mod(n, k, lamb, lamb, p), long_add_mod(n, k, in[0], in[0], p), p);
+    var y3[50] = long_sub_mod(n, k, prod_mod(n, k, lamb, long_sub_mod(n, k, in[0], x3, p), p), in[1], p);
     
     for(var i=0; i<k; i++){
         out[0][i] <-- x3[i];
@@ -354,4 +348,119 @@ template EllipticCurveDouble(n, k, a, b, p) {
     }
     x3_eq_x1.out === 0;
 }
+
+// Inputs:
+//  in is 2 x 2 x k array where in0 = (x_1, y_1) and in1 = (x_2, y_2) are points in E(Fp)
+//  point is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12)
+// Assuming (x_1, y_1) != (x_2, y_2)
+// Output:
+//  out is 6 x 4 x (2k-1) array representing element of Fp12 (keeping track of negatives) equal to:
+//  (y_1 - y_2) X + (x_2 - x_1) Y + (x_1 y_2 - x_2 y_1)
+// We evaluate out without carries
+// If all registers of in, point are in [0, 2^n),
+// Then all registers of out in [0, 2^{2n + log(k+1) + 2} )
+//  more specifically: registers out[0][0 or 2][idx] are in [0, 3*2^{2n + log(k+1)} )
+//                     all other registers are in [0, 2^{2n + log(k+1) + 1}) 
+template LineFunctionUnequalNoCarry(n, k){
+    signal input in[2][2][k];
+    signal input point[2][6][2][k];
+    signal output out[6][4][2*k-1];
+
+    // (y_1 - y_2) X
+    component Xmult = Fp12ScalarMultiplyNoCarry(n, k); // registers in [0, (k+1)*2^{2n} )
+    // (x_2 - x_1) Y
+    component Ymult = Fp12ScalarMultiplyNoCarry(n, k);
+    for(var i=0; i<k; i++){
+        Xmult.a[0][i] <== in[0][1][i];
+        Xmult.a[1][i] <== in[1][1][i];
+        
+        Ymult.a[0][i] <== in[1][0][i];
+        Ymult.a[1][i] <== in[0][0][i];
+    }
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        Xmult.b[i][j][idx] <== point[0][i][j][idx];
+        Xmult.b[i][j+2][idx] <== 0; // expecting 0s to be optimized out by compiler
+        
+        Ymult.b[i][j][idx] <== point[1][i][j][idx]; 
+        Ymult.b[i][j+2][idx] <== 0;
+    } 
+    
+    component x1y2 = BigMultShortLong(n, k); // registers in [0, (k+1)*2^{2n}) 
+    component x2y1 = BigMultShortLong(n, k);
+    for(var i=0; i<k; i++){
+        x1y2.a[i] <== in[0][0][i]; 
+        x1y2.b[i] <== in[1][1][i];
+        
+        x2y1.a[i] <== in[1][0][i]; 
+        x2y1.b[i] <== in[0][1][i];
+    }
+    
+    for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<2*k-1; idx++){
+        if( i==0 && (j==0 || j==2) ){
+            if(j==0)
+                out[i][j][idx] <== Xmult.out[i][j][idx] + Ymult.out[i][j][idx] + x1y2.out[idx]; // register in [0, 3*(k+1)*2^{2n} ) 
+            else
+                out[i][j][idx] <== Xmult.out[i][j][idx] + Ymult.out[i][j][idx] + x2y1.out[idx];
+        }else 
+            out[i][j][idx] <== Xmult.out[i][j][idx] + Ymult.out[i][j][idx]; // register in [0, (k+1)*2^{2n+1} )
+    }
+}
+
+// Assuming curve is of form Y^2 = X^3 + b for now (a = 0) for better register bounds 
+// Inputs:
+//  in is 2 x k array where in = (x, y) is a point in E(Fp) 
+//  point is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12) 
+// Output: 
+//  out is 6 x 4 x (3k-2) array representing element of Fp12 (keeping track of negatives) equal to:
+//  3 x^2 (-X + x) + 2 y (Y - y)
+// We evaluate out without carries 
+// If in, point have registers in [0, 2^n) 
+// Then out has registers in [0, 3(k+1)^2*2^{3n} + 2(k+1)*2^{2n} < 2^{3n + 2log(k+1) + 2})
+template LineFunctionEqualNoCarry(n, k){
+    signal input in[2][k]; 
+    signal input point[2][6][2][k];
+    signal output out[6][4][3*k-2];
+
+    component x_sq3 = BigMultLongShort(n, k); // 2k-1 registers in [0, 3*(k+1)*2^{2n} )
+    for(var i=0; i<k; i++){
+        x_sq3.a[i] <== 3*in[0][i];
+        x_sq3.b[i] <== in[0][i];
+    } 
+    
+    // 3 x^2 (-X + x)
+    component Xmult = Fp12ScalarMultiplyNoCarryUnequal(n, 2*k-1, k); // 3k-2 registers in [0, 3 * (k+1)^2 * 2^{3n})
+    for(var idx=0; idx<2*k-1; idx++){
+        Xmult.a[0][idx] <== x_sq3.out[idx];
+        Xmult.a[1][idx] <== 0;
+    }
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        Xmult.b[i][j+2][idx] <== point[0][i][j][idx]; 
+        if(i==0 && j==0)
+            Xmult.b[i][j][idx] <== in[0][idx];
+        else
+            Xmult.b[i][j][idx] <== 0;
+    }
+
+    // 2 y (Y-y)
+    component Ymult = Fp12ScalarMultiplyNoCarry(n, k); // 2k-1 registers in [0, 2*(k+1)*2^{2n}) 
+    for(var idx=0; idx<2*k-1; idx++){
+        Ymult.a[0][idx] <== 2*in[1][idx];
+        Ymult.a[1][idx] <== 0;
+    }
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        Xmult.b[i][j][idx] <== point[1][i][j][idx]; 
+        if(i==0 && j==0)
+            Xmult.b[i][j+2][idx] <== in[1][idx];
+        else
+            Xmult.b[i][j+2][idx] <== 0;
+    }
+    
+    for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<3*k-2; idx++){
+        if(idx < 2*k-1)
+            out[i][j][idx] <== Xmult.out[i][j][idx] + Ymult.out[i][j][idx];
+        else
+            out[i][j][idx] <== Xmult.out[i][j][idx];
+    }
+}
+
 

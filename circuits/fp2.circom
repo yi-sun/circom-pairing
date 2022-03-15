@@ -136,7 +136,7 @@ template Fp2CarryModP(n, k, overflow, p){
 
     assert( overflow < 253 );
 
-    var Xvar[2][2][20] = get_Fp2_carry_witness(n, k, m, in, p); 
+    var Xvar[2][2][50] = get_Fp2_carry_witness(n, k, m, in, p); 
     component range_check = CheckValidFp2(n, k, p);
     component X_range_checks[2][m];
     
@@ -268,7 +268,7 @@ template Fp2Invert(n, k, p){
     signal input in[2][k];
     signal output out[2][k];
 
-    var inverse[2][20] = find_Fp2_inverse(n, k, in, p); // 2 x 20, only 2 x k relevant
+    var inverse[2][50] = find_Fp2_inverse(n, k, in, p); // 2 x 50, only 2 x k relevant
     for (var i = 0; i < 2; i ++) {
         for (var j = 0; j < k; j ++) {
             out[i][j] <-- inverse[i][j];
@@ -313,12 +313,12 @@ template Fp2Divide(n, k, overflow, p){
     //log(m);
     //log(overflow);
     // first precompute a, b mod p as shorts 
-    var a_mod[2][20]; 
-    var b_mod[2][20]; 
+    var a_mod[2][50]; 
+    var b_mod[2][50]; 
     for(var eps=0; eps<2; eps++){
         // 2^{overflow} <= 2^{n*ceil(overflow/n)} 
-        var temp1[2][20] = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, a[2*eps]),p);
-        var temp2[2][20] = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, a[2*eps+1]),p);
+        var temp1[2][50] = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, a[2*eps]),p);
+        var temp2[2][50] = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, a[2*eps+1]),p);
         a_mod[eps] = long_sub_mod(n,k,temp1[1],temp2[1],p);
 
         temp1 = long_div2(n, k, (overflow+n-1) \ n, long_to_short(n, k, b[2*eps]),p);
@@ -327,9 +327,9 @@ template Fp2Divide(n, k, overflow, p){
     }
 
     // precompute 1/b 
-    var b_inv[2][20] = find_Fp2_inverse(n, k, b_mod, p);
+    var b_inv[2][50] = find_Fp2_inverse(n, k, b_mod, p);
     // precompute a/b
-    var out_var[2][20] = find_Fp2_product(n, k, a_mod, b_inv, p);
+    var out_var[2][50] = find_Fp2_product(n, k, a_mod, b_inv, p);
 
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++)
         out[eps][i] <-- out_var[eps][i]; 
@@ -352,9 +352,9 @@ template Fp2Divide(n, k, overflow, p){
     }
     
     // get mult = out * b = p*X' + Y'
-    var XY[2][2][20] = get_Fp2_carry_witness(n, k, m, mult.out, p); // total value is < 2^{n*k+overflow} <= 2^{n*(k+m)} so m extra registers is enough
+    var XY[2][2][50] = get_Fp2_carry_witness(n, k, m, mult.out, p); // total value is < 2^{n*k+overflow} <= 2^{n*(k+m)} so m extra registers is enough
     // get a = p*X' + Y'
-    var XY1[2][2][20] = get_Fp2_carry_witness(n, k, m, a, p); // same as above, m extra registers enough
+    var XY1[2][2][50] = get_Fp2_carry_witness(n, k, m, a, p); // same as above, m extra registers enough
 
     component X_range_checks[2][m];
     for(var eps=0; eps<2; eps++){    

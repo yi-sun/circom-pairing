@@ -429,7 +429,7 @@ template BigMod(n, k) {
     signal output div[k + 1];
     signal output mod[k];
 
-    var longdiv[2][20] = long_div(n, k, a, b);
+    var longdiv[2][50] = long_div(n, k, a, b);
     for (var i = 0; i < k; i++) {
         div[i] <-- longdiv[0][i];
         mod[i] <-- longdiv[1][i];
@@ -494,7 +494,7 @@ template BigMod2(n, k, m) {
     signal output div[m - k + 1];
     signal output mod[k];
 
-    var longdiv[2][20] = long_div2(n, k, m-k, a, b);
+    var longdiv[2][50] = long_div2(n, k, m-k, a, b);
     for (var i = 0; i < k; i++) {
         mod[i] <-- longdiv[1][i];
     }
@@ -672,7 +672,7 @@ template BigModInv(n, k) {
     signal output out[k];
 
     // length k
-    var inv[20] = mod_inv(n, k, in, p);
+    var inv[50] = mod_inv(n, k, in, p);
     for (var i = 0; i < k; i++) {
         out[i] <-- inv[i];
     }
@@ -745,19 +745,19 @@ template PrimeReduce(n, k, m, p){
     signal input in[m+k]; 
     signal output out[k];
 
-    var two[20]; 
-    var e[20];
-    for(var i=1; i<20; i++){
+    var two[k]; 
+    var e[k];
+    for(var i=1; i<k; i++){
         two[i]=0;
         e[i]=0;
     }
     two[0] = 2;
-    var r[20][20]; 
+    var r[m][50]; 
     for(var i=0; i<m; i++){
         e[0] = n*(k+i);
         r[i] = mod_exp(n, k, two, p, e );
     } 
-    var out_sum[20]; 
+    var out_sum[k]; 
     for(var i=0; i<k; i++)
         out_sum[i] = in[i];
     for(var i=0; i<m; i++)
@@ -935,3 +935,25 @@ template BigMultNoCarry(n, k){
 }
 
 
+template BigMultNoCarryUnequal(n, ka, kb){
+    signal input a[2][ka];
+    signal input b[2][kb];
+    signal output out[2][ka+kb-1];
+
+    // if a,b have registers in [0, 2^n), then 
+    // assert( 2n + 1 + log(k+1) < 254 );
+
+    component ab[2][2];
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++){
+        ab[i][j] = BigMultShortLongUnequal(n, ka, kb); 
+        for(var l=0; l<ka; l++)
+            ab[i][j].a[l] <== a[i][l];
+        for(var l=0; l<kb; l++)
+            ab[i][j].b[l] <== b[j][l];
+    }
+
+    for(var j=0; j<ka+kb-1; j++){
+        out[0][j] <== ab[0][0].out[j] + ab[1][1].out[j];
+        out[1][j] <== ab[0][1].out[j] + ab[1][0].out[j];
+    }
+}

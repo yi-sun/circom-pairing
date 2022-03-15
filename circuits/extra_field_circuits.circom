@@ -416,6 +416,62 @@ template Fp12Multiply2(n, k, p) {
     }
 }
 
+// adapted from BigMultShortLong2D and LongToShortNoEndCarry2 witness computation
+function prod3D(n, k, l, a, b, c) {
+    // first compute the intermediate values. taken from BigMulShortLong
+    var prod_val[20][20]; // length is 3l - 2 by 3k - 2
+    for (var i = 0; i < 3 * k; i++) {
+        for (var j = 0; j < 3 * l; j ++) {
+            prod_val[j][i] = 0;
+        }
+    }
+    for (var i1 = 0; i1 < k; i1 ++) {
+        for (var i2 = 0; i2 < k; i2 ++) {
+	    for (var i3 = 0; i3 < k; i3 ++) {
+		for (var j1 = 0; j1 < l; j1 ++) {
+                    for (var j2 = 0; j2 < l; j2 ++) {
+			for (var j3 = 0; j3 < l; j3 ++) {
+			    prod_val[j1 + j2 + j3][i1 + i2 + i3] = prod_val[j1 + j2 + j3][i1 + i2 + i3] + a[j1][i1] * b[j2][i2] * c[j3][i3];
+			}
+		    }
+                }
+            }
+        }
+    }
+
+    // now do a bunch of carrying to make sure registers not overflowed. taken from LongToShortNoEndCarry2
+    var out[20][20]; // length is 3 * l by 3 * k
+
+    var split[20][20][3]; // second dimension has length 3 * k - 1
+    for (var j = 0; j < 3 * l - 1; j ++) {
+        for (var i = 0; i < 3 * k - 1; i++) {
+            split[j][i] = SplitThreeFn(prod_val[j][i], n, n, n);
+        }
+    }
+
+    var carry[20][20]; // length is 3l-1 x 3k
+    var sumAndCarry[20][2];
+    for ( var j = 0; j < 3 * l - 1; j ++) {
+        carry[j][0] = 0;
+        out[j][0] = split[j][0][0];
+        if (3 * k - 1 > 1) {
+            sumAndCarry[j] = SplitFn(split[j][0][1] + split[j][1][0], n, n);
+            out[j][1] = sumAndCarry[j][0];
+            carry[j][1] = sumAndCarry[j][1];
+        }
+        if (3 * k - 1 > 2) {
+            for (var i = 2; i < 3 * k - 1; i++) {
+                sumAndCarry[j] = SplitFn(split[j][i][0] + split[j][i-1][1] + split[j][i-2][2] + carry[j][i-1], n, n);
+                out[j][i] = sumAndCarry[j][0];
+                carry[j][i] = sumAndCarry[j][1];
+            }
+            out[j][3 * k - 1] = split[j][3*k-2][1] + split[j][3*k-3][2] + carry[j][3*k-2];
+        }
+    }
+
+    return out;
+}
+
 
 // a = sum w^i u^j a_ij for w^6=u+1, u^2=-1. similarly for b, c
 // we first write a = A + B u, b = C + D u, c = E + F u and compute 

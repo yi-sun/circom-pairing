@@ -79,7 +79,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
         g5sq.b[2*eps+1][i] <== 0;
     }
     // c = 1+u, g5^2 * (1+u)
-    var g5sqc[4][20] = Fp2multc(len, g5sq.out); // overflow 2*2^{2n+1+LOGK}
+    var g5sqc[4][50] = Fp2multc(len, g5sq.out); // overflow 2*2^{2n+1+LOGK}
     component g4sq3 = Fp2MultiplyNoCarry(n, k); // overflow 3*(k+1)* 2^{2n+1} <= 3*2^{2n+1+LOGK}
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
         g4sq3.a[2*eps][i] <== 3*in[2][eps][i];
@@ -167,12 +167,12 @@ template Fp12CyclotomicDecompress(n, k, p) {
         threeg3g4.b[2*eps+1][i] <== 0;
     }
     // 2 g1^2 + g2 g5 - 3 g3 g4 
-    var temp[4][20]; 
+    var temp[4][len]; 
     for(var i=0; i<4; i++)for(var j=0; j<len; j++)
         temp[i][j] = twog1sq.out[i][j] + g2g5.out[i][j] + threeg3g4.out[i ^ 1][j];
     
     // (2 g1^2 + g2 g5 - 3 g3 g4)(1+u)
-    var tempc[4][20] = Fp2multc(len, temp); // overflow 2*6*(k+1) * 2^{2n+1}
+    var tempc[4][50] = Fp2multc(len, temp); // overflow 2*6*(k+1) * 2^{2n+1}
     // (2 g1^2 + g2 g5 - 3 g3 g4)(1+u) + 1 < 2^{2n+LOGK+5}  
     tempc[0][0]++;
     component compress01 = Fp2Compress(n, k, k-1, p); // overflow < 2^{3n+2*LOGK+5} 
@@ -252,8 +252,8 @@ template Fp12CyclotomicSquareNoCarry(n, k) {
     component A23 = Fp2MultiplyNoCarry(n, k); // overflow in 4*6*(k+1)*2^{2N}     
     component A45 = Fp2MultiplyNoCarry(n, k);
     // c*g3 = (1+u)*g3
-    var cg3[4][20] = Fp2multc(k, in[1]); 
-    var cg5[4][20] = Fp2multc(k, in[3]);
+    var cg3[4][50] = Fp2multc(k, in[1]); 
+    var cg5[4][50] = Fp2multc(k, in[3]);
     for(var i=0; i<4; i++)for(var j=0; j<k; j++){
         A23.a[i][j] <== in[0][i][j] + in[1][i][j];  // 2*2^{2N}
         A23.b[i][j] <== in[0][i][j] + cg3[i][j];    // 3*2^{2N}
@@ -262,8 +262,8 @@ template Fp12CyclotomicSquareNoCarry(n, k) {
         A45.b[i][j] <== in[2][i][j] + cg5[i][j];
     }
     
-    var cB45[4][20] = Fp2multc(2*k-1, B45.out);  // 8*(k+1)*2^{2N}
-    var cB23[4][20] = Fp2multc(2*k-1, B23.out); 
+    var cB45[4][50] = Fp2multc(2*k-1, B45.out);  // 8*(k+1)*2^{2N}
+    var cB23[4][50] = Fp2multc(2*k-1, B23.out); 
     for(var i=0; i<4; i++)for(var j=0; j<2*k-1; j++){
         if(j < k){
             out[0][i][j] <== 2*(in[0][i][j] + 3*cB45[i][j]);    // 2*2^N + 6*8*(k+1)*2^{2N} < 2^{2N+LOGK+6}  if in[] has no negatives, < 2^{2N+LOGK+5} 
