@@ -1,6 +1,8 @@
 pragma circom 2.0.2;
 
 include "bigint.circom";
+include "fp.circom";
+include "fp12.circom";
 include "../node_modules/circomlib/circuits/comparators.circom";
 
 

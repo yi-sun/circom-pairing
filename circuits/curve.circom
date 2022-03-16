@@ -6,6 +6,7 @@ include "./bigint.circom";
 include "./bigint_func.circom";
 include "./fp.circom";
 include "./fp2.circom";
+include "./fp12.circom";
 
 // taken from https://zkrepl.dev/?gist=1e0a28ec3cc4967dc0994e30d316a8af
 template IsArrayEqual(k){
@@ -421,7 +422,7 @@ template LineFunctionEqualNoCarry(n, k){
     signal input point[2][6][2][k];
     signal output out[6][4][3*k-2];
 
-    component x_sq3 = BigMultLongShort(n, k); // 2k-1 registers in [0, 3*(k+1)*2^{2n} )
+    component x_sq3 = BigMultShortLong(n, k); // 2k-1 registers in [0, 3*(k+1)*2^{2n} )
     for(var i=0; i<k; i++){
         x_sq3.a[i] <== 3*in[0][i];
         x_sq3.b[i] <== in[0][i];
@@ -443,16 +444,16 @@ template LineFunctionEqualNoCarry(n, k){
 
     // 2 y (Y-y)
     component Ymult = Fp12ScalarMultiplyNoCarry(n, k); // 2k-1 registers in [0, 2*(k+1)*2^{2n}) 
-    for(var idx=0; idx<2*k-1; idx++){
+    for(var idx=0; idx < k; idx++){
         Ymult.a[0][idx] <== 2*in[1][idx];
         Ymult.a[1][idx] <== 0;
     }
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-        Xmult.b[i][j][idx] <== point[1][i][j][idx]; 
+        Ymult.b[i][j][idx] <== point[1][i][j][idx]; 
         if(i==0 && j==0)
-            Xmult.b[i][j+2][idx] <== in[1][idx];
+            Ymult.b[i][j+2][idx] <== in[1][idx];
         else
-            Xmult.b[i][j+2][idx] <== 0;
+            Ymult.b[i][j+2][idx] <== 0;
     }
     
     for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<3*k-2; idx++){
@@ -463,4 +464,131 @@ template LineFunctionEqualNoCarry(n, k){
     }
 }
 
+// Inputs:
+//  in is 2 x 2 x k array where in0 = (x_1, y_1) and in1 = (x_2, y_2) are points in E(Fp)
+//  point is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12)
+// Assuming (x_1, y_1) != (x_2, y_2)
+// Output:
+//  out is 6 x 2 x k array representing element of Fp12 equal to:
+//  (y_1 - y_2) X + (x_2 - x_1) Y + (x_1 y_2 - x_2 y_1)
+template LineFunctionUnequal(n, k, q) {
+    signal input in[2][2][k];
+    signal input point[2][6][2][k];
 
+    signal output out[6][2][k];
+
+    component nocarry = LineFunctionUnequalNoCarry(n, k);
+    for (var i = 0; i < 2; i++) {
+	for (var j = 0; j < 2; j++) {
+	    for (var idx = 0; idx < k; idx++) {
+		nocarry.in[i][j][idx] <== in[i][j][idx];
+	    }
+	}
+    }
+
+    for (var i = 0; i < 2; i++) {
+	for (var j = 0; j < 6; j++) {
+	    for (var l = 0; l < 2; l++) {
+		for (var idx = 0; idx < k; idx++) {
+		    nocarry.point[i][j][l][idx] <== point[i][j][l][idx];
+		}
+	    }
+	}
+    }
+    
+    component reduce[6][4];
+    for (var i = 0; i < 6; i++) {
+	for (var j = 0; j < 4; j++) {
+	    reduce[i][j] = PrimeReduce(n, k, k - 1, q);
+	}
+
+	for (var j = 0; j < 4; j++) {
+	    for (var idx = 0; idx < 2 * k - 1; idx++) {
+		reduce[i][j].in[idx] <== nocarry.out[i][j][idx];
+	    }
+	}	
+    }
+
+    var LOGK = log_ceil(k);
+    // max overflow register size is 3 * k * 2^{3n + log(k + 1)}
+    component carry = Fp12CarryModP(n, k, (2 * n + 3 + 2 * LOGK + n - 1) \ n, q);
+    for (var i = 0; i < 6; i++) {
+	for (var j = 0; j < 4; j++) {
+	    for (var idx = 0; idx < k; idx++) {
+		carry.in[i][j][idx] <== reduce[i][j].out[idx];
+	    }
+	}
+    }
+    
+    for (var i = 0; i < 6; i++) {
+	for (var j = 0; j < 2; j++) {
+	    for (var idx = 0; idx < k; idx++) {
+		out[i][j][idx] <== carry.out[i][j][idx];
+	    }
+	}
+    }    
+}
+
+
+// Assuming curve is of form Y^2 = X^3 + b for now (a = 0) for better register bounds 
+// Inputs:
+//  in is 2 x k array where in = (x, y) is a point in E(Fp) 
+//  point is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12) 
+// Output: 
+//  out is 6 x 2 x k array representing element of Fp12 equal to:
+//  3 x^2 (-X + x) + 2 y (Y - y)
+template LineFunctionEqual(n, k, q) {
+    signal input in[2][k];
+    signal input point[2][6][2][k];
+
+    signal output out[6][2][k];
+
+    component nocarry = LineFunctionEqualNoCarry(n, k);
+    for (var i = 0; i < 2; i++) {
+	for (var idx = 0; idx < k; idx++) {
+	    nocarry.in[i][idx] <== in[i][idx];
+	}
+    }
+
+    for (var i = 0; i < 2; i++) {
+	for (var j = 0; j < 6; j++) {
+	    for (var l = 0; l < 2; l++) {
+		for (var idx = 0; idx < k; idx++) {
+		    nocarry.point[i][j][l][idx] <== point[i][j][l][idx];
+		}
+	    }
+	}
+    }
+    
+    component reduce[6][4];
+    for (var i = 0; i < 6; i++) {
+	for (var j = 0; j < 4; j++) {
+	    reduce[i][j] = PrimeReduce(n, k, 2 * k - 2, q);
+	}
+
+	for (var j = 0; j < 4; j++) {
+	    for (var idx = 0; idx < 3 * k - 2; idx++) {
+		reduce[i][j].in[idx] <== nocarry.out[i][j][idx];
+	    }
+	}	
+    }
+
+    var LOGK = log_ceil(k);
+    // max overflow register size is (2k - 1) * 2^{4n + 2 * log(k + 1) + 2}
+    component carry = Fp12CarryModP(n, k, (3 * n + 4 + 3 * LOGK + n - 1) \ n, q);
+    for (var i = 0; i < 6; i++) {
+	for (var j = 0; j < 4; j++) {
+	    for (var idx = 0; idx < k; idx++) {
+		carry.in[i][j][idx] <== reduce[i][j].out[idx];
+	    }
+	}
+    }
+    
+    for (var i = 0; i < 6; i++) {
+	for (var j = 0; j < 2; j++) {
+	    for (var idx = 0; idx < k; idx++) {
+		out[i][j][idx] <== carry.out[i][j][idx];
+	    }
+	}
+    }    
+}

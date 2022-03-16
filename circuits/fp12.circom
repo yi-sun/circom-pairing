@@ -106,7 +106,7 @@ template Fp12ScalarMultiplyNoCarry(n, k){
     for(var i=0; i<6; i++)for(var j=0; j<2; j++){
         ab[i][j] = BigMultNoCarry(n, k); // 2k-1 registers 
 
-        for(var eps=0; eps<2; eps++)for(var idx=0; idx<k; i++){
+        for(var eps=0; eps<2; eps++)for(var idx=0; idx<k; idx++){
             ab[i][j].a[eps][idx] <== a[eps][idx];
             ab[i][j].b[eps][idx] <== b[i][j+2*eps][idx]; 
         } 
@@ -127,9 +127,9 @@ template Fp12ScalarMultiplyNoCarryUnequal(n, ka, kb){
     for(var i=0; i<6; i++)for(var j=0; j<2; j++){
         ab[i][j] = BigMultNoCarryUnequal(n, ka, kb); // 2k-1 registers 
 
-        for(var eps=0; eps<2; eps++)for(var idx=0; idx<ka; i++)
+        for(var eps=0; eps<2; eps++)for(var idx=0; idx<ka; idx++)
             ab[i][j].a[eps][idx] <== a[eps][idx];
-        for(var eps=0; eps<2; eps++)for(var idx=0; idx<kb; i++)
+        for(var eps=0; eps<2; eps++)for(var idx=0; idx<kb; idx++)
             ab[i][j].b[eps][idx] <== b[i][j+2*eps][idx]; 
     }
     
@@ -149,10 +149,8 @@ template Fp12Multiply(n, k, p) {
     signal output out[l][2][k];
 
 
-    var LOGK = 3;
-    var LOGL = 4;
-    assert(l<15);
-    assert(k<7);
+    var LOGK = log_ceil(k);
+    var LOGL = log_ceil(l);
     assert(2*n + 1 + LOGK + LOGL <254);
 
     var a0[l][k];
@@ -383,10 +381,8 @@ template Fp12MultiplyNoCarryCompress(n, k, p) {
     signal input b[l][4][k];
     signal output out[l][4][k];
 
-    var LOGK = 3;
-    var LOGL = 4;
-    assert(l<15);
-    assert(k<7);
+    var LOGK = log_ceil(k);
+    var LOGL = log_ceil(l);
     assert(2*n + 1 + LOGK + LOGL <254);
 
     component a0b0 = BigMultShortLong2D(n, k, l);
@@ -502,8 +498,7 @@ template Fp12CarryModP(n, k, kX, p) {
     signal output X[l][2][kX];
     signal output out[l][2][k];
 
-    var LOGK = 3;
-    assert(k < 7);
+    var LOGK = log_ceil(k);
 
     // dimension [l, 2, k]
     var Xvar0[l][2][50];
