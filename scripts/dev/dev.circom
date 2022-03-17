@@ -1,6 +1,5 @@
 pragma circom 2.0.2;
 
-include "../../circuits/final_exp.circom";
+include "../../circuits/curve.circom";
 
-component main = hard_part(77, 5, [151110683138771015150251, 101672770061349971921567, 5845403419599137187901, 110079541992039310225047, 7675079137884323292337]);
-
+component main {public [in]} = LineFunctionEqual(3, 2, [3, 2]);

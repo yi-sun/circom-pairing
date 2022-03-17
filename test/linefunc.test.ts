@@ -98,7 +98,7 @@ describe("LineFunctionUnequal n = 3, k = 2", function() {
             out_array[i] = [ bigint_to_array(3, 2, a0.value), bigint_to_array(3, 2, a1.value) ];
         }
 
-        it('Testing in: ' + in_array + ', ' + point_array + /* + in_array[0][0][0] + ', '
+        it('Testing P: ' + in_array + ', Q:' + point_array + /* + in_array[0][0][0] + ', '
 	                   + in_array[0][0][1] + ', '
   	                   + in_array[0][1][0] + ', '
   	                   + in_array[0][1][1] + ', '				   
@@ -155,7 +155,7 @@ describe("LineFunctionUnequal n = 3, k = 2", function() {
                            + point_array[1][5][1][0] + ','
                            + point_array[1][5][1][1] + */ ','
 	  + ' p: ' + p, async function() {
-            let witness = await circuit.calculateWitness({"in": in_array, "point": point_array});
+            let witness = await circuit.calculateWitness({"P": in_array, "Q": point_array});
 	    await circuit.assertOut(witness, {"out": out_array });
             await circuit.checkConstraints(witness);
         });
@@ -234,10 +234,10 @@ describe("LineFunctionEqual n = 3, k = 2", function() {
             out_array[i] = [ bigint_to_array(3, 2, a0.value), bigint_to_array(3, 2, a1.value) ];
         }
 
-        it('Testing in: [' + in_array + '], point: [' + point_array +  '], out: [' + out_array + '], ' 
+        it('Testing P: [' + in_array + '], Q: [' + point_array +  '], out: [' + out_array + '], ' 
         	  + ' p: ' + p, async function() {
 	        //await console.log('adsf');
-            let witness = await circuit.calculateWitness({"in": in_array, "point": point_array});
+            let witness = await circuit.calculateWitness({"P": in_array, "Q": point_array});
     	    //console.log(witness);			
             //await console.log(in_array, point_array);
     	    //await console.log(out_array); 

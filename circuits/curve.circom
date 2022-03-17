@@ -346,20 +346,20 @@ template EllipticCurveDouble(n, k, a, b, p) {
 }
 
 // Inputs:
-//  in is 2 x 2 x k array where in0 = (x_1, y_1) and in1 = (x_2, y_2) are points in E(Fp)
-//  point is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12)
+//  P is 2 x 2 x k array where P0 = (x_1, y_1) and P1 = (x_2, y_2) are points in E(Fp)
+//  Q is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12)
 // Assuming (x_1, y_1) != (x_2, y_2)
 // Output:
 //  out is 6 x 4 x (2k-1) array representing element of Fp12 (keeping track of negatives) equal to:
 //  (y_1 - y_2) X + (x_2 - x_1) Y + (x_1 y_2 - x_2 y_1)
 // We evaluate out without carries
-// If all registers of in, point are in [0, 2^n),
+// If all registers of P, Q are in [0, 2^n),
 // Then all registers of out in [0, 2^{2n + log(k+1) + 2} )
 //  more specifically: registers out[0][0 or 2][idx] are in [0, 3*2^{2n + log(k+1)} )
 //                     all other registers are in [0, 2^{2n + log(k+1) + 1}) 
 template LineFunctionUnequalNoCarry(n, k){
-    signal input in[2][2][k];
-    signal input point[2][6][2][k];
+    signal input P[2][2][k];
+    signal input Q[2][6][2][k];
     signal output out[6][4][2*k-1];
 
     // (y_1 - y_2) X
@@ -367,28 +367,28 @@ template LineFunctionUnequalNoCarry(n, k){
     // (x_2 - x_1) Y
     component Ymult = Fp12ScalarMultiplyNoCarry(n, k);
     for(var i=0; i<k; i++){
-        Xmult.a[0][i] <== in[0][1][i];
-        Xmult.a[1][i] <== in[1][1][i];
+        Xmult.a[0][i] <== P[0][1][i];
+        Xmult.a[1][i] <== P[1][1][i];
         
-        Ymult.a[0][i] <== in[1][0][i];
-        Ymult.a[1][i] <== in[0][0][i];
+        Ymult.a[0][i] <== P[1][0][i];
+        Ymult.a[1][i] <== P[0][0][i];
     }
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-        Xmult.b[i][j][idx] <== point[0][i][j][idx];
+        Xmult.b[i][j][idx] <== Q[0][i][j][idx];
         Xmult.b[i][j+2][idx] <== 0; // expecting 0s to be optimized out by compiler
         
-        Ymult.b[i][j][idx] <== point[1][i][j][idx]; 
+        Ymult.b[i][j][idx] <== Q[1][i][j][idx]; 
         Ymult.b[i][j+2][idx] <== 0;
     } 
     
     component x1y2 = BigMultShortLong(n, k); // registers in [0, (k+1)*2^{2n}) 
     component x2y1 = BigMultShortLong(n, k);
     for(var i=0; i<k; i++){
-        x1y2.a[i] <== in[0][0][i]; 
-        x1y2.b[i] <== in[1][1][i];
+        x1y2.a[i] <== P[0][0][i]; 
+        x1y2.b[i] <== P[1][1][i];
         
-        x2y1.a[i] <== in[1][0][i]; 
-        x2y1.b[i] <== in[0][1][i];
+        x2y1.a[i] <== P[1][0][i]; 
+        x2y1.b[i] <== P[0][1][i];
     }
     
     for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<2*k-1; idx++){
@@ -404,23 +404,23 @@ template LineFunctionUnequalNoCarry(n, k){
 
 // Assuming curve is of form Y^2 = X^3 + b for now (a = 0) for better register bounds 
 // Inputs:
-//  in is 2 x k array where in = (x, y) is a point in E(Fp) 
-//  point is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12) 
+//  P is 2 x k array where P = (x, y) is a point in E(Fp) 
+//  Q is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12) 
 // Output: 
 //  out is 6 x 4 x (3k-2) array representing element of Fp12 (keeping track of negatives) equal to:
 //  3 x^2 (-X + x) + 2 y (Y - y)
 // We evaluate out without carries 
-// If in, point have registers in [0, 2^n) 
+// If P, Q have registers in [0, 2^n) 
 // Then out has registers in [0, 3(k+1)^2*2^{3n} + 2(k+1)*2^{2n} < 2^{3n + 2log(k+1) + 2})
 template LineFunctionEqualNoCarry(n, k){
-    signal input in[2][k]; 
-    signal input point[2][6][2][k];
+    signal input P[2][k]; 
+    signal input Q[2][6][2][k];
     signal output out[6][4][3*k-2];
 
     component x_sq3 = BigMultShortLong(n, k); // 2k-1 registers in [0, 3*(k+1)*2^{2n} )
     for(var i=0; i<k; i++){
-        x_sq3.a[i] <== 3*in[0][i];
-        x_sq3.b[i] <== in[0][i];
+        x_sq3.a[i] <== 3*P[0][i];
+        x_sq3.b[i] <== P[0][i];
     } 
     
     // 3 x^2 (-X + x)
@@ -430,9 +430,9 @@ template LineFunctionEqualNoCarry(n, k){
         Xmult.a[1][idx] <== 0;
     }
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-        Xmult.b[i][j+2][idx] <== point[0][i][j][idx]; 
+        Xmult.b[i][j+2][idx] <== Q[0][i][j][idx]; 
         if(i==0 && j==0)
-            Xmult.b[i][j][idx] <== in[0][idx];
+            Xmult.b[i][j][idx] <== P[0][idx];
         else
             Xmult.b[i][j][idx] <== 0;
     }
@@ -440,13 +440,13 @@ template LineFunctionEqualNoCarry(n, k){
     // 2 y (Y-y)
     component Ymult = Fp12ScalarMultiplyNoCarry(n, k); // 2k-1 registers in [0, 2*(k+1)*2^{2n}) 
     for(var idx=0; idx < k; idx++){
-        Ymult.a[0][idx] <== 2*in[1][idx];
+        Ymult.a[0][idx] <== 2*P[1][idx];
         Ymult.a[1][idx] <== 0;
     }
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-        Ymult.b[i][j][idx] <== point[1][i][j][idx]; 
+        Ymult.b[i][j][idx] <== Q[1][i][j][idx]; 
         if(i==0 && j==0)
-            Ymult.b[i][j+2][idx] <== in[1][idx];
+            Ymult.b[i][j+2][idx] <== P[1][idx];
         else
             Ymult.b[i][j+2][idx] <== 0;
     }
@@ -460,15 +460,15 @@ template LineFunctionEqualNoCarry(n, k){
 }
 
 // Inputs:
-//  in is 2 x 2 x k array where in0 = (x_1, y_1) and in1 = (x_2, y_2) are points in E(Fp)
-//  point is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12)
+//  P is 2 x 2 x k array where P0 = (x_1, y_1) and P1 = (x_2, y_2) are points in E(Fp)
+//  Q is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12)
 // Assuming (x_1, y_1) != (x_2, y_2)
 // Output:
-//  out is 6 x 2 x k array representing element of Fp12 equal to:
+//  Q is 6 x 2 x k array representing element of Fp12 equal to:
 //  (y_1 - y_2) X + (x_2 - x_1) Y + (x_1 y_2 - x_2 y_1)
 template LineFunctionUnequal(n, k, q) {
-    signal input in[2][2][k];
-    signal input point[2][6][2][k];
+    signal input P[2][2][k];
+    signal input Q[2][6][2][k];
 
     signal output out[6][2][k];
 
@@ -476,7 +476,7 @@ template LineFunctionUnequal(n, k, q) {
     for (var i = 0; i < 2; i++) {
 	for (var j = 0; j < 2; j++) {
 	    for (var idx = 0; idx < k; idx++) {
-		nocarry.in[i][j][idx] <== in[i][j][idx];
+		nocarry.P[i][j][idx] <== P[i][j][idx];
 	    }
 	}
     }
@@ -485,7 +485,7 @@ template LineFunctionUnequal(n, k, q) {
 	for (var j = 0; j < 6; j++) {
 	    for (var l = 0; l < 2; l++) {
 		for (var idx = 0; idx < k; idx++) {
-		    nocarry.point[i][j][l][idx] <== point[i][j][l][idx];
+		    nocarry.Q[i][j][l][idx] <== Q[i][j][l][idx];
 		}
 	    }
 	}
@@ -527,21 +527,21 @@ template LineFunctionUnequal(n, k, q) {
 
 // Assuming curve is of form Y^2 = X^3 + b for now (a = 0) for better register bounds 
 // Inputs:
-//  in is 2 x k array where in = (x, y) is a point in E(Fp) 
-//  point is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12) 
+//  P is 2 x k array where P = (x, y) is a point in E(Fp) 
+//  Q is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12) 
 // Output: 
 //  out is 6 x 2 x k array representing element of Fp12 equal to:
 //  3 x^2 (-X + x) + 2 y (Y - y)
 template LineFunctionEqual(n, k, q) {
-    signal input in[2][k];
-    signal input point[2][6][2][k];
+    signal input P[2][k];
+    signal input Q[2][6][2][k];
 
     signal output out[6][2][k];
 
     component nocarry = LineFunctionEqualNoCarry(n, k);
     for (var i = 0; i < 2; i++) {
 	for (var idx = 0; idx < k; idx++) {
-	    nocarry.in[i][idx] <== in[i][idx];
+	    nocarry.P[i][idx] <== P[i][idx];
 	}
     }
 
@@ -549,7 +549,7 @@ template LineFunctionEqual(n, k, q) {
 	for (var j = 0; j < 6; j++) {
 	    for (var l = 0; l < 2; l++) {
 		for (var idx = 0; idx < k; idx++) {
-		    nocarry.point[i][j][l][idx] <== point[i][j][l][idx];
+		    nocarry.Q[i][j][l][idx] <== Q[i][j][l][idx];
 		}
 	    }
 	}
@@ -586,4 +586,19 @@ template LineFunctionEqual(n, k, q) {
 	    }
 	}
     }    
+}
+// Input:
+//  g is 6 x 4 x kg array representing element of Fp12, allowing overflow 
+//  P0, P1, Q are as in inputs of LineFunctionUnequalNoCarry
+// Assume:
+//  all registers of g are in [0, 2^{overflowg}) 
+//  all registers of P, Q are in [0, 2^n) 
+// Output:
+//  out = g * l_{P0, P1}(Q) as element of Fp12 with carry 
+//  out is 6 x 2 x k
+template Fp12MultiplyWithLineUnequal(n, k, kg, overflowg, q){
+    signal input g[6][4][kg];
+    signal input P[2][2][k];
+    signal input Q[2][6][2][k];
+    signal output out[6][2][k];
 }
