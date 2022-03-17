@@ -90,31 +90,24 @@ template FpMultiply(n, k, p) {
 
 // constrain in = p * X + Y 
 // in[i] in (-2^overflow, 2^overflow) 
-// assume registers of X have abs value < 2^{overflow - n - log(max(k,m)+1)} 
+// assume registers of X have abs value < 2^{overflow - n - log(min(k,m))} 
+// ^ this is not asserted or checked anywhere! 
 template CheckCarryModP(n, k, m, overflow, p){
     signal input in[k]; 
     signal input X[m];
     signal input Y[k];
 
-    assert( overflow < 253 );
+    assert( overflow < 252 );
     component pX;
     component carry_check;
-    var maxkm;
-    if(k < m) maxkm = m;
-    else maxkm = k;
 
-    pX = BigMultShortLong(n, maxkm); // p has k registers, X has m registers, so output really has k+m-1 registers 
+    pX = BigMultShortLongUnequal(n, k, m); // p has k registers, X has m registers, so output really has k+m-1 registers 
     // overflow register in  (-2^overflow , 2^overflow)
-    for(var i=0; i<maxkm; i++){
-        if(i < k)
-            pX.a[i] <== p[i];
-        else
-            pX.a[i] <== 0;
-        if(i < m)
-            pX.b[i] <== X[i];
-        else 
-            pX.b[i] <== 0;
-    }
+    for(var i=0; i<k; i++)
+        pX.a[i] <== p[i];
+    for(var i=0; i<m; i++)
+        pX.b[i] <== X[i];
+
     // in - p*X has registers in (-2^{overflow+1}, 2^{overflow+1})
     carry_check = CheckCarryToZero(n, overflow+2, k+m-1 ); 
     for(var i=0; i<k; i++){
@@ -134,7 +127,7 @@ template FpCarryModP(n, k, overflow, p){
     signal output X[m];
     signal output out[k];
 
-    assert( overflow < 253 );
+    assert( overflow < 252 );
 
     var Xvar[2][50] = get_Fp_carry_witness(n, k, m, in, p); 
     component range_checks[k]; 
@@ -179,7 +172,7 @@ template CheckCarryModToZero(n, k, overflow, p){
     var m = (overflow + n - 1) \ n; 
     signal output X[m];
 
-    assert( overflow < 253 );
+    assert( overflow < 252 );
 
     var Xvar[2][50] = get_Fp_carry_witness(n, k, m, in, p); 
     component X_range_checks[m];

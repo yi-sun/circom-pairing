@@ -44,7 +44,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
     signal output out[6][2][k]; 
 
     var LOGK = log_ceil(k+1); // LOGK = ceil( log_2( k+1 ) )
-    assert(3*n + 4 + LOGK < 252);
+    assert(3*n + 4 + LOGK < 251);
 
     var len = 2*k-1; // number of registers in output of Fp2MultiplyNoCarry
                      // len = k if using Fp2MultiplyNoCarryCompress 
@@ -290,7 +290,7 @@ template Fp12CyclotomicSquare(n, k, p) {
     signal output out[4][2][k];
 
     var LOGK = log_ceil(k+1);
-    assert(3*n + 2*LOGK + 7 < 253);
+    assert(3*n + 2*LOGK + 7 < 252);
 
     component sq = Fp12CyclotomicSquareNoCarry(n, k);
     for(var i=0; i<4; i++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++){

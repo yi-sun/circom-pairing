@@ -105,7 +105,7 @@ template Fp2PolynomialReduce(n, k, p) {
 // A similar circuit can do multiplication in different fields. 
 // The only difference is that Fp2PolynomialReduce (which reduces quadratics by x^2+1) 
 // must be replaced with a different circuit specialized to the minimal polynomial
-template Fp2Multiply(n, k, p) {
+template Fp2Multiply1(n, k, p) {
     // l is always 2. poly is always [1, 0]
     var l = 2;
     signal input a[l][k];
@@ -289,7 +289,7 @@ template Fp2multiply(n, k){
     signal input p[k];
     signal output out[2][k];
 
-    var LOGK = log_ceil(k+1);
+    var LOGK = log_ceil(k);
     assert(2*n + 1 + LOGK<254);
 
     var Xvar[2][2][20] = Fp2prod(n, k, a, b, p); 
@@ -322,12 +322,12 @@ template Fp2multiply(n, k){
     // out[0] constraint: X = X[0], Y = out[0] 
     // constrain by Carry( a0 *' b0 +' p *' b1 -' a1 *' b1 - p *' X - Y ) = 0 
     // where all operations are performed without carry 
-    // each register is an overflow representation in the range (-(k+1)*2^{2n+1}-2^n, (k+1)*2^{2n + 1} )
+    // each register is an overflow representation in the range (-k*2^{2n+1}-2^n, k*2^{2n + 1} )
     //                                          which is inside (-2^{2n+1+LOGK}, 2^{2n+1+LOGK})
 
     // out[1] constraint: X = X[1], Y = out[1]
     // constrain by Carry( a0 *' b1 +' a1 *' b0 -' p *' X - Y) = 0 
-    // each register is an overflow representation in the range (-(k+1)*2^{2n}-2^n, (k+1)*2^{2n + 1} )
+    // each register is an overflow representation in the range (-k*2^{2n}-2^n, k*2^{2n + 1} )
     //                                          which is inside (-2^{2n+1+LOGK}, 2^{2n+1+LOGK})
     
     component ab = Fp2multiplyNoCarry(n, k); 
@@ -373,7 +373,8 @@ template Fp12Multiply2(n, k, p) {
     
     signal output out[l][2][k];
 
-    // registers are in [0, 2^{3n} * 12 k)
+    var LOGK = log_ceil(k); 
+    // registers are in [0, 2^{3n} * 12 k )
     component no_carry = Fp12MultiplyNoCarryCompress(n, k, p);
     for (var i = 0; i < l; i++) {
 	for (var idx = 0; idx < k; idx++) {
@@ -387,18 +388,25 @@ template Fp12Multiply2(n, k, p) {
 	    no_carry.b[i][3][idx] <== 0;
 	}
     }
-
+    // This is from old Fp12MultiplyNoCarryCompress: 
     // difference of registers of no_carry lie in (-2^{3n} * 12k, 2^{3n} * 12k)
     // |diff of no_carry| is bounded by 2^{n(k - 1)} * 2^{3n} * 12k
     // p is at least 2^{n (k - 1)} and is close to 2^{nk}
     // number of registers of X_0 in: no_carry[0] - no_carry[2] = X_0 * p + X_1
     // is bounded by log(2^{n(k - 1)} * 2^{3n} * 12k / p) / log(2^n) < 3 or 4 depending on k.
+    // 
+	// registers of in0 and in2 have bitlength at most (kX + 1) * n, so
+	// registers of in0 - in2 - X * p - out have bitlength at most
+	//     n + kX * n + LOGK + 2
+	// we add 4 for safety for now...
+
     component carry_mod;
-    if (12 * k < p[k - 1]) {
+    /*if (12 * k < p[k - 1]) {
 	carry_mod = Fp12CarryModP(n, k, 3, p);
     } else {
 	carry_mod = Fp12CarryModP(n, k, 4, p);
-    }
+    }*/
+    carry_mod = Fp12CarryModP(n, k, 3*n + LOGK + 4, p);
     for (var i = 0; i < l; i++) {
 	for (var idx = 0; idx < k; idx++) {
 	    for (var j = 0; j < 4; j++) {
@@ -484,7 +492,7 @@ template Fp12MultiplyThree(n, k, p) {
     signal input c[l][2][k];
     signal output out[l][2][k];
 
-    var LOGK = log_ceil(k+1);
+    var LOGK = log_ceil(k);
     var LOGL = 4;
     assert(l<15);
     assert(k<7);

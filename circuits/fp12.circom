@@ -149,7 +149,7 @@ template Fp12Multiply(n, k, p) {
     signal output out[l][2][k];
 
 
-    var LOGK = log_ceil(k+1);
+    var LOGK = log_ceil(k);
     var LOGL = log_ceil(l);
     assert(2*n + 1 + LOGK + LOGL <254);
 
@@ -372,18 +372,11 @@ template Fp12Multiply(n, k, p) {
 //     X_0 + X_1 + W_1 - Z_0 - Z_1 - Y_1 + (Y_0 + Y_1 + X_1 - W_0 - W_1 - Z_1) u
 // The real and imaginary parts are
 //     * length 6 vectors with 2k-1 registers in [0, B_a * B_b * 12 * k)
-// Our answer is the prime reduction of them to
-//     * length 6 vectors with k registers in [0, B_a * B_b * 2^n * 12 * k)
-// p is length k
-template Fp12MultiplyNoCarryCompress(n, k, p) {
+template Fp12MultiplyNoCarry(n, k){
     var l = 6;
     signal input a[l][4][k];
     signal input b[l][4][k];
-    signal output out[l][4][k];
-
-    var LOGK = log_ceil(k+1);
-    var LOGL = log_ceil(l);
-    assert(2*n + 1 + LOGK + LOGL <254);
+    signal output out[l][4][2*k-1];
 
     component a0b0 = BigMultShortLong2D(n, k, l);
     component a0b1 = BigMultShortLong2D(n, k, l);
@@ -459,25 +452,51 @@ template Fp12MultiplyNoCarryCompress(n, k, p) {
 	}
     }
 
+    for (var i = 0; i < l; i++) {
+        for (var j = 0; j < 2 * k - 1; j++) {
+            if (i < l - 1) {
+                out[i][0][j] <== X[i][j] + X[l + i][j] + W[l + i][j];
+                out[i][1][j] <== Y[i][j] + Y[l + i][j] + X[l + i][j];
+                out[i][2][j] <== Z[i][j] + Z[l + i][j] + Y[l + i][j];
+                out[i][3][j] <== W[i][j] + W[l + i][j] + Z[l + i][j];
+            } else {
+                out[i][0][j] <== X[i][j];
+                out[i][1][j] <== Y[i][j];
+                out[i][2][j] <== Z[i][j];
+                out[i][3][j] <== W[i][j];
+            }
+        }
+    }
+}
+
+// Input is same as for Fp12MultiplyNoCarry
+// Our answer is the prime reduction of output of Fp12MultiplyNoCarry to
+//     * length 6 vectors with k registers in [0, B_a * B_b * 2^n * 12 * k)
+// p is length k
+template Fp12MultiplyNoCarryCompress(n, k, p) {
+    var l = 6;
+    signal input a[l][4][k];
+    signal input b[l][4][k];
+    signal output out[l][4][k];
+
+    /*var LOGK = log_ceil(k);
+    var LOGL = log_ceil(l);
+    assert(2*n + 1 + LOGK + LOGL <254);*/
+
+    component nocarry = Fp12MultiplyNoCarry(n, k);
+    for (var i = 0; i < l; i ++)for(var j=0; j<4; j++)for(var idx=0; idx<k; idx++){ 
+         nocarry.a[i][j][idx] <== a[i][j][idx];
+         nocarry.b[i][j][idx] <== b[i][j][idx];
+    }
+
     component reduce[l][4];
     for (var i = 0; i < l; i++) {
-	for (var j = 0; j < 4; j++) {
-	    reduce[i][j] = PrimeReduce(n, k, k - 1, p);
-	}
+        for (var j = 0; j < 4; j++){
+            reduce[i][j] = PrimeReduce(n, k, k - 1, p);
 
-	for (var j = 0; j < 2 * k - 1; j++) {
-	    if (i < l - 1) {
-		reduce[i][0].in[j] <== X[i][j] + X[l + i][j] + W[l + i][j];
-		reduce[i][1].in[j] <== Y[i][j] + Y[l + i][j] + X[l + i][j];
-		reduce[i][2].in[j] <== Z[i][j] + Z[l + i][j] + Y[l + i][j];
-		reduce[i][3].in[j] <== W[i][j] + W[l + i][j] + Z[l + i][j];
-	    } else {
-		reduce[i][0].in[j] <== X[i][j];
-		reduce[i][1].in[j] <== Y[i][j];
-		reduce[i][2].in[j] <== Z[i][j];
-		reduce[i][3].in[j] <== W[i][j];
-	    }
-	}
+            for (var idx = 0; idx < 2 * k - 1; idx++) 
+                reduce[i][j].in[idx] <== nocarry.out[i][j][idx];
+        }
     }
 
     for (var i = 0; i < l; i++) {
@@ -490,85 +509,46 @@ template Fp12MultiplyNoCarryCompress(n, k, p) {
 }
 
 // solve for: in0 - in2 = X * p + out
-// assumes X has at most kX registers, lying in (-2^n, 2^n)
-template Fp12CarryModP(n, k, kX, p) {
+// X has Ceil( overflow / n ) registers, lying in [-2^n, 2^n)
+// assume in has registers in [0, 2^overflow)
+template Fp12CarryModP(n, k, overflow, p) {
     var l = 6;
+    var kX = (overflow + n - 1) \ n;
     signal input in[l][4][k];
-
     signal output X[l][2][kX];
     signal output out[l][2][k];
 
-    var LOGK = log_ceil(k+1);
+    assert( overflow < 252 );
 
     // dimension [l, 2, k]
     var Xvar0[l][2][50];
     // dimension [l, 2, kX]
     var Xvar1[l][2][50];
     for (var i = 0; i < l; i++) {
-	Xvar0[i] = get_Fp12_carry_witness(n, k, kX, p, in[i][0], in[i][2]);
-	Xvar1[i] = get_Fp12_carry_witness(n, k, kX, p, in[i][1], in[i][3]);
+        Xvar0[i] = get_Fp12_carry_witness(n, k, kX, p, in[i][0], in[i][2]);
+        Xvar1[i] = get_Fp12_carry_witness(n, k, kX, p, in[i][1], in[i][3]);
 
-	for (var idx = 0; idx < kX; idx++) {
-	    X[i][0][idx] <-- Xvar0[i][0][idx];
-	    X[i][1][idx] <-- Xvar1[i][0][idx];
-	}
-	for (var idx = 0; idx < k; idx++) {
-	    out[i][0][idx] <-- Xvar0[i][1][idx];
-	    out[i][1][idx] <-- Xvar1[i][1][idx];
-	}
+        for (var idx = 0; idx < kX; idx++) {
+            X[i][0][idx] <-- Xvar0[i][0][idx];
+            X[i][1][idx] <-- Xvar1[i][0][idx];
+        }
+        for (var idx = 0; idx < k; idx++) {
+            out[i][0][idx] <-- Xvar0[i][1][idx];
+            out[i][1][idx] <-- Xvar1[i][1][idx];
+        }
+    }
+    
+    component carry_check[l][2]; 
+    for(var i=0; i<l; i++)for(var j=0; j<2; j++){
+        carry_check[i][j] = CheckCarryModP(n, k, kX, overflow, p); 
+        for(var idx=0; idx<k; idx++){
+            carry_check[i][j].in[idx] <== in[i][j][idx] - in[i][j+2][idx];
+            carry_check[i][j].Y[idx] <== out[i][j][idx];
+        }
+        for(var idx=0; idx<kX; idx++)
+            carry_check[i][j].X[idx] <== X[i][j][idx];
     }
 
-    component X_range_checks[l][2][kX];
-    component out_range_checks[l][2][k];
-    component lt[l][2];
-    for (var i = 0; i < l; i++) {
-	for (var j = 0; j < 2; j++) {
-	    for (var idx = 0; idx < k; idx++) {
-		out_range_checks[i][j][idx] = Num2Bits(n);
-		out_range_checks[i][j][idx].in <== out[i][j][idx];
-	    }
-	    for (var idx = 0; idx < kX; idx++) {	    
-		X_range_checks[i][j][idx] = Num2Bits(n + 1);
-		X_range_checks[i][j][idx].in <== X[i][j][idx] + (1 << n);
-	    }
-
-	    lt[i][j] = BigLessThan(n, k);
-	    for (var idx = 0; idx < k; idx++) {
-		lt[i][j].a[idx] <== out[i][j][idx];
-		lt[i][j].b[idx] <== p[idx];
-	    }
-	    lt[i][j].out === 1;
-	}
-    }
-
-    component pX[l][2];
-    component carry_check[l][2];
-    for (var i = 0; i < l; i++) {
-	for (var j = 0; j < 2; j++) {
-	    pX[i][j] = BigMultShortLongUnequal(n, k, kX);
-	    for (var idx = 0; idx < k; idx++) {
-		pX[i][j].a[idx] <== p[idx];
-	    }
-	    for (var idx = 0; idx < kX; idx++) {
-		pX[i][j].b[idx] <== X[i][j][idx];
-	    }
-
-	    // registers of in0 and in2 have bitlength at most (kX + 1) * n, so
-	    // registers of in0 - in2 - X * p - out have bitlength at most
-	    //     n + kX * n + LOGK + 2
-	    // we add 4 for safety for now...
-	    carry_check[i][j] = CheckCarryToZero(n, n + kX * n + LOGK + 4, k + kX - 1);
-	}
-	  
-	for (var idx = 0; idx < k; idx++) {
-	    carry_check[i][0].in[idx] <== in[i][0][idx] - in[i][2][idx] - pX[i][0].out[idx] - out[i][0][idx];
-	    carry_check[i][1].in[idx] <== in[i][1][idx] - in[i][3][idx] - pX[i][1].out[idx] - out[i][1][idx];
-	}
-	for (var idx = k; idx < k + kX - 1; idx++) {
-	    carry_check[i][0].in[idx] <== - pX[i][0].out[idx];
-	    carry_check[i][1].in[idx] <== - pX[i][1].out[idx];
-	}	
-    }
 }
 
 

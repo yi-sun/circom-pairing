@@ -42,8 +42,8 @@ template Fp2MultiplyNoCarry(n, k){
     signal output out[4][2*k-1];
 
     // if a,b registers were in [0,2^n), then
-    // var LOGK = log_ceil(k+1);
-    // assert(2*n + 2 + LOGK <254);
+    // var LOGK = log_ceil(k);
+    // assert(2*n + 2 + LOGK <252);
 
     component ab[4][4];
     for(var i=0; i<4; i++)for(var j=0; j<4; j++){
@@ -135,7 +135,7 @@ template Fp2CarryModP(n, k, overflow, p){
     signal output X[2][m];
     signal output out[2][k];
 
-    assert( overflow < 253 );
+    assert( overflow < 252 );
 
     var Xvar[2][2][50] = get_Fp2_carry_witness(n, k, m, in, p); 
     component range_check = CheckValidFp2(n, k, p);
@@ -177,8 +177,8 @@ template Fp2Multiply(n, k, p){
     signal input b[2][k];
     signal output out[2][k];
 
-    var LOGK = log_ceil(k+1); // LOGK = ceil( log_2( (k+1) ) )
-    assert(3*n + 2 + 2*LOGK<254);
+    var LOGK = log_ceil(k); // LOGK = ceil( log_2( (k) ) )
+    assert(3*n + 2 + 2*LOGK<252);
 
     component c = Fp2MultiplyNoCarryCompress(n, k, p); 
     for(var i=0; i<k; i++){
@@ -205,14 +205,14 @@ template Fp2Multiply(n, k, p){
     // constrain by Carry( c0 -' c1 - p *' X - Y ) = 0 
     // where all operations are performed without carry 
     // each register is an overflow representation in the range 
-    //      (-(k+1)*k*2^{3n}-2^{2n}-2^n, (k+1)*k*2^{3n}+2^{2n} )
+    //      (-k*k*2^{3n}-2^{2n}-2^n, k*k*2^{3n}+2^{2n} )
     //      which is contained in (-2^{3n + 2*LOGK + 1}, 2^{3n + 2*LOGK + 1})
 
     // out[1] constraint: X = X[1], Y = out[1]
     // c2 = a0b1 + a1b0, c3 = 0
     // constrain by Carry( c2 -' c3 -' p *' X - Y) = 0 
     // each register is an overflow representation in the range 
-    //      (-2^{2n}-2^n, (k+1)*k*2^{3n+1} + 2^{2n} )
+    //      (-2^{2n}-2^n, k*k*2^{3n+1} + 2^{2n} )
     //      which is contained in (-2^{3n+2*LOGK+1}, 2^{3n+2*LOGK+1 +1}) // extra +1 just to be safe..
    
 }
@@ -300,7 +300,7 @@ template Fp2Invert(n, k, p){
 // solve for out * b - a = p * X 
 // assume X has at most m registers, lying in [-2^{n+1}, 2^{n+1} )   NOTE n+1 not n DIFFERENT FROM Fp2CarryModP
 // assume a has registers in [0, 2^overflow), b has registers in [0, 2^{overflow-2n-2*LOGK-1}) 
-// assume 2n+1 + log( max(k, ceil(overflow/n) )) < overflow 
+// assume 2n+1 + log( min(k, ceil(overflow/n) )) < overflow 
 // out has registers in [0, 2^n) 
 template Fp2Divide(n, k, overflow, p){
     signal input a[4][k];
@@ -308,7 +308,7 @@ template Fp2Divide(n, k, overflow, p){
     var m = (overflow + n - 1) \ n; // ceil(overflow/n) , i.e., 2^overflow <= 2^{n*m}
     signal output X[2][m];
     signal output out[2][k]; 
-    assert( overflow < 252 );
+    assert( overflow < 251 );
      
     // first precompute a, b mod p as shorts 
     var a_mod[2][50]; 
@@ -340,7 +340,7 @@ template Fp2Divide(n, k, overflow, p){
     // precompute out * b = p * X' + Y' and a = p * X'' + Y''
     //            should have Y' = Y'' so X = X' - X''
     
-    // out * b, registers overflow in 2*(k+1)*k * 2^{2n + (overflow - 2n - 2*LOGK - 1)} <= 2^{overflow}  
+    // out * b, registers overflow in 2*k*k * 2^{2n + (overflow - 2n - 2*LOGK - 1)} <= 2^{overflow}  
     component mult = Fp2MultiplyNoCarryCompress(n, k, p); 
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
         mult.a[2*eps][i] <== out[eps][i]; 
@@ -366,7 +366,7 @@ template Fp2Divide(n, k, overflow, p){
     
     // finally constrain out * b - a = p * X 
     // out * b - a has overflow in (-2^{overflow+1}, 2^{overflow +1}) 
-    // assume n+1 < overflow - n - log(max(k,m)+1), for registers of X
+    // assume n+1 < overflow - n - log(min(k,m)), for registers of X
     component mod_check[2];  // overflow 9*(k+1)*k * 2^{3n+1} + 2*2^n < 2^{3n+LOGK+5} 
     for(var eps=0; eps<2; eps++){
         mod_check[eps] = CheckCarryModP(n, k, m, overflow + 1, p);
