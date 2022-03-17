@@ -1,6 +1,7 @@
 pragma circom 2.0.2;
 
 include "bigint.circom";
+include "bigint_func.circom";
 include "field_elements_func.circom";
 include "fp.circom";
 
@@ -41,7 +42,7 @@ template Fp2MultiplyNoCarry(n, k){
     signal output out[4][2*k-1];
 
     // if a,b registers were in [0,2^n), then
-    // var LOGK = 3;
+    // var LOGK = log_ceil(k+1);
     // assert(2*n + 2 + LOGK <254);
 
     component ab[4][4];
@@ -176,8 +177,7 @@ template Fp2Multiply(n, k, p){
     signal input b[2][k];
     signal output out[2][k];
 
-    assert(k<=7); // k=7 probably works but best to be safe
-    var LOGK = 3; // LOGK = ceil( log_2( (k+1) ) )
+    var LOGK = log_ceil(k+1); // LOGK = ceil( log_2( (k+1) ) )
     assert(3*n + 2 + 2*LOGK<254);
 
     component c = Fp2MultiplyNoCarryCompress(n, k, p); 
@@ -310,8 +310,6 @@ template Fp2Divide(n, k, overflow, p){
     signal output out[2][k]; 
     assert( overflow < 252 );
      
-    //log(m);
-    //log(overflow);
     // first precompute a, b mod p as shorts 
     var a_mod[2][50]; 
     var b_mod[2][50]; 
@@ -370,7 +368,6 @@ template Fp2Divide(n, k, overflow, p){
     // out * b - a has overflow in (-2^{overflow+1}, 2^{overflow +1}) 
     // assume n+1 < overflow - n - log(max(k,m)+1), for registers of X
     component mod_check[2];  // overflow 9*(k+1)*k * 2^{3n+1} + 2*2^n < 2^{3n+LOGK+5} 
-    //log(0);
     for(var eps=0; eps<2; eps++){
         mod_check[eps] = CheckCarryModP(n, k, m, overflow + 1, p);
         for(var i=0; i<k; i++){
@@ -381,7 +378,6 @@ template Fp2Divide(n, k, overflow, p){
             mod_check[eps].X[i] <== X[eps][i];
         }
     }
-    //log(0);
 }
 
 // input: a+b u

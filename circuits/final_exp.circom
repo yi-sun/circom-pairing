@@ -1,6 +1,7 @@
 pragma circom 2.0.2;
 
 include "bigint.circom";
+include "bigint_func.circom";
 include "field_elements_func.circom";
 include "fp2.circom";
 include "fp12.circom";
@@ -42,8 +43,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
     signal input in[4][2][k];
     signal output out[6][2][k]; 
 
-    assert(k<7);
-    var LOGK = 3; // LOGK = ceil( log_2( k+1 ) )
+    var LOGK = log_ceil(k+1); // LOGK = ceil( log_2( k+1 ) )
     assert(3*n + 4 + LOGK < 252);
 
     var len = 2*k-1; // number of registers in output of Fp2MultiplyNoCarry
@@ -289,8 +289,7 @@ template Fp12CyclotomicSquare(n, k, p) {
     signal input in[4][2][k]; 
     signal output out[4][2][k];
 
-    var LOGK = 3;
-    assert(k <= 7); 
+    var LOGK = log_ceil(k+1);
     assert(3*n + 2*LOGK + 7 < 253);
 
     component sq = Fp12CyclotomicSquareNoCarry(n, k);

@@ -98,7 +98,7 @@ describe("LineFunctionUnequal n = 3, k = 2", function() {
             out_array[i] = [ bigint_to_array(3, 2, a0.value), bigint_to_array(3, 2, a1.value) ];
         }
 
-        it('Testing in: ' + in_array[0][0][0] + ', '
+        it('Testing in: ' + in_array + ', ' + point_array + /* + in_array[0][0][0] + ', '
 	                   + in_array[0][0][1] + ', '
   	                   + in_array[0][1][0] + ', '
   	                   + in_array[0][1][1] + ', '				   
@@ -153,7 +153,7 @@ describe("LineFunctionUnequal n = 3, k = 2", function() {
           + ' pointY5: '    + point_array[1][5][0][0] + ','
                            + point_array[1][5][0][1] + ','
                            + point_array[1][5][1][0] + ','
-                           + point_array[1][5][1][1] + ','
+                           + point_array[1][5][1][1] + */ ','
 	  + ' p: ' + p, async function() {
             let witness = await circuit.calculateWitness({"in": in_array, "point": point_array});
 	    await circuit.assertOut(witness, {"out": out_array });
@@ -194,7 +194,7 @@ describe("LineFunctionEqual n = 3, k = 2", function() {
     Fp.ORDER = p;
     Fp2.ORDER = p;
 
-    var test_linefunc_32 = function (inp: [Fp, Fp, Fp12, Fp12]) {
+    var test_linefunc_eq_32 = function (inp: [Fp, Fp, Fp12, Fp12]) {
         const [Px, Py, Qx, Qy] = inp;
 
         let in_array: [ bigint[], bigint[] ] = [ bigint_to_array(3, 2, Px.value), bigint_to_array(3, 2, Py.value) ];
@@ -234,70 +234,20 @@ describe("LineFunctionEqual n = 3, k = 2", function() {
             out_array[i] = [ bigint_to_array(3, 2, a0.value), bigint_to_array(3, 2, a1.value) ];
         }
 
-        it('Testing in: ' + in_array[0][0] + ', '
-	                   + in_array[0][1] + ', '
-  	                   + in_array[1][0] + ', '
-  	                   + in_array[1][1] + ', '				   
-          + ' pointX0: '    + point_array[0][0][0][0] + ','
-                           + point_array[0][0][0][1] + ','
-                           + point_array[0][0][1][0] + ','
-                           + point_array[0][0][1][1] + ','			   			   
-          + ' pointX1: '    + point_array[0][1][0][0] + ','
-                           + point_array[0][1][0][1] + ','
-                           + point_array[0][1][1][0] + ','
-                           + point_array[0][1][1][1] + ','			   			   
-          + ' pointX2: '    + point_array[0][2][0][0] + ','
-                           + point_array[0][2][0][1] + ','
-                           + point_array[0][2][1][0] + ','
-                           + point_array[0][2][1][1] + ','			   			   
-          + ' pointX3: '    + point_array[0][3][0][0] + ','
-                           + point_array[0][3][0][1] + ','
-                           + point_array[0][3][1][0] + ','
-                           + point_array[0][3][1][1] + ','			   			   
-          + ' pointX4: '    + point_array[0][4][0][0] + ','
-                           + point_array[0][4][0][1] + ','
-                           + point_array[0][4][1][0] + ','
-                           + point_array[0][4][1][1] + ','			   			   
-          + ' pointX5: '    + point_array[0][5][0][0] + ','
-                           + point_array[0][5][0][1] + ','
-                           + point_array[0][5][1][0] + ','
-                           + point_array[0][5][1][1] + ','			   			   
-          + ' pointY0: '    + point_array[1][0][0][0] + ','
-                           + point_array[1][0][0][1] + ','
-                           + point_array[1][0][1][0] + ','
-                           + point_array[1][0][1][1] + ','			   			   
-          + ' pointY1: '    + point_array[1][1][0][0] + ','
-                           + point_array[1][1][0][1] + ','
-                           + point_array[1][1][1][0] + ','
-                           + point_array[1][1][1][1] + ','			   			   
-          + ' pointY2: '    + point_array[1][2][0][0] + ','
-                           + point_array[1][2][0][1] + ','
-                           + point_array[1][2][1][0] + ','
-                           + point_array[1][2][1][1] + ','			   			   
-          + ' pointY3: '    + point_array[1][3][0][0] + ','
-                           + point_array[1][3][0][1] + ','
-                           + point_array[1][3][1][0] + ','
-                           + point_array[1][3][1][1] + ','			   			   
-          + ' pointY4: '    + point_array[1][4][0][0] + ','
-                           + point_array[1][4][0][1] + ','
-                           + point_array[1][4][1][0] + ','
-                           + point_array[1][4][1][1] + ','			   			   
-          + ' pointY5: '    + point_array[1][5][0][0] + ','
-                           + point_array[1][5][0][1] + ','
-                           + point_array[1][5][1][0] + ','
-                           + point_array[1][5][1][1] + ','
-	  + ' p: ' + p, async function() {
-	    await console.log('adsf');
+        it('Testing in: [' + in_array + '], point: [' + point_array +  '], out: [' + out_array + '], ' 
+        	  + ' p: ' + p, async function() {
+	        //await console.log('adsf');
             let witness = await circuit.calculateWitness({"in": in_array, "point": point_array});
-    	    await console.log(witness);			
-    	    await console.log(out_array);
-	    await circuit.assertOut(witness, {"out": out_array });
+    	    //console.log(witness);			
+            //await console.log(in_array, point_array);
+    	    //await console.log(out_array); 
+	        await circuit.assertOut(witness, {"out": out_array });
             await circuit.checkConstraints(witness);
         });
     }
 
     var test_cases: Array<[Fp, Fp, Fp12, Fp12]> = [];
-    for(var test_id = 0; test_id < 1; test_id++){
+    for(var test_id = 0; test_id < 10; test_id++){
         let rand_twelveX: BigintTwelve = [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n];
 	let rand_twelveY: BigintTwelve = [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n];	
         for( let i = 0; i < 12; i++){
@@ -311,6 +261,6 @@ describe("LineFunctionEqual n = 3, k = 2", function() {
 	test_cases.push([Px, Py, Qx, Qy]);
     }
 
-    test_cases.forEach(test_linefunc_32);
+    test_cases.forEach(test_linefunc_eq_32);
 });
 

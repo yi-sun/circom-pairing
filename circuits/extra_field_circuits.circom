@@ -1,6 +1,7 @@
 pragma circom 2.0.2;
 
 include "bigint.circom";
+include "bigint_func.circom";
 include "fp2.circom";
 include "fp12.circom";
 
@@ -288,8 +289,7 @@ template Fp2multiply(n, k){
     signal input p[k];
     signal output out[2][k];
 
-    var LOGK = 3;
-    assert(k<7);
+    var LOGK = log_ceil(k+1);
     assert(2*n + 1 + LOGK<254);
 
     var Xvar[2][2][20] = Fp2prod(n, k, a, b, p); 
@@ -484,7 +484,7 @@ template Fp12MultiplyThree(n, k, p) {
     signal input c[l][2][k];
     signal output out[l][2][k];
 
-    var LOGK = 3;
+    var LOGK = log_ceil(k+1);
     var LOGL = 4;
     assert(l<15);
     assert(k<7);

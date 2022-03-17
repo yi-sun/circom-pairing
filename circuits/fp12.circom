@@ -149,7 +149,7 @@ template Fp12Multiply(n, k, p) {
     signal output out[l][2][k];
 
 
-    var LOGK = log_ceil(k);
+    var LOGK = log_ceil(k+1);
     var LOGL = log_ceil(l);
     assert(2*n + 1 + LOGK + LOGL <254);
 
@@ -381,7 +381,7 @@ template Fp12MultiplyNoCarryCompress(n, k, p) {
     signal input b[l][4][k];
     signal output out[l][4][k];
 
-    var LOGK = log_ceil(k);
+    var LOGK = log_ceil(k+1);
     var LOGL = log_ceil(l);
     assert(2*n + 1 + LOGK + LOGL <254);
 
@@ -498,7 +498,7 @@ template Fp12CarryModP(n, k, kX, p) {
     signal output X[l][2][kX];
     signal output out[l][2][k];
 
-    var LOGK = log_ceil(k);
+    var LOGK = log_ceil(k+1);
 
     // dimension [l, 2, k]
     var Xvar0[l][2][50];

@@ -749,12 +749,16 @@ template PrimeReduce(n, k, m, p){
     var e[k];
     for(var i=1; i<k; i++){
         two[i]=0;
-        e[i]=0;
     }
     two[0] = 2;
     var r[m][50]; 
     for(var i=0; i<m; i++){
-        e[0] = n*(k+i);
+        var temp = n*(k+i);
+        for(var i=0; i<k; i++){
+            e[i] = temp % (1<<n); 
+            temp = temp \ (1<<n); 
+        }       
+        assert(temp == 0); // otherwise k registers not enough for n*(k+i) 
         r[i] = mod_exp(n, k, two, p, e );
     } 
     var out_sum[k]; 

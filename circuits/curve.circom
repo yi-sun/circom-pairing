@@ -33,8 +33,7 @@ template IsArrayEqual(k){
 template PointOnLine(n, k, p) {
     signal input in[3][2][k]; 
 
-    var LOGK = 3;
-    assert(k <= 7);
+    var LOGK = log_ceil(k+1);
     assert(3*n + 2*LOGK + 2 < 253);
 
     // AKA check point on line 
@@ -73,8 +72,7 @@ template PointOnLine(n, k, p) {
 template PointOnCurve(n, k, a, b, p){
     signal input in[2][k]; 
 
-    var LOGK = 3;
-    assert(k<=7);
+    var LOGK = log_ceil(k+1);
     assert(4*n + 3*LOGK + 2 < 253);
 
     // compute x^3, y^2 
@@ -127,8 +125,7 @@ template PointOnCurve(n, k, a, b, p){
 template PointOnTangent(n, k, a, p){
     signal input in[2][2][k];
     
-    var LOGK = 3;
-    assert(k <= 7);
+    var LOGK = log_ceil(k+1);
     assert(4*n + 3*LOGK + 3 < 253);
     component x_sq = BigMultShortLong(n, k); // 2k-1 registers in [0, (k+1)2^{2n}) 
     for(var i=0; i<k; i++){
@@ -194,8 +191,7 @@ template EllipticCurveAddUnequal(n, k, p) { // changing q's to p's for my sanity
 
     signal output out[2][k];
 
-    var LOGK = 3;
-    assert(k <= 7);
+    var LOGK = log_ceil(k+1);
     assert(4*n + 3*LOGK +4 < 253);
 
     // precompute lambda and x_3 and then y_3
@@ -299,8 +295,7 @@ template EllipticCurveDouble(n, k, a, b, p) {
     signal output out[2][k];
 
     /* 
-    var LOGK = 3;
-    assert(k <= 7);
+    var LOGK = log_ceil(k+1);
     assert(4*n + 3*LOGK + 3 < 253);
     */
 
@@ -509,7 +504,7 @@ template LineFunctionUnequal(n, k, q) {
 	}	
     }
 
-    var LOGK = log_ceil(k);
+    var LOGK = log_ceil(k+1);
     // max overflow register size is 3 * k * 2^{3n + log(k + 1)}
     component carry = Fp12CarryModP(n, k, (2 * n + 3 + 2 * LOGK + n - 1) \ n, q);
     for (var i = 0; i < 6; i++) {
@@ -562,18 +557,18 @@ template LineFunctionEqual(n, k, q) {
     
     component reduce[6][4];
     for (var i = 0; i < 6; i++) {
-	for (var j = 0; j < 4; j++) {
-	    reduce[i][j] = PrimeReduce(n, k, 2 * k - 2, q);
-	}
+        for (var j = 0; j < 4; j++) {
+            reduce[i][j] = PrimeReduce(n, k, 2 * k - 2, q);
+        }
 
-	for (var j = 0; j < 4; j++) {
-	    for (var idx = 0; idx < 3 * k - 2; idx++) {
-		reduce[i][j].in[idx] <== nocarry.out[i][j][idx];
-	    }
-	}	
+        for (var j = 0; j < 4; j++) {
+            for (var idx = 0; idx < 3 * k - 2; idx++) {
+                reduce[i][j].in[idx] <== nocarry.out[i][j][idx];
+            }
+        }	
     }
 
-    var LOGK = log_ceil(k);
+    var LOGK = log_ceil(k+1);
     // max overflow register size is (2k - 1) * 2^{4n + 2 * log(k + 1) + 2}
     component carry = Fp12CarryModP(n, k, (3 * n + 4 + 3 * LOGK + n - 1) \ n, q);
     for (var i = 0; i < 6; i++) {
