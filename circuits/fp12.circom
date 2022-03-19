@@ -469,6 +469,128 @@ template Fp12MultiplyNoCarry(n, k){
     }
 }
 
+// The real and imaginary parts are
+//     * length 6 vectors with 2k-1 registers in [0, B_a * B_b * 12 * min(ka, kb) )
+template Fp12MultiplyNoCarryUnequal(n, ka, kb){
+    var l = 6;
+    signal input a[l][4][ka];
+    signal input b[l][4][kb];
+    signal output out[l][4][ka + kb -1];
+
+    component a0b0 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
+    component a0b1 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
+    component a0b2 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
+    component a0b3 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
+    component a1b0 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
+    component a1b1 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
+    component a1b2 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
+    component a1b3 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
+    component a2b0 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
+    component a2b1 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
+    component a2b2 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
+    component a2b3 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
+    component a3b0 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
+    component a3b1 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
+    component a3b2 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
+    component a3b3 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
+    
+    for (var i = 0; i < l; i ++) {
+        for (var j = 0; j < ka; j ++) {
+            a0b0.a[i][j] <== a[i][0][j];
+            a0b1.a[i][j] <== a[i][0][j];
+            a0b2.a[i][j] <== a[i][0][j];
+            a0b3.a[i][j] <== a[i][0][j];
+
+            a1b0.a[i][j] <== a[i][1][j];
+            a1b1.a[i][j] <== a[i][1][j];
+            a1b2.a[i][j] <== a[i][1][j];
+            a1b3.a[i][j] <== a[i][1][j];
+
+            a2b0.a[i][j] <== a[i][2][j];
+            a2b1.a[i][j] <== a[i][2][j];
+            a2b2.a[i][j] <== a[i][2][j];
+            a2b3.a[i][j] <== a[i][2][j];
+
+            a3b0.a[i][j] <== a[i][3][j];
+            a3b1.a[i][j] <== a[i][3][j];
+            a3b2.a[i][j] <== a[i][3][j];
+            a3b3.a[i][j] <== a[i][3][j];
+        }
+        for (var j = 0; j < kb; j ++) {
+            a0b0.b[i][j] <== b[i][0][j];
+            a1b0.b[i][j] <== b[i][0][j];
+            a2b0.b[i][j] <== b[i][0][j];
+            a3b0.b[i][j] <== b[i][0][j];
+
+            a0b1.b[i][j] <== b[i][1][j];
+            a1b1.b[i][j] <== b[i][1][j];
+            a2b1.b[i][j] <== b[i][1][j];
+            a3b1.b[i][j] <== b[i][1][j];
+
+            a0b2.b[i][j] <== b[i][2][j];
+            a1b2.b[i][j] <== b[i][2][j];
+            a2b2.b[i][j] <== b[i][2][j];
+            a3b2.b[i][j] <== b[i][2][j];
+
+            a0b3.b[i][j] <== b[i][3][j];
+            a1b3.b[i][j] <== b[i][3][j];
+            a2b3.b[i][j] <== b[i][3][j];
+            a3b3.b[i][j] <== b[i][3][j];
+        }
+	}
+    
+
+    signal X[2 * l - 1][ka + kb - 1];
+    signal Y[2 * l - 1][ka + kb - 1];
+    signal Z[2 * l - 1][ka + kb - 1];
+    signal W[2 * l - 1][ka + kb - 1];
+    for (var i = 0; i < 2 * l - 1; i++) {
+	for (var j = 0; j < ka + kb - 1; j++) {
+	    X[i][j] <== a0b0.out[i][j] + a2b2.out[i][j] + a1b3.out[i][j] + a3b1.out[i][j];
+	    Z[i][j] <== a0b2.out[i][j] + a2b0.out[i][j] + a1b1.out[i][j] + a3b3.out[i][j];
+	    Y[i][j] <== a0b1.out[i][j] + a2b3.out[i][j] + a1b0.out[i][j] + a3b2.out[i][j];
+	    W[i][j] <== a0b3.out[i][j] + a2b1.out[i][j] + a1b2.out[i][j] + a3b0.out[i][j];	   
+	}
+    }
+
+    for (var i = 0; i < l; i++) {
+        for (var j = 0; j < ka + kb - 1; j++) {
+            if (i < l - 1) {
+                out[i][0][j] <== X[i][j] + X[l + i][j] + W[l + i][j];
+                out[i][1][j] <== Y[i][j] + Y[l + i][j] + X[l + i][j];
+                out[i][2][j] <== Z[i][j] + Z[l + i][j] + Y[l + i][j];
+                out[i][3][j] <== W[i][j] + W[l + i][j] + Z[l + i][j];
+            } else {
+                out[i][0][j] <== X[i][j];
+                out[i][1][j] <== Y[i][j];
+                out[i][2][j] <== Z[i][j];
+                out[i][3][j] <== W[i][j];
+            }
+        }
+    }
+}
+
+template Fp12Compress(n, k, m, p){
+    var l = 6;
+    signal input in[l][4][k+m];
+    signal output out[l][4][k];
+
+    component reduce[l][4];
+    for (var i = 0; i < l; i++) {
+        for (var j = 0; j < 4; j++){
+            reduce[i][j] = PrimeReduce(n, k, m, p);
+
+            for (var idx = 0; idx < k + m; idx++) 
+                reduce[i][j].in[idx] <== in[i][j][idx];
+        }
+    }
+
+    for (var i = 0; i < l; i++) 
+        for (var j = 0; j < 4; j++) 
+            for (var idx = 0; idx < k; idx++) 
+                out[i][j][idx] <== reduce[i][j].out[idx];
+}
+
 // Input is same as for Fp12MultiplyNoCarry
 // Our answer is the prime reduction of output of Fp12MultiplyNoCarry to
 //     * length 6 vectors with k registers in [0, B_a * B_b * 2^n * 12 * k)
@@ -489,23 +611,16 @@ template Fp12MultiplyNoCarryCompress(n, k, p) {
          nocarry.b[i][j][idx] <== b[i][j][idx];
     }
 
-    component reduce[l][4];
-    for (var i = 0; i < l; i++) {
-        for (var j = 0; j < 4; j++){
-            reduce[i][j] = PrimeReduce(n, k, k - 1, p);
-
+    component reduce = Fp12Compress(n, k, k-1, p);
+    for (var i = 0; i < l; i++)
+        for (var j = 0; j < 4; j++)
             for (var idx = 0; idx < 2 * k - 1; idx++) 
-                reduce[i][j].in[idx] <== nocarry.out[i][j][idx];
-        }
-    }
+                reduce.in[i][j][idx] <== nocarry.out[i][j][idx];
 
-    for (var i = 0; i < l; i++) {
-	for (var j = 0; j < 4; j++) {
-	    for (var idx = 0; idx < k; idx++) {
-		out[i][j][idx] <== reduce[i][j].out[idx];
-	    }
-	}
-    }    
+    for (var i = 0; i < l; i++) 
+        for (var j = 0; j < 4; j++)
+            for (var idx = 0; idx < k; idx++) 
+                out[i][j][idx] <== reduce.out[i][j][idx];
 }
 
 // solve for: in0 - in2 = X * p + out
