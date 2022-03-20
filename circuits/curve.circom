@@ -506,7 +506,7 @@ template LineFunctionUnequal(n, k, q) {
 
     var LOGK = log_ceil(k);
     // max overflow register size is 3 * k * 2^{3n + log(k)}
-    component carry = Fp12CarryModP(n, k, (2 * n + 3 + 2 * LOGK + n - 1) \ n, q);
+    component carry = Fp12CarryModP(n, k, 3 * n + 2 * LOGK + 2, q);
     for (var i = 0; i < 6; i++) {
 	for (var j = 0; j < 4; j++) {
 	    for (var idx = 0; idx < k; idx++) {
@@ -570,7 +570,7 @@ template LineFunctionEqual(n, k, q) {
 
     var LOGK = log_ceil(k);
     // max overflow register size is (2k - 1) * 2^{4n + 2 * log(k) + 2}
-    component carry = Fp12CarryModP(n, k, (3 * n + 4 + 3 * LOGK + n - 1) \ n, q);
+    component carry = Fp12CarryModP(n, k, 4 * n + 3 * LOGK + 3, q);
     for (var i = 0; i < 6; i++) {
 	for (var j = 0; j < 4; j++) {
 	    for (var idx = 0; idx < k; idx++) {

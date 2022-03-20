@@ -4,8 +4,9 @@
     "description": "SNARKs for elliptic curve pairings in Circom",
     "main": "index.js",
     "scripts": {
-        "build": "cd ./scripts/dev && ./build_dev.sh",
-        "test": "NODE_OPTIONS='--max-old-space-size=56000' mocha -r ts-node/register 'test/**/*.ts'"
+        "build:dev": "cd ./scripts/dev && ./build_dev.sh",
+        "build:millerloop": "cd ./scripts/millerloop && ./build_millerloop.sh",
+        "test": "NODE_OPTIONS='--max-old-space-size=560000' mocha -r ts-node/register 'test/**/*.ts'"
     },
     "repository": "git@github.com:yi-sun/circom-pairing.git",
     "author": "",
