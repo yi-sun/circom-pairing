@@ -1,4 +1,4 @@
-pragma circom 2.0.2;
+pragma circom 2.0.3;
 
 include "bigint.circom";
 include "bigint_func.circom";

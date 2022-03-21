@@ -1,4 +1,4 @@
-pragma circom 2.0.2;
+pragma circom 2.0.3;
 
 
 function get_BLS12_381_parameter(){

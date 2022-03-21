@@ -232,6 +232,11 @@ template BigMultShortLong(n, k) {
        out[i] <-- prod_val[i];
    }
 
+   var k2 = 2 * k - 1;
+   var pow[k2][k2]; 
+   for(var i = 0; i<k2; i++)for(var j=0; j<k2; j++)
+       pow[i][j] = i ** j; 
+
    var a_poly[2 * k - 1];
    var b_poly[2 * k - 1];
    var out_poly[2 * k - 1];
@@ -240,11 +245,11 @@ template BigMultShortLong(n, k) {
        a_poly[i] = 0;
        b_poly[i] = 0;
        for (var j = 0; j < 2 * k - 1; j++) {
-           out_poly[i] = out_poly[i] + out[j] * (i ** j);
+           out_poly[i] = out_poly[i] + out[j] * pow[i][j];
        }
        for (var j = 0; j < k; j++) {
-           a_poly[i] = a_poly[i] + a[j] * (i ** j);
-           b_poly[i] = b_poly[i] + b[j] * (i ** j);
+           a_poly[i] = a_poly[i] + a[j] * pow[i][j];
+           b_poly[i] = b_poly[i] + b[j] * pow[i][j];
        }
    }
    for (var i = 0; i < 2 * k - 1; i++) {
@@ -273,6 +278,11 @@ template BigMultShortLongUnequal(n, ka, kb) {
        out[i] <-- prod_val[i];
    }
 
+   var k2 = ka + kb - 1;
+   var pow[k2][k2]; 
+   for(var i = 0; i<k2; i++)for(var j=0; j<k2; j++)
+       pow[i][j] = i ** j; 
+
    var a_poly[ka + kb - 1];
    var b_poly[ka + kb - 1];
    var out_poly[ka + kb - 1];
@@ -281,13 +291,13 @@ template BigMultShortLongUnequal(n, ka, kb) {
        a_poly[i] = 0;
        b_poly[i] = 0;
        for (var j = 0; j < ka + kb - 1; j++) {
-           out_poly[i] = out_poly[i] + out[j] * (i ** j);
+           out_poly[i] = out_poly[i] + out[j] * pow[i][j];
        }
        for (var j = 0; j < ka; j++) {
-           a_poly[i] = a_poly[i] + a[j] * (i ** j);
+           a_poly[i] = a_poly[i] + a[j] * pow[i][j];
        }
        for (var j = 0; j < kb; j++) {
-           b_poly[i] = b_poly[i] + b[j] * (i ** j);
+           b_poly[i] = b_poly[i] + b[j] * pow[i][j];
        }
    }
    for (var i = 0; i < ka + kb - 1; i++) {
@@ -881,6 +891,11 @@ template BigMultShortLong2DUnequal(n, ka, kb, la, lb) {
         }
     }
 
+    var k2 = (ka + kb -1 > la + lb -1) ? ka + kb - 1 : la + lb -1;
+    var pow[k2][k2]; 
+    for(var i = 0; i<k2; i++)for(var j=0; j<k2; j++)
+        pow[i][j] = i ** j; 
+
     var a_poly[la + lb - 1][ka + kb -1];
     var b_poly[la + lb - 1][ka + kb -1];
     var out_poly[la + lb - 1][ka + kb -1];
@@ -890,18 +905,18 @@ template BigMultShortLong2DUnequal(n, ka, kb, la, lb) {
             b_poly[i][j] = 0;
             out_poly[i][j] = 0;
             for (var deg1 = 0; deg1 < la + lb - 1; deg1 ++) {
-		if (deg1 < la) {
+                if (deg1 < la) {
                     for (var deg2 = 0; deg2 < ka; deg2 ++) {
-			a_poly[i][j] = a_poly[i][j] + a[deg1][deg2] * (i ** deg1) * (j ** deg2);
+                        a_poly[i][j] = a_poly[i][j] + a[deg1][deg2] * pow[i][deg1] * pow[j][deg2]; //(i ** deg1) * (j ** deg2);
                     }
-		}
-		if (deg1 < lb) {
-		    for (var deg2 = 0; deg2 < kb; deg2 ++) {
-			b_poly[i][j] = b_poly[i][j] + b[deg1][deg2] * (i ** deg1) * (j ** deg2);
-		    }
-		}
+                }
+                if (deg1 < lb) {
+                    for (var deg2 = 0; deg2 < kb; deg2 ++) {
+                        b_poly[i][j] = b_poly[i][j] + b[deg1][deg2] * pow[i][deg1] * pow[j][deg2]; // (i ** deg1) * (j ** deg2);
+                    }
+		        }
                 for (var deg2 = 0; deg2 < ka + kb -1; deg2 ++) {
-                    out_poly[i][j] = out_poly[i][j] + out[deg1][deg2] * (i ** deg1) * (j ** deg2);
+                    out_poly[i][j] = out_poly[i][j] + out[deg1][deg2] * pow[i][deg1] * pow[j][deg2]; // (i ** deg1) * (j ** deg2);
                 }
             }
         }
