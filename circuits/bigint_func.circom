@@ -1,4 +1,4 @@
-pragma circom 2.0.2;
+pragma circom 2.0.3;
 
 function log_ceil(n) {
    var n_temp = n;
@@ -388,9 +388,12 @@ function prod_mod(n, k, a, b, p) {
 // computes a^e mod p
 function mod_exp(n, k, a, p, e) {
     var eBits[500]; // length is k * n
+    var bitlength; 
     for (var i = 0; i < k; i++) {
         for (var j = 0; j < n; j++) {
             eBits[j + n * i] = (e[i] >> j) & 1;
+            if(eBits[j + n * i] == 1)
+                bitlength = j + n * i + 1;
         }
     }
 
@@ -401,7 +404,7 @@ function mod_exp(n, k, a, p, e) {
     out[0] = 1;
 
     // repeated squaring
-    for (var i = k * n - 1; i >= 0; i--) {
+    for (var i = bitlength-1; i >= 0; i--) {
         // multiply by a if bit is 0
         if (eBits[i] == 1) {
             var temp[50]; // length 2 * k

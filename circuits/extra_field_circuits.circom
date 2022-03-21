@@ -363,67 +363,6 @@ template Fp2multiply(n, k){
 }
 
 
-// version of Fp12Multiply that uses the prime reduction trick
-// takes longer to compile
-// assumes p has k registers with kth register nonzero
-template Fp12Multiply2(n, k, p) {
-    var l = 6;
-    signal input a[l][2][k];
-    signal input b[l][2][k];
-    
-    signal output out[l][2][k];
-
-    var LOGK = log_ceil(k); 
-    // registers are in [0, 2^{3n} * 12 k )
-    component no_carry = Fp12MultiplyNoCarryCompress(n, k, p);
-    for (var i = 0; i < l; i++) {
-	for (var idx = 0; idx < k; idx++) {
-	    for (var j = 0; j < 2; j++) {
-		no_carry.a[i][j][idx] <== a[i][j][idx];
-		no_carry.b[i][j][idx] <== b[i][j][idx];
-	    }
-	    no_carry.a[i][2][idx] <== 0;
-	    no_carry.a[i][3][idx] <== 0;
-	    no_carry.b[i][2][idx] <== 0;
-	    no_carry.b[i][3][idx] <== 0;
-	}
-    }
-    // This is from old Fp12MultiplyNoCarryCompress: 
-    // difference of registers of no_carry lie in (-2^{3n} * 12k, 2^{3n} * 12k)
-    // |diff of no_carry| is bounded by 2^{n(k - 1)} * 2^{3n} * 12k
-    // p is at least 2^{n (k - 1)} and is close to 2^{nk}
-    // number of registers of X_0 in: no_carry[0] - no_carry[2] = X_0 * p + X_1
-    // is bounded by log(2^{n(k - 1)} * 2^{3n} * 12k / p) / log(2^n) < 3 or 4 depending on k.
-    // 
-	// registers of in0 and in2 have bitlength at most (kX + 1) * n, so
-	// registers of in0 - in2 - X * p - out have bitlength at most
-	//     n + kX * n + LOGK + 2
-	// we add 4 for safety for now...
-
-    component carry_mod;
-    /*if (12 * k < p[k - 1]) {
-	carry_mod = Fp12CarryModP(n, k, 3, p);
-    } else {
-	carry_mod = Fp12CarryModP(n, k, 4, p);
-    }*/
-    carry_mod = Fp12CarryModP(n, k, 3*n + LOGK + 4, p);
-    for (var i = 0; i < l; i++) {
-	for (var idx = 0; idx < k; idx++) {
-	    for (var j = 0; j < 4; j++) {
-		carry_mod.in[i][j][idx] <== no_carry.out[i][j][idx];
-	    }
-	}
-    }
-    
-    for (var i = 0; i < l; i++) {
-	for (var idx = 0; idx < k; idx++) {
-	    for (var j = 0; j < 2; j++) {
-		out[i][j][idx] <== carry_mod.out[i][j][idx];
-	    }
-	}
-    }
-}
-
 // adapted from BigMultShortLong2D and LongToShortNoEndCarry2 witness computation
 function prod3D(n, k, l, a, b, c) {
     // first compute the intermediate values. taken from BigMulShortLong

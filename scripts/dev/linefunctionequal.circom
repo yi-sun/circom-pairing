@@ -1,16 +1,8 @@
-pragma circom 2.0.3;
+pragma circom 2.0.2;
 
 include "../../circuits/curve.circom";
 
-component main = MillerLoop(55, 7, 4, 
-[36028792723996673,
-20272795337883135,
-9049562129190646,
-21651489585483456,
-31119275314,
-0,
-0],
-//[2, 0, 0, 0, 0, 0, 0], 
+component main = LineFunctionEqual(55, 7, 
 [35747322042231467,
  36025922209447795,
  1084959616957103,

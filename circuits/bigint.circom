@@ -1,4 +1,4 @@
-pragma circom 2.0.2;
+pragma circom 2.0.3;
 
 include "../node_modules/circomlib/circuits/comparators.circom";
 include "../node_modules/circomlib/circuits/bitify.circom";
@@ -749,24 +749,32 @@ template PrimeReduce(n, k, m, p){
     var e[k];
     for(var i=1; i<k; i++){
         two[i]=0;
+        e[i]=0;
     }
     two[0] = 2;
+
+    
+    e[0] = n;
+    var pow2n[50] = mod_exp(n, k, two, p, e); 
+    e[0] = k;
+    assert(k < (1<<n) );
+    var pow2nk[50] = mod_exp(n, k, pow2n, p, e);
+    
     var r[m][50]; 
     for(var i=0; i<m; i++){
-        var temp = n*(k+i);
-        for(var i=0; i<k; i++){
-            e[i] = temp % (1<<n); 
-            temp = temp \ (1<<n); 
-        }       
-        assert(temp == 0); // otherwise k registers not enough for n*(k+i) 
-        r[i] = mod_exp(n, k, two, p, e );
+        // r[i] = 2^{n(k+i)} mod p 
+        if(i==0){
+            r[i] = pow2nk;
+        }else{
+            r[i] = prod_mod(n, k, r[i-1], pow2n, p);  
+        }
     } 
     var out_sum[k]; 
     for(var i=0; i<k; i++)
         out_sum[i] = in[i];
     for(var i=0; i<m; i++)
         for(var j=0; j<k; j++)
-            out_sum[j] += in[i+k] * r[i][j]; // linear constraint
+            out_sum[j] += in[i+k] * r[i][j]; // linear constraint 
     for(var i=0; i<k; i++)
         out[i] <== out_sum[i]; 
 }
@@ -804,6 +812,11 @@ template BigMultShortLong2D(n, k, l) {
             out[i][j] <-- prod_val[i][j];
         }
     }
+    
+    var k2 = (2*k-1 > 2*l-1) ? 2*k-1 : 2*l-1;
+    var pow[k2][k2]; 
+    for(var i = 0; i<k2; i++)for(var j=0; j<k2; j++)
+        pow[i][j] = i ** j; 
 
     var a_poly[2*l-1][2*k-1];
     var b_poly[2*l-1][2*k-1];
@@ -815,18 +828,18 @@ template BigMultShortLong2D(n, k, l) {
             out_poly[i][j] = 0;
             for (var deg1 = 0; deg1 < l; deg1 ++) {
                 for (var deg2 = 0; deg2 < k; deg2 ++) {
-                    a_poly[i][j] = a_poly[i][j] + a[deg1][deg2] * (i ** deg1) * (j ** deg2);
-                    b_poly[i][j] = b_poly[i][j] + b[deg1][deg2] * (i ** deg1) * (j ** deg2);
+                    a_poly[i][j] = a_poly[i][j] + a[deg1][deg2] * pow[i][deg1] * pow[j][deg2]; // (i ** deg1) * (j ** deg2);
+                    b_poly[i][j] = b_poly[i][j] + b[deg1][deg2] * pow[i][deg1] * pow[j][deg2]; // (i ** deg1) * (j ** deg2);
                 }
             }
             for (var deg1 = 0; deg1 < 2*l-1; deg1 ++) {
                 for (var deg2 = 0; deg2 < 2*k-1; deg2 ++) {
-                    out_poly[i][j] = out_poly[i][j] + out[deg1][deg2] * (i ** deg1) * (j ** deg2);
+                    out_poly[i][j] = out_poly[i][j] + out[deg1][deg2] * pow[i][deg1] * pow[j][deg2];// (i ** deg1) * (j ** deg2);
                 }
             }
         }
     }
-
+    
     for (var i = 0; i < 2*l-1; i++) {
         for (var j = 0; j < 2*k-1; j++) {
             out_poly[i][j] === a_poly[i][j] * b_poly[i][j];

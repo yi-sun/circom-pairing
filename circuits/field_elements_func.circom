@@ -1,4 +1,76 @@
-pragma circom 2.0.2;
+pragma circom 2.0.3;
+
+// n bits per register
+// num has k registers
+// p has k registers
+// k * n <= 500
+// p is a prime
+// if num == 0 mod p, returns 0
+// else computes inv = num^{-1} mod p using extended euclidean algorithm
+// https://brilliant.org/wiki/extended-euclidean-algorithm/
+function find_Fp_inverse(n, k, num, p) {
+    var amodp[2][50] = long_div2(n, k, 0, num, p); 
+    var a[50];
+    var b[50]; 
+    var x[50];
+    var y[50];
+    var u[50];
+    var v[50];
+
+    var ret[50];
+
+    for(var i=0; i<k; i++){
+        a[i] = amodp[1][i];
+        b[i] = p[i];
+        x[i] = 0;
+        y[i] = 0;
+        u[i] = 0;
+        v[i] = 0;
+    }
+    y[0] = 1;
+    u[0] = 1;
+    // euclidean algorithm takes log_phi( min(a, p) ) iterations, where phi is golden ratio
+    // should be less than 1000 for our cases...
+    for(var l=0; l<1000; l++){
+        var ka = 0;
+        for (var i = 0; i < k; i++) {
+            if (a[i] != 0) {
+                ka = i + 1;
+            }
+        }
+        if (ka == 0) {
+            for (var i = 0; i < k; i++) {
+                ret[i] = x[i];
+            }
+            return ret;
+        }
+
+        var r[2][50] = long_div2(n, ka, k - ka, b, a); 
+        var q[50]; 
+        for(var i = 0; i < k - ka + 1; i++)
+            q[i] = r[0][i];
+        for(var i = k - ka + 1; i < k; i++)
+            q[i] = 0;
+        
+        var newu[50] = long_sub_mod(n, k, x, prod_mod(n, k, u, q, p), p); 
+        var newv[50] = long_sub_mod(n, k, y, prod_mod(n, k, v, q, p), p); 
+        
+        for(var i = 0; i < k; i++){
+            b[i] = a[i];
+            if( i < ka )
+                a[i] = r[1][i];
+            else
+                a[i] = 0;
+            x[i] = u[i];
+            y[i] = v[i];
+            u[i] = newu[i];
+            v[i] = newv[i];
+        }
+    }
+    // should never reach here (loop should always return before now)
+    assert(0 == 1);
+    return ret;
+}
 
 // a[4][k] registers can overflow - let's say in [0, B) 
 //  assume actual value of each a[i] < 2^{k+m} 
