@@ -593,7 +593,7 @@ template Fp12Compress(n, k, m, p){
 
 // Input is same as for Fp12MultiplyNoCarry
 // Our answer is the prime reduction of output of Fp12MultiplyNoCarry to
-//     * length 6 vectors with k registers in [0, B_a * B_b * 2^n * 12 * k)
+//     * length 6 vectors with k registers in [0, B_a * B_b * 2^n * 12 * k^2 )
 // p is length k
 template Fp12MultiplyNoCarryCompress(n, k, p) {
     var l = 6;
@@ -710,7 +710,7 @@ template Fp12Multiply2(n, k, p) {
     } else {
 	carry_mod = Fp12CarryModP(n, k, 4, p);
     }*/
-    carry_mod = Fp12CarryModP(n, k, 3*n + LOGK + 4, p);
+    carry_mod = Fp12CarryModP(n, k, 3*n + 2*LOGK + 4, p);
     for (var i = 0; i < l; i++) {
 	for (var idx = 0; idx < k; idx++) {
 	    for (var j = 0; j < 4; j++) {
