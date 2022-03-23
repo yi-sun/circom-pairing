@@ -693,7 +693,7 @@ template Fp12Multiply2(n, k, p) {
 
     var LOGK = log_ceil(k); 
     // registers are in [0, 2^{3n} * 12 k )
-    component no_carry = Fp12MultiplyNoCarryCompress(n, k, p, n, 3*n + LOGK + 4);
+    component no_carry = Fp12MultiplyNoCarryCompress(n, k, p, n, 3*n + 2*LOGK + 4);
     for (var i = 0; i < l; i++) {
 	for (var idx = 0; idx < k; idx++) {
 	    for (var j = 0; j < 2; j++) {
