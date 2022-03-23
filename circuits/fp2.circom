@@ -36,7 +36,7 @@ template Fp2Add(n, k, p) {
 //      we keep track of "positive" and "negatives" since circom isn't able to 
 //      if each a[i][j] is in [0, B) then out[i][j] is in [0, 4*(k+1)*B^2 )
 //  out[i] has 2*k-1 registers since that's output of BigMultShortLong
-template Fp2MultiplyNoCarry(n, k){
+template Fp2MultiplyNoCarry(n, k, m_out){
     signal input a[4][k];
     signal input b[4][k];
     signal output out[4][2*k-1];
@@ -47,7 +47,7 @@ template Fp2MultiplyNoCarry(n, k){
 
     component ab[4][4];
     for(var i=0; i<4; i++)for(var j=0; j<4; j++){
-        ab[i][j] = BigMultShortLong(n, k); // output has 2*k-1 registers
+        ab[i][j] = BigMultShortLong(n, k, m_out); // output has 2*k-1 registers
         for(var l=0; l<k; l++){
             ab[i][j].a[l] <== a[i][l];
             ab[i][j].b[l] <== b[j][l];
@@ -60,18 +60,25 @@ template Fp2MultiplyNoCarry(n, k){
         out[2][j] <== ab[0][2].out[j] + ab[1][3].out[j] + ab[2][0].out[j] + ab[3][1].out[j];
         out[3][j] <== ab[0][3].out[j] + ab[1][2].out[j] + ab[2][1].out[j] + ab[3][0].out[j];
     }
+    component range_checks[4][2*k-1];
+    for (var i = 0; i < 4; i ++) {
+        for (var j = 0; j < 2*k-1; j ++) {
+            range_checks[i][j] = Num2Bits(m_out);
+            range_checks[i][j] <== out[i][j];
+        }
+    }
 }
 
 // input is 4 x (k+m) where registers can overflow [0,B)
 //  in[0] - in[1] + (in[2] - in[3])*u
 // output is congruent to input (mod p) and represented as 4 x k where registers overflow [0,(m+1)*2^n*B) 
-template Fp2Compress(n, k, m, p){
+template Fp2Compress(n, k, m, p, m_out){
     signal input in[4][k+m]; 
     signal output out[4][k];
     
     component c[4];
     for(var i=0; i<4; i++){
-        c[i] = PrimeReduce(n, k, m, p);
+        c[i] = PrimeReduce(n, k, m, p, m_out);
         for(var j=0; j<k+m; j++)
             c[i].in[j] <== in[i][j]; 
     }
@@ -86,18 +93,19 @@ template Fp2Compress(n, k, m, p){
 //          (k+1)B^2 from BigMultShortLong
 //          *4 from adding 
 //          *k*2^n from prime trick
-template Fp2MultiplyNoCarryCompress(n, k, p){
+template Fp2MultiplyNoCarryCompress(n, k, p, m_in, m_out){
     signal input a[4][k];
     signal input b[4][k];
     signal output out[4][k];
     
-    component ab = Fp2MultiplyNoCarry(n, k);
+    var LOGK1 = log_ceil(k+1);
+    component ab = Fp2MultiplyNoCarry(n, k, 2*m_in + 2 + LOGK1);
     for(var i=0; i<4; i++)for(var j=0; j<k; j++){
         ab.a[i][j] <== a[i][j];
         ab.b[i][j] <== b[i][j]; 
     }
     
-    component compress = Fp2Compress(n, k, k-1, p);
+    component compress = Fp2Compress(n, k, k-1, p, m_out);
     for(var i=0; i<4; i++)for(var j=0; j<2*k-1; j++)
         compress.in[i][j] <== ab.out[i][j]; 
  
@@ -180,7 +188,7 @@ template Fp2Multiply(n, k, p){
     var LOGK = log_ceil(k); // LOGK = ceil( log_2( (k) ) )
     assert(3*n + 2 + 2*LOGK<252);
 
-    component c = Fp2MultiplyNoCarryCompress(n, k, p); 
+    component c = Fp2MultiplyNoCarryCompress(n, k, p, n, 3*n+2+2*LOGK); 
     for(var i=0; i<k; i++){
         c.a[0][i] <== a[0][i];
         c.a[1][i] <== 0;
@@ -341,7 +349,7 @@ template Fp2Divide(n, k, overflow, p){
     //            should have Y' = Y'' so X = X' - X''
     
     // out * b, registers overflow in 2*k*k * 2^{2n + (overflow - 2n - 2*LOGK - 1)} <= 2^{overflow}  
-    component mult = Fp2MultiplyNoCarryCompress(n, k, p); 
+    component mult = Fp2MultiplyNoCarryCompress(n, k, p, overflow, overflow); 
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
         mult.a[2*eps][i] <== out[eps][i]; 
         mult.a[2*eps+1][i] <== 0;

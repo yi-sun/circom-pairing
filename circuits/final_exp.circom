@@ -6,7 +6,6 @@ include "field_elements_func.circom";
 include "fp2.circom";
 include "fp12.circom";
 
-
 // assume input is an element of Fp12 in the cyclotomic subgroup GΦ₁₂
 // A cyclotomic group is a subgroup of Fp^n defined by
 //   GΦₙ(p) = {α ∈ Fpⁿ : α^{Φₙ(p)} = 1}
@@ -71,7 +70,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
 
 
     // COMPUTATION OF g1 when g2 != 0:
-    component g5sq = Fp2MultiplyNoCarry(n, k); // overflow (k+1) * 2^{2n+1} <= 2^{2n+1+LOGK}
+    component g5sq = Fp2MultiplyNoCarry(n, k, 2*n + 1 + LOGK); // overflow (k+1) * 2^{2n+1} <= 2^{2n+1+LOGK}
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
         g5sq.a[2*eps][i] <== in[3][eps][i];
         g5sq.a[2*eps+1][i] <== 0;
@@ -80,7 +79,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
     }
     // c = 1+u, g5^2 * (1+u)
     var g5sqc[4][50] = Fp2multc(len, g5sq.out); // overflow 2*2^{2n+1+LOGK}
-    component g4sq3 = Fp2MultiplyNoCarry(n, k); // overflow 3*(k+1)* 2^{2n+1} <= 3*2^{2n+1+LOGK}
+    component g4sq3 = Fp2MultiplyNoCarry(n, k, 2*n + 3 + LOGK); // overflow 3*(k+1)* 2^{2n+1} <= 3*2^{2n+1+LOGK}
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
         g4sq3.a[2*eps][i] <== 3*in[2][eps][i];
         g4sq3.a[2*eps+1][i] <== 0;
@@ -98,7 +97,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
     }
     // compress g1num using prime reduction trick 
     // overflow k*2^{3n+4+LOGK} < 2^{3n+4+2*LOGK} 
-    component g1numRed = Fp2Compress(n, k, k-1, p);
+    component g1numRed = Fp2Compress(n, k, k-1, p, 3*n+4+2*LOGK);
     for(var i=0; i<4; i++)for(var j=0; j<2*k-1; j++)
         g1numRed.in[i][j] <== g1num[i][j];
     // compute g1numRed / 4g2
@@ -118,7 +117,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
 
     // COMPUTATION OF g1 when g2 = 0:
     // g1 = 2*g4*g5 / g3
-    component twog4g5 = Fp2MultiplyNoCarryCompress(n, k, p); // overflow 2*(k+1)*k * 2^{3n+1}
+    component twog4g5 = Fp2MultiplyNoCarryCompress(n, k, p, n+1,3*n+2+2*LOGK); // overflow 2*(k+1)*k * 2^{3n+1}
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
         twog4g5.a[2*eps][i] <== 2*in[2][eps][i];
         twog4g5.a[2*eps+1][i] <== 0;
@@ -143,7 +142,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
 
     // COMPUTATION OF g0 when g2 != 0:
     // g0 = (2 g1^2 + g2 g5 - 3 g3 g4 )(1+u) + 1
-    component twog1sq= Fp2MultiplyNoCarry(n, k); // overflow 2*(k+1) * 2^{2n+1}
+    component twog1sq= Fp2MultiplyNoCarry(n, k, 2*n + 2 + LOGK); // overflow 2*(k+1) * 2^{2n+1}
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
         twog1sq.a[2*eps][i] <== 2*g1_1.out[eps][i];
         twog1sq.a[2*eps+1][i] <== 0;
@@ -151,7 +150,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
         twog1sq.b[2*eps+1][i] <== 0;
     }
     
-    component g2g5 = Fp2MultiplyNoCarry(n, k); // overflow (k+1) * 2^{2n+1}
+    component g2g5 = Fp2MultiplyNoCarry(n, k, 2*n + 1 + LOGK); // overflow (k+1) * 2^{2n+1}
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
         g2g5.a[2*eps][i] <== in[0][eps][i];
         g2g5.a[2*eps+1][i] <== 0;
@@ -159,7 +158,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
         g2g5.b[2*eps+1][i] <== 0;
     }
     
-    component threeg3g4 = Fp2MultiplyNoCarry(n, k); // overflow 3*(k+1) * 2^{2n+1}
+    component threeg3g4 = Fp2MultiplyNoCarry(n, k, 2*n + 3 + LOGK); // overflow 3*(k+1) * 2^{2n+1}
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
         threeg3g4.a[2*eps][i] <== 3*in[1][eps][i];
         threeg3g4.a[2*eps+1][i] <== 0;
@@ -175,7 +174,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
     var tempc[4][50] = Fp2multc(len, temp); // overflow 2*6*(k+1) * 2^{2n+1}
     // (2 g1^2 + g2 g5 - 3 g3 g4)(1+u) + 1 < 2^{2n+LOGK+5}  
     tempc[0][0]++;
-    component compress01 = Fp2Compress(n, k, k-1, p); // overflow < 2^{3n+2*LOGK+5} 
+    component compress01 = Fp2Compress(n, k, k-1, p, 3*n+5+2*LOGK); // overflow < 2^{3n+2*LOGK+5} 
     for(var i=0; i<4; i++)for(var j=0; j<2*k-1; j++)
         compress01.in[i][j] <== tempc[i][j];
     // get tempc = p*X + Y 
@@ -190,7 +189,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
     
     // COMPUTATION OF g0 when g2 = 0:
     // g0 = (2g1^2 - 3g3g4)(1+u) + 1
-    component twog1_0sq= Fp2MultiplyNoCarry(n, k); // overflow 2*(k+1) * 2^{2n+1}
+    component twog1_0sq= Fp2MultiplyNoCarry(n, k, 2*n + 2 + LOGK); // overflow 2*(k+1) * 2^{2n+1}
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
         twog1_0sq.a[2*eps][i] <== 2*g1_0.out[eps][i];
         twog1_0sq.a[2*eps+1][i] <== 0;
@@ -203,7 +202,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
     // overflow 2*5*(k+1) * 2^{2n+1}
     tempc = Fp2multc(len, temp);
     tempc[0][0]++;
-    component compress00 = Fp2Compress(n, k, k-1, p); // overflow < 2^{3n+2*LOGK+5} 
+    component compress00 = Fp2Compress(n, k, k-1, p, 3*n+5+2*LOGK); // overflow < 2^{3n+2*LOGK+5} 
     for(var i=0; i<4; i++)for(var j=0; j<2*k-1; j++)
         compress00.in[i][j] <== tempc[i][j];
     component carry_mod00 = Fp2CarryModP(n, k, 3*n+5+2*LOGK, p);
@@ -238,9 +237,10 @@ template Fp12CyclotomicDecompress(n, k, p) {
 template Fp12CyclotomicSquareNoCarry(n, k) {
     signal input in[4][4][k];
     signal output out[4][4][2*k-1];
+    var LOGK = log_ceil(k+1);
 
-    component B23 = Fp2MultiplyNoCarry(n, k); // overflow in 4*(k+1)*2^{2N}     factor of 4 instead of 2 because we allow in[] to have negatives 
-    component B45 = Fp2MultiplyNoCarry(n, k); 
+    component B23 = Fp2MultiplyNoCarry(n, k, 2*n + 2 + LOGK); // overflow in 4*(k+1)*2^{2N}     factor of 4 instead of 2 because we allow in[] to have negatives 
+    component B45 = Fp2MultiplyNoCarry(n, k, 2*n + 2 + LOGK); 
     for(var i=0; i<4; i++)for(var j=0; j<k; j++){
         B23.a[i][j] <== in[0][i][j];
         B23.b[i][j] <== in[1][i][j];
@@ -249,8 +249,8 @@ template Fp12CyclotomicSquareNoCarry(n, k) {
         B45.b[i][j] <== in[3][i][j];
     }
 
-    component A23 = Fp2MultiplyNoCarry(n, k); // overflow in 4*6*(k+1)*2^{2N}     
-    component A45 = Fp2MultiplyNoCarry(n, k);
+    component A23 = Fp2MultiplyNoCarry(n, k, 2*n + 5 + LOGK); // overflow in 4*6*(k+1)*2^{2N}     
+    component A45 = Fp2MultiplyNoCarry(n, k, 2*n + 5 + LOGK);
     // c*g3 = (1+u)*g3
     var cg3[4][50] = Fp2multc(k, in[1]); 
     var cg5[4][50] = Fp2multc(k, in[3]);
@@ -302,7 +302,7 @@ template Fp12CyclotomicSquare(n, k, p) {
     component sqRed[4]; 
     component sqMod[4];
     for(var i=0; i<4; i++){
-        sqRed[i] = Fp2Compress(n, k, k-1, p); 
+        sqRed[i] = Fp2Compress(n, k, k-1, p, 3*n+2*LOGK+7); 
         for(var eps=0; eps<4; eps++)for(var j=0; j<2*k-1; j++)
             sqRed[i].in[eps][j] <== sq.out[i][eps][j]; 
         // sqRed[i].out has registers in [0, k*2^{3n+LOGK+7} < 2^{3n+2*LOGK+7} ) 
