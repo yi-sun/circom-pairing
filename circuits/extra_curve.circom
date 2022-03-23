@@ -748,4 +748,3 @@ template MillerLoop2(n, k, b, r, q){
         out[l][j][idx] <== f[0][l][j][idx];
     
 }
-
