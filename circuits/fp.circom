@@ -3,7 +3,6 @@ pragma circom 2.0.3;
 include "bigint.circom";
 include "bigint_func.circom";
 
-
 // a[i], b[i] in 0... 2**n-1
 // represent a = a[0] + a[1] * 2**n + .. + a[k - 1] * 2**(n * k)
 // calculates (a+b)%p, where 0<= a,b < p 
@@ -101,7 +100,7 @@ template CheckCarryModP(n, k, m, overflow, p){
     component pX;
     component carry_check;
 
-    pX = BigMultShortLongUnequal(n, k, m); // p has k registers, X has m registers, so output really has k+m-1 registers 
+    pX = BigMultShortLongUnequal(n, k, m, overflow+2); // p has k registers, X has m registers, so output really has k+m-1 registers 
     // overflow register in  (-2^overflow , 2^overflow)
     for(var i=0; i<k; i++)
         pX.a[i] <== p[i];

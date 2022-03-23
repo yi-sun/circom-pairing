@@ -97,14 +97,14 @@ template Fp12Add(n, k, p) {
 // b is 6 x 4 x k array representing element (b0 - b2) + (b1 - b3) u of Fp12 keeping track of negatives
 //      where b_i = b[][i][] is 6 x k array
 // out is a*b in Fp12 as 6 x 4 x (2k-1) array
-template Fp12ScalarMultiplyNoCarry(n, k){
+template Fp12ScalarMultiplyNoCarry(n, k, m_out){
     signal input a[2][k];
     signal input b[6][4][k];
     signal output out[6][4][2*k-1];
 
     component ab[6][2]; 
     for(var i=0; i<6; i++)for(var j=0; j<2; j++){
-        ab[i][j] = BigMultNoCarry(n, k); // 2k-1 registers 
+        ab[i][j] = BigMultNoCarry(n, k, m_out); // 2k-1 registers 
 
         for(var eps=0; eps<2; eps++)for(var idx=0; idx<k; idx++){
             ab[i][j].a[eps][idx] <== a[eps][idx];
@@ -118,14 +118,14 @@ template Fp12ScalarMultiplyNoCarry(n, k){
 }
 
 
-template Fp12ScalarMultiplyNoCarryUnequal(n, ka, kb){
+template Fp12ScalarMultiplyNoCarryUnequal(n, ka, kb, m_out){
     signal input a[2][ka];
     signal input b[6][4][kb];
     signal output out[6][4][ka+kb-1];
 
     component ab[6][2]; 
     for(var i=0; i<6; i++)for(var j=0; j<2; j++){
-        ab[i][j] = BigMultNoCarryUnequal(n, ka, kb); // 2k-1 registers 
+        ab[i][j] = BigMultNoCarryUnequal(n, ka, kb, m_out); // 2k-1 registers 
 
         for(var eps=0; eps<2; eps++)for(var idx=0; idx<ka; idx++)
             ab[i][j].a[eps][idx] <== a[eps][idx];
@@ -288,8 +288,8 @@ template Fp12Multiply(n, k, p) {
     component pXreal[l];
     component pXimag[l];
     for (var i = 0; i < l; i ++) {
-        pXreal[i] = BigMultShortLong(n, k+4);
-        pXimag[i] = BigMultShortLong(n, k+4);
+        pXreal[i] = BigMultShortLong(n, k+4, 2*n+4+LOGK+LOGL);
+        pXimag[i] = BigMultShortLong(n, k+4, 2*n+4+LOGK+LOGL);
         for (var j = 0; j < k; j ++) {
             a0b0.a[i][j] <== a[i][0][j];
             a0b0.b[i][j] <== b[i][0][j];
@@ -372,7 +372,7 @@ template Fp12Multiply(n, k, p) {
 //     X_0 + X_1 + W_1 - Z_0 - Z_1 - Y_1 + (Y_0 + Y_1 + X_1 - W_0 - W_1 - Z_1) u
 // The real and imaginary parts are
 //     * length 6 vectors with 2k-1 registers in [0, B_a * B_b * 12 * k)
-template Fp12MultiplyNoCarry(n, k){
+template Fp12MultiplyNoCarry(n, k, m_out){
     var l = 6;
     signal input a[l][4][k];
     signal input b[l][4][k];
@@ -467,11 +467,20 @@ template Fp12MultiplyNoCarry(n, k){
             }
         }
     }
+    component range_checks[l][4][2*k-1];
+    for (var outer = 0; outer < l; outer ++) {
+        for (var i = 0; i < 4; i ++) {
+            for (var j = 0; j < 2*k-1; j ++) {
+                range_checks[outer][i][j] = Num2Bits(m_out);
+                range_checks[outer][i][j] <== out[outer][i][j];
+            }
+        }
+    }
 }
 
 // The real and imaginary parts are
 //     * length 6 vectors with 2k-1 registers in [0, B_a * B_b * 12 * min(ka, kb) )
-template Fp12MultiplyNoCarryUnequal(n, ka, kb){
+template Fp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
     var l = 6;
     signal input a[l][4][ka];
     signal input b[l][4][kb];
@@ -568,9 +577,18 @@ template Fp12MultiplyNoCarryUnequal(n, ka, kb){
             }
         }
     }
+    component range_checks[l][4][ka+kb-1];
+    for (var outer = 0; outer < l; outer ++) {
+        for (var i = 0; i < 4; i ++) {
+            for (var j = 0; j < ka+kb-1; j ++) {
+                range_checks[outer][i][j] = Num2Bits(m_out);
+                range_checks[outer][i][j] <== out[outer][i][j];
+            }
+        }
+    }
 }
 
-template Fp12Compress(n, k, m, p){
+template Fp12Compress(n, k, m, p, m_out){
     var l = 6;
     signal input in[l][4][k+m];
     signal output out[l][4][k];
@@ -578,7 +596,7 @@ template Fp12Compress(n, k, m, p){
     component reduce[l][4];
     for (var i = 0; i < l; i++) {
         for (var j = 0; j < 4; j++){
-            reduce[i][j] = PrimeReduce(n, k, m, p);
+            reduce[i][j] = PrimeReduce(n, k, m, p, m_out);
 
             for (var idx = 0; idx < k + m; idx++) 
                 reduce[i][j].in[idx] <== in[i][j][idx];
@@ -595,23 +613,23 @@ template Fp12Compress(n, k, m, p){
 // Our answer is the prime reduction of output of Fp12MultiplyNoCarry to
 //     * length 6 vectors with k registers in [0, B_a * B_b * 2^n * 12 * k^2 )
 // p is length k
-template Fp12MultiplyNoCarryCompress(n, k, p) {
+template Fp12MultiplyNoCarryCompress(n, k, p, m_in, m_out) {
     var l = 6;
     signal input a[l][4][k];
     signal input b[l][4][k];
     signal output out[l][4][k];
 
-    /*var LOGK = log_ceil(k);
+    var LOGK = log_ceil(k);
     var LOGL = log_ceil(l);
-    assert(2*n + 1 + LOGK + LOGL <254);*/
+    /*assert(2*n + 1 + LOGK + LOGL <254);*/
 
-    component nocarry = Fp12MultiplyNoCarry(n, k);
+    component nocarry = Fp12MultiplyNoCarry(n, k, 2*m_in + 4 + LOGK);
     for (var i = 0; i < l; i ++)for(var j=0; j<4; j++)for(var idx=0; idx<k; idx++){ 
          nocarry.a[i][j][idx] <== a[i][j][idx];
          nocarry.b[i][j][idx] <== b[i][j][idx];
     }
 
-    component reduce = Fp12Compress(n, k, k-1, p);
+    component reduce = Fp12Compress(n, k, k-1, p, m_out);
     for (var i = 0; i < l; i++)
         for (var j = 0; j < 4; j++)
             for (var idx = 0; idx < 2 * k - 1; idx++) 
@@ -679,7 +697,7 @@ template Fp12Multiply2(n, k, p) {
 
     var LOGK = log_ceil(k); 
     // registers are in [0, 2^{3n} * 12 k )
-    component no_carry = Fp12MultiplyNoCarryCompress(n, k, p);
+    component no_carry = Fp12MultiplyNoCarryCompress(n, k, p, n, 3*n + LOGK + 4);
     for (var i = 0; i < l; i++) {
 	for (var idx = 0; idx < k; idx++) {
 	    for (var j = 0; j < 2; j++) {
