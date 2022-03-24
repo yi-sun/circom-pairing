@@ -2,7 +2,7 @@ pragma circom 2.0.3;
 
 include "../../circuits/curve.circom";
 
-component main = MillerLoop(55, 7, // 4, 
+component main = MillerLoopOptimized(55, 7, // 4, 
 /*[36028792723996673,
 20272795337883135,
 9049562129190646,
