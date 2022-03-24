@@ -375,6 +375,76 @@ template EllipticCurveDouble(n, k, a, q0, q1, q2, q3) {
     }
 }
 
+
+// P = (x, y)
+// a = - 3x^2 
+// b = 2 y
+// c = 3 x^3 - 2 y^2 
+// a, c registers in [0, 2^n), b registers in [0, 2^{n})
+// out = [a, b, c]
+template LineEqualCoefficients(n, k, q){
+    signal input P[2][k]; 
+    signal output out[3][k];
+    
+    component xsq3 = BigMultShortLong(n, k); // 2k-1 registers [0, 3*k* 2^{2n})
+    component ysq = BigMultShortLong(n, k); // 2k-1 registers [0, k*2^{2n}) 
+    for(var i=0; i<k; i++){
+        xsq.a[i] <== 3*P[0][i];
+        xsq.b[i] <== P[0][i];
+        
+        ysq.a[i] <== P[1][i];
+        ysq.b[i] <== P[1][i];
+    }
+    
+    component xcube3 = BigMultShortLongUnequal(n, 2*k-1, k); // 3k-2 registers [0, 3*k^2* 2^{3n} )
+    for(var i=0; i<2*k-1; i++)
+        xcube3.a[i] <== xsq3.out[i];
+    for(var i=0; i<k; i++)
+        xcube3.b[i] <== P[0][i];
+
+    
+    component xsq3red = PrimeReduce(n, k, k-1, q); // k registers in [0, k^2 * 2^{3n} )
+    for(var i=0; i<2*k-1; i++) 
+        xsq3red.in[i] <== xsq3.out[i];
+    
+    component a = FpCarryModP(n, k, 3*n + log_ceil(k*k), q);
+    for(var i=0; i<k; i++){
+        a.in[0][i] <== 0;
+        a.in[1][i] <== xsq3red.out[i];
+    }
+    for(var i=0; i<k; i++)
+        out[0][i] <== a.out[i];
+    
+    // I think reducing registers of b to [0, 2^n) is still useful for future multiplications
+    component b = BigAddModP(n, k);
+    for(var i=0; i<k; i++){
+        b.a[i] <== P[1][i];
+        b.b[i] <== P[1][i];
+        b.p[i] <== q[i];
+    }
+    for(var i=0; i<k; i++)
+        out[1][i] <== b.out[i];
+    
+    component xcube3red = PrimeReduce(n, k, 2*k-2, q); // k registers in [0, 3*k^2*(2*k-2) * 2^{4n} )
+    for(var i=0; i<3*k-2; i++) 
+        xcube3red.in[i] <== xcube3.out[i];
+    
+    component ysqred = PrimeReduce(n, k, k-1, q); 
+    for(var i=0; i<2*k-1; i++) 
+        ysqred.in[i] <== ysq.out[i];
+
+    component c = FpCarryModP(n, k, 4*n + log_ceil(3*k*k*(2*k-2)), q); 
+    for(var i=0; i<k; i++){
+        c.in[0][i] <== xcube3red.out[i];
+        c.in[1][i] <== 2*ysqred.out[i];
+    }
+    for(var i=0; i<k; i++)
+        out[2][i] <== c.out[i];
+    
+}
+
+
+
 // Assuming curve is of form Y^2 = X^3 + b for now (a = 0) for better register bounds 
 // Inputs:
 //  P is 2 x k array where P = (x, y) is a point in E[r](Fq) 
@@ -678,3 +748,4 @@ template MillerLoop2(n, k, b, r, q){
         out[l][j][idx] <== f[0][l][j][idx];
     
 }
+

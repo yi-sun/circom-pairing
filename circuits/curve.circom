@@ -668,7 +668,7 @@ template Fp12MultiplyWithLineUnequal(n, k, kg, overflowg, q){
 //  x in [0, 2^250) and x < r  (we will use this template when x has few significant bits in base 2)
 //  q has k registers in [0, 2^n)
 //  P != O so the order of P in E(Fq) is r, so [i]P != [j]P for i != j in Z/r 
-template MillerLoopSparse(n, k, b, x, q){
+template MillerLoop(n, k, b, x, q){
     signal input in[6][2][k];
     signal input P[2][k]; 
     signal input Q[2][6][2][k];
@@ -803,7 +803,7 @@ template MillerLoopSparse(n, k, b, x, q){
 //  q has k registers in [0, 2^n)
 //  r is prime
 //  P != O so the order of P in E(Fq) is r, so [i]P != [j]P for i != j in Z/r 
-template MillerLoop(n, k, q){
+template MillerLoopOptimized(n, k, q){
     signal input P[2][k]; 
     signal input Q[2][6][2][k];
     signal output out[6][2][k];
