@@ -34,9 +34,6 @@ template Fp12FrobeniusMap(n, k, power){
 
                 mult_even[i][0].b[j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][0][j];
                 mult_even[i][1].b[j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][0][j];
-             
-                mult_even[i][0].p[j] <== p[j];
-                mult_even[i][1].p[j] <== p[j];
             }
             for(var j=0; j<k; j++){
                 out[i][0][j] <== mult_even[i][0].out[j];
@@ -50,7 +47,6 @@ template Fp12FrobeniusMap(n, k, power){
             for(var j=0; j<k; j++){
                 in_frob[i].in[0][j] <== in[i][0][j];
                 in_frob[i].in[1][j] <== in[i][1][j];
-                in_frob[i].p[j] <== p[j];
             }
         }
         for(var j=0; j<k; j++){
@@ -472,7 +468,7 @@ template Fp12MultiplyNoCarry(n, k, m_out){
         for (var i = 0; i < 4; i ++) {
             for (var j = 0; j < 2*k-1; j ++) {
                 range_checks[outer][i][j] = Num2Bits(m_out);
-                range_checks[outer][i][j] <== out[outer][i][j];
+                range_checks[outer][i][j].in <== out[outer][i][j];
             }
         }
     }
@@ -582,7 +578,7 @@ template Fp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
         for (var i = 0; i < 4; i ++) {
             for (var j = 0; j < ka+kb-1; j ++) {
                 range_checks[outer][i][j] = Num2Bits(m_out);
-                range_checks[outer][i][j] <== out[outer][i][j];
+                range_checks[outer][i][j].in <== out[outer][i][j];
             }
         }
     }
