@@ -814,7 +814,7 @@ template MillerLoopOptimized(n, k, q){
     // fx[i] = f_{x^{i+1}} 
     component fx[4]; 
     for(var e=0; e<4; e++){
-        fx[e] = MillerLoopSparse(n, k, b, x, q);
+        fx[e] = MillerLoop(n, k, b, x, q);
         if( e == 0 ){
             for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
                 if(i == 0 && j == 0 && idx == 0)
@@ -849,7 +849,8 @@ template MillerLoopOptimized(n, k, q){
         fx4l.Q[l][i][j][idx] <== Q[l][i][j][idx];
     
     // f_{x^2} * l_{r,x^2}(P,Q) where l_{r,x^2}(P,Q) = Q.x - ([x^2]P).x 
-    component fx2l = Fp12MultiplyNoCarryCompress(n, k, q); // registers in [0, 12*k^2*2^{3n} )
+    var LOGK = log_ceil(k);
+    component fx2l = Fp12MultiplyNoCarryCompress(n, k, q, n, 3*n + 2*LOGK + 4); // registers in [0, 12*k^2*2^{3n} )
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
         fx2l.a[i][j][idx] <== fx[1].out[i][j][idx];
         fx2l.a[i][j+2][idx] <== 0;
@@ -861,7 +862,6 @@ template MillerLoopOptimized(n, k, q){
             fx2l.b[i][j+2][idx] <== 0;
     }
 
-    var LOGK = log_ceil(k);
     // find fx2l^{-1}. Not going to optimize this for now since it's just one call
     component carry = Fp12CarryModP(n, k, 3*n + 2*LOGK + 4, q);
     for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<k; idx++)
@@ -880,4 +880,3 @@ template MillerLoopOptimized(n, k, q){
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         out[i][j][idx] <== fr.out[i][j][idx];
 }
-
