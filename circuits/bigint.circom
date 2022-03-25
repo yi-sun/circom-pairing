@@ -211,7 +211,7 @@ template BigAdd(n, k) {
 
 // a[i] and b[i] are short unsigned integers
 // out[i] is a long unsigned integer
-template BigMultShortLong(n, k) {
+template BigMultShortLong(n, k, m_out) {
    assert(n <= 126);
    signal input a[k];
    signal input b[k];
@@ -255,11 +255,16 @@ template BigMultShortLong(n, k) {
    for (var i = 0; i < 2 * k - 1; i++) {
       out_poly[i] === a_poly[i] * b_poly[i];
    }
+   component range_checks[2*k-1];
+   for (var i = 0; i < 2*k-1; i ++) {
+        range_checks[i] = Num2Bits(m_out);
+        range_checks[i].in <== out[i];
+   }
 }
 
 // a[i] and b[i] are short unsigned integers
 // out[i] is a long unsigned integer
-template BigMultShortLongUnequal(n, ka, kb) {
+template BigMultShortLongUnequal(n, ka, kb, m_out) {
     assert(n <= 126);
     signal input a[ka];
     signal input b[kb];
@@ -302,6 +307,11 @@ template BigMultShortLongUnequal(n, ka, kb) {
    }
    for (var i = 0; i < ka + kb - 1; i++) {
       out_poly[i] === a_poly[i] * b_poly[i];
+   }
+    component range_checks[ka+kb-1];
+    for (var i = 0; i < ka+kb-1; i ++) {
+        range_checks[i] = Num2Bits(m_out);
+        range_checks[i].in <== out[i];
    }
 }
 
@@ -361,7 +371,8 @@ template BigMult(n, k) {
     signal input b[k];
     signal output out[2 * k];
 
-    component mult = BigMultShortLong(n, k);
+    var LOGK = log_ceil(k);
+    component mult = BigMultShortLong(n, k, 2*n + LOGK);
     for (var i = 0; i < k; i++) {
         mult.a[i] <== a[i];
         mult.b[i] <== b[i];
@@ -751,7 +762,7 @@ template CheckCarryToZero(n, m, k) {
 //      where r[i] represented as k registers with r[i][j] in [0, 2^n) 
 // Output has k registers where in[i] * X^i is replaced by sum_j in[i] * r[i][j] * X^j
 // if in[i] in (-B, B) for all i, then out[i] < (-2^n * B * (m+1), 2^n * B * (m+1))
-template PrimeReduce(n, k, m, p){
+template PrimeReduce(n, k, m, p, m_out){
     signal input in[m+k]; 
     signal output out[k];
 
@@ -787,6 +798,11 @@ template PrimeReduce(n, k, m, p){
             out_sum[j] += in[i+k] * r[i][j]; // linear constraint 
     for(var i=0; i<k; i++)
         out[i] <== out_sum[i]; 
+    component range_checks[k];
+    for (var i = 0; i < k; i++) {
+        range_checks[i] = Num2Bits(m_out+1);
+        range_checks[i].in <== out[i] + (1 << m_out);
+    }
 }
 
 // a[i][j], b[j][j] are short unsigned integers
@@ -943,7 +959,7 @@ template BigMultShortLong2DUnequal(n, ka, kb, la, lb) {
 // computed without carrying 
 // we keep track of "positives" and "negatives" since circom isn't able to 
 // if all registers of a, b are in [0, B) then out has registers in [0, 2*(k+1)*B^2 )
-template BigMultNoCarry(n, k){
+template BigMultNoCarry(n, k, m_out){
     signal input a[2][k];
     signal input b[2][k];
     signal output out[2][2*k-1];
@@ -952,8 +968,9 @@ template BigMultNoCarry(n, k){
     // assert( 2n + 1 + log(k+1) < 254 );
 
     component ab[2][2];
+    var LOGK = log_ceil(k);
     for(var i=0; i<2; i++)for(var j=0; j<2; j++){
-        ab[i][j] = BigMultShortLong(n, k); 
+        ab[i][j] = BigMultShortLong(n, k, 2*n + LOGK); 
         for(var l=0; l<k; l++){
             ab[i][j].a[l] <== a[i][l];
             ab[i][j].b[l] <== b[j][l];
@@ -964,10 +981,17 @@ template BigMultNoCarry(n, k){
         out[0][j] <== ab[0][0].out[j] + ab[1][1].out[j];
         out[1][j] <== ab[0][1].out[j] + ab[1][0].out[j];
     }
+    component range_checks[2][2*k-1];
+    for (var i = 0; i < 2; i ++) {
+        for (var j = 0; j < 2*k - 1; j ++) {
+            range_checks[i][j] = Num2Bits(m_out);
+            range_checks[i][j].in <== out[i][j];
+        }
+    }
 }
 
 
-template BigMultNoCarryUnequal(n, ka, kb){
+template BigMultNoCarryUnequal(n, ka, kb, m_out){
     signal input a[2][ka];
     signal input b[2][kb];
     signal output out[2][ka+kb-1];
@@ -977,7 +1001,7 @@ template BigMultNoCarryUnequal(n, ka, kb){
 
     component ab[2][2];
     for(var i=0; i<2; i++)for(var j=0; j<2; j++){
-        ab[i][j] = BigMultShortLongUnequal(n, ka, kb); 
+        ab[i][j] = BigMultShortLongUnequal(n, ka, kb, m_out); 
         for(var l=0; l<ka; l++)
             ab[i][j].a[l] <== a[i][l];
         for(var l=0; l<kb; l++)
@@ -987,5 +1011,12 @@ template BigMultNoCarryUnequal(n, ka, kb){
     for(var j=0; j<ka+kb-1; j++){
         out[0][j] <== ab[0][0].out[j] + ab[1][1].out[j];
         out[1][j] <== ab[0][1].out[j] + ab[1][0].out[j];
+    }
+    component range_checks[2][ka+kb-1];
+    for (var i = 0; i < 2; i ++) {
+        for (var j = 0; j < ka+kb - 1; j ++) {
+            range_checks[i][j] = Num2Bits(m_out);
+            range_checks[i][j].in <== out[i][j];
+        }
     }
 }

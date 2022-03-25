@@ -504,7 +504,7 @@ template MillerLoop1(n, k, b, r, q){
                 Pintermed[i][j][idx] <== P[j][idx];
         }else{
             // compute fdouble[i] = f[i+1]^2 * l_{Pintermed[i+1], Pintermed[i+1]}(Q) 
-            square[i] = Fp12MultiplyNoCarry(n, k); // 6 x 4 x 2k-1 registers in [0, 12 * k * 2^{2n} )
+            square[i] = Fp12MultiplyNoCarry(n, k, 2*n + 4 + LOGK); // 6 x 4 x 2k-1 registers in [0, 12 * k * 2^{2n} )
             for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
                 square[i].a[l][j][idx] <== f[i+1][l][j][idx];
                 square[i].a[l][j+2][idx] <== 0;
@@ -518,14 +518,15 @@ template MillerLoop1(n, k, b, r, q){
             for(var eps=0; eps<2; eps++)for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
                 line[i].Q[eps][l][j][idx] <== Q[eps][l][j][idx];
 
-            nocarry[i] = Fp12MultiplyNoCarryUnequal(n, 2*k-1, k); // 6 x 4 x 3k-2 registers in [0, 144 * k^2 * 2^{3n} ) 
+            var logc2 = log_ceil(144 * k * k);
+            nocarry[i] = Fp12MultiplyNoCarryUnequal(n, 2*k-1, k, logc2 + 3*n); // 6 x 4 x 3k-2 registers in [0, 144 * k^2 * 2^{3n} ) 
             for(var l=0; l<6; l++)for(var j=0; j<4; j++)for(var idx=0; idx<2*k-1; idx++)
                 nocarry[i].a[l][j][idx] <== square[i].out[l][j][idx];
             for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
                 nocarry[i].b[l][j][idx] <== line[i].out[l][j][idx];
                 nocarry[i].b[l][j+2][idx] <== 0;
             }
-            compress[i] = Fp12Compress(n, k, 2*k-2, q); // 6 x 4 x k registers in [0, 144 * k^2 * (2k-1) * 2^{4n} )
+            compress[i] = Fp12Compress(n, k, 2*k-2, q, logc + 1 + 4*n); // 6 x 4 x k registers in [0, 144 * k^2 * (2k-1) * 2^{4n} )
             for(var l=0; l<6; l++)for(var j=0; j<4; j++)for(var idx=0; idx<3*k-2; idx++)
                 compress[i].in[l][j][idx] <== nocarry[i].out[l][j][idx];
 
@@ -600,22 +601,12 @@ template Fp12MultiplyWithLineEqual(n, k, kg, overflowg, q){
     signal input Q[2][6][2][k];
     signal output out[6][2][k];
 
-    component line = LineFunctionEqualNoCarry(n, k); // 6 x 4 x (3k - 2) registers in [0, 2^{3n + 2log(k) + 2})
+    var LOGK = log_ceil(k);
+    component line = LineFunctionEqualNoCarry(n, k, 3*n + 2*LOGK + 2); // 6 x 4 x (3k - 2) registers in [0, 2^{3n + 2log(k) + 2})
     for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++)
         line.P[l][idx] <== P[l][idx];
     for(var l=0; l<2; l++)for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         line.Q[l][i][j][idx] <== Q[l][i][j][idx];
-    
-    component mult = Fp12MultiplyNoCarryUnequal(n, kg, 3*k - 2); // 3k + kg - 3 registers in [0, 12 * min(kg, 3k - 2) * 2^{overflowg + 3n + 2log(k) + 2} )
-    
-    for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<kg; idx++)
-        mult.a[i][j][idx] <== g[i][j][idx];
-    for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<3*k-2; idx++)
-        mult.b[i][j][idx] <== line.out[i][j][idx];
-
-    component reduce = Fp12Compress(n, k, 2*k + kg - 3, q); // k registers in [0, 12 * (2k + kg - 2) * min(kg, 3k - 2) * 2^{overflowg + 4n + 2log(k) + 2} )
-    for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<3*k + kg - 3; idx++)
-        reduce.in[i][j][idx] <== mult.out[i][j][idx];
 
     var mink;
     if(kg < 3*k - 2)
@@ -623,8 +614,18 @@ template Fp12MultiplyWithLineEqual(n, k, kg, overflowg, q){
     else
         mink = 3*k - 2;
     var logc = log_ceil(12 * (2*k + kg - 2) * mink * k * k);
-    
     assert( overflowg + 4*n + logc + 2 < 252 );
+    var log2kkg = log_ceil ( 2*k + kg - 2);
+    component mult = Fp12MultiplyNoCarryUnequal(n, kg, 3*k - 2, overflowg + 3*n + logc + 2 - log2kkg); // 3k + kg - 3 registers in [0, 12 * min(kg, 3k - 2) * 2^{overflowg + 3n + 2log(k) + 2} )
+    
+    for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<kg; idx++)
+        mult.a[i][j][idx] <== g[i][j][idx];
+    for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<3*k-2; idx++)
+        mult.b[i][j][idx] <== line.out[i][j][idx];
+    component reduce = Fp12Compress(n, k, 2*k + kg - 3, q, overflowg + 4*n + logc + 2); // k registers in [0, 12 * (2k + kg - 2) * min(kg, 3k - 2) * 2^{overflowg + 4n + 2log(k) + 2} )
+    for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<3*k + kg - 3; idx++)
+        reduce.in[i][j][idx] <== mult.out[i][j][idx];
+
     component carry = Fp12CarryModP(n, k, overflowg + 4*n + logc + 2, q);
 
     for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<k; idx++)
@@ -681,7 +682,7 @@ template MillerLoop2(n, k, b, r, q){
                 Pintermed[i][j][idx] <== P[j][idx];
         }else{
             // compute fdouble[i] = f[i+1]^2 * l_{Pintermed[i+1], Pintermed[i+1]}(Q) 
-            square[i] = Fp12MultiplyNoCarry(n, k); // 2k-1 registers in [0, 12 * k * 2^{2n} )
+            square[i] = Fp12MultiplyNoCarry(n, k, 2*n + LOGK + 4); // 2k-1 registers in [0, 12 * k * 2^{2n} )
             for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
                 square[i].a[l][j][idx] <== f[i+1][l][j][idx];
                 square[i].a[l][j+2][idx] <== 0;
@@ -748,4 +749,3 @@ template MillerLoop2(n, k, b, r, q){
         out[l][j][idx] <== f[0][l][j][idx];
     
 }
-

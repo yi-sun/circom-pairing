@@ -37,7 +37,7 @@ template PointOnLine(n, k, p) {
     assert(3*n + 2*LOGK + 2 < 253);
 
     // AKA check point on line 
-    component left = BigMultNoCarry(n, k); // 2k-1 registers in [0, k*2^{2n+1})
+    component left = BigMultNoCarry(n, k, 2*n + 2*LOGK + 2); // 2k-1 registers in [0, k*2^{2n+1})
     for(var i = 0; i < k; i++){
         left.a[0][i] <== in[0][1][i] + in[2][1][i];
         left.a[1][i] <== 0;
@@ -45,7 +45,7 @@ template PointOnLine(n, k, p) {
         left.b[1][i] <== in[0][0][i]; 
     }
 
-    component right = BigMultNoCarry(n, k); // 2k-1 registers in [0, k*2^{2n+1})
+    component right = BigMultNoCarry(n, k, 2*n + 2*LOGK + 2); // 2k-1 registers in [0, k*2^{2n+1})
     for(var i = 0; i < k; i++){
         right.a[0][i] <== in[1][1][i];
         right.a[1][i] <== in[0][1][i];
@@ -55,7 +55,7 @@ template PointOnLine(n, k, p) {
     
     component diff_red[2]; 
     for(var j=0; j<2; j++){
-        diff_red[j] = PrimeReduce(n, k, k-1, p);
+        diff_red[j] = PrimeReduce(n, k, k-1, p, 3*n + 2*LOGK + 2);
         for(var i=0; i<2*k-1; i++)
             diff_red[j].in[i] <== left.out[j][i] + right.out[j^1][i];  
     }
@@ -76,8 +76,8 @@ template PointOnCurve(n, k, a, b, p){
     assert(4*n + 3*LOGK + 2 < 253);
 
     // compute x^3, y^2 
-    component x_sq = BigMultShortLong(n, k); // 2k-1 registers in [0, k*2^{2n}) 
-    component y_sq = BigMultShortLong(n, k); // 2k-1 registers in [0, k*2^{2n}) 
+    component x_sq = BigMultShortLong(n, k, 2*n + LOGK); // 2k-1 registers in [0, k*2^{2n}) 
+    component y_sq = BigMultShortLong(n, k, 2*n + LOGK); // 2k-1 registers in [0, k*2^{2n}) 
     for(var i=0; i<k; i++){
         x_sq.a[i] <== in[0][i];
         x_sq.b[i] <== in[0][i];
@@ -85,14 +85,14 @@ template PointOnCurve(n, k, a, b, p){
         y_sq.a[i] <== in[1][i];
         y_sq.b[i] <== in[1][i];
     }
-    component x_cu = BigMultShortLongUnequal(n, 2*k-1, k); // 3k-2 registers in [0, k^2 * 2^{3n}) 
+    component x_cu = BigMultShortLongUnequal(n, 2*k-1, k, 3*n + 2*LOGK + 2); // 3k-2 registers in [0, k^2 * 2^{3n}) 
     for(var i=0; i<2*k-1; i++)
         x_cu.a[i] <== x_sq.out[i];
     for(var i=0; i<k; i++)
         x_cu.b[i] <== in[0][i];
 
     // x_cu + a x + b has 3k-2 registers < k^2 * 2^{3n} + 2^{2n} + 2^n < 2^{3n + 2LOGK + 1} 
-    component cu_red = PrimeReduce(n, k, 2*k-2, p);
+    component cu_red = PrimeReduce(n, k, 2*k-2, p, 4*n + 3*LOGK + 2);
     for(var i=0; i<3*k-2; i++){
         if(i == 0)
             cu_red.in[i] <== x_cu.out[i] + a * in[0][i] + b; 
@@ -105,7 +105,7 @@ template PointOnCurve(n, k, a, b, p){
     }
     // cu_red has k registers < (2k-1)*2^{4n + 2LOGK + 1} < 2^{4n + 3LOGK + 2}
 
-    component y_sq_red = PrimeReduce(n, k, k-1, p);
+    component y_sq_red = PrimeReduce(n, k, k-1, p, 4*n + 3*LOGK + 2);
     for(var i=0; i<2*k-1; i++)
         y_sq_red.in[i] <== y_sq.out[i]; 
 
@@ -127,12 +127,12 @@ template PointOnTangent(n, k, a, p){
     
     var LOGK = log_ceil(k);
     assert(4*n + 3*LOGK + 3 < 253);
-    component x_sq = BigMultShortLong(n, k); // 2k-1 registers in [0, k*2^{2n}) 
+    component x_sq = BigMultShortLong(n, k, 2*n + LOGK); // 2k-1 registers in [0, k*2^{2n}) 
     for(var i=0; i<k; i++){
         x_sq.a[i] <== in[0][0][i];
         x_sq.b[i] <== in[0][0][i];
     }
-    component right = BigMultNoCarryUnequal(n, 2*k-1, k); // 3k-2 registers in [0, 3*k^2*2^{3n} + k*2^{2n} ) 
+    component right = BigMultNoCarryUnequal(n, 2*k-1, k, 3*n + 2*LOGK + 2); // 3k-2 registers in [0, 3*k^2*2^{3n} + k*2^{2n} ) 
     for(var i=0; i<2*k-1; i++){
         if(i == 0)
             right.a[0][i] <== 3 * x_sq.out[i] + a; // registers in [0, 3*k*2^{2n} + 2^n )  
@@ -145,7 +145,7 @@ template PointOnTangent(n, k, a, p){
         right.b[1][i] <== in[1][0][i]; 
     }
     
-    component left = BigMultShortLong(n, k); // 2k-1 registers in [0, k * 2^{2n+2})
+    component left = BigMultShortLong(n, k, 2*n + 2 + LOGK); // 2k-1 registers in [0, k * 2^{2n+2})
     for(var i=0; i<k; i++){
         left.a[i] <== 2*in[0][1][i];
         left.b[i] <== in[0][1][i] + in[1][1][i];  
@@ -154,7 +154,7 @@ template PointOnTangent(n, k, a, p){
     // prime reduce right - left 
     component diff_red[2]; 
     for(var i=0; i<2; i++)
-        diff_red[i] = PrimeReduce(n, k, 2*k-2, p);
+        diff_red[i] = PrimeReduce(n, k, 2*k-2, p, 4*n + 3*LOGK + 3);
     for(var i=0; i<3*k-2; i++){
         diff_red[0].in[i] <== right.out[0][i]; 
         if(i < 2*k-1) 
@@ -212,8 +212,8 @@ template EllipticCurveAddUnequal(n, k, p) { // changing q's to p's for my sanity
     
     // constrain x_3 by CUBIC (x_1 + x_2 + x_3) * (x_2 - x_1)^2 - (y_2 - y_1)^2 = 0 mod p
     
-    component dx_sq = BigMultNoCarry(n, k); // 2k-1 registers in [0, k*2^{2n+1} )
-    component dy_sq = BigMultNoCarry(n, k); // 2k-1 registers in [0, k*2^{2n+1} )
+    component dx_sq = BigMultNoCarry(n, k, 2*n+1+LOGK); // 2k-1 registers in [0, k*2^{2n+1} )
+    component dy_sq = BigMultNoCarry(n, k, 2*n+1+LOGK); // 2k-1 registers in [0, k*2^{2n+1} )
     for(var i = 0; i < k; i++){
         dx_sq.a[0][i] <== b[0][i];
         dx_sq.a[1][i] <== a[0][i];
@@ -227,7 +227,7 @@ template EllipticCurveAddUnequal(n, k, p) { // changing q's to p's for my sanity
     } 
 
     // x_1 + x_2 + x_3 has registers in [0, 3*2^n) 
-    component cubic = BigMultNoCarry(n, 2*k-1); // 3k-2 registers in [0, 3 * k^2 * 2^{3n+1} ) 
+    component cubic = BigMultNoCarry(n, 2*k-1, 3*n+4+2*LOGK); // 3k-2 registers in [0, 3 * k^2 * 2^{3n+1} ) 
     for(var i=0; i<2*k-1; i++){
         if(i < k)
             cubic.a[0][i] <== a[0][i] + b[0][i] + out[0][i]; 
@@ -241,7 +241,7 @@ template EllipticCurveAddUnequal(n, k, p) { // changing q's to p's for my sanity
 
     component cubic_red[2]; 
     for(var j=0; j<2; j++){
-        cubic_red[j] = PrimeReduce(n, k, 2*k-2, p);
+        cubic_red[j] = PrimeReduce(n, k, 2*k-2, p, 4*n + 3*LOGK + 4);
         for(var i=0; i<2*k-1; i++)
             cubic_red[j].in[i] <== cubic.out[j][i] + dy_sq.out[j ^ 1][i]; // registers in [0, 3*k^2*2^{3n+1} + k*2^{2n+1} < 2^{3n+2LOGK+3} )
         // j ^ 1 flips the bit so has the effect of subtracting  
@@ -357,15 +357,16 @@ template EllipticCurveDouble(n, k, a, b, p) {
 // Then all registers of out in [0, 2^{2n + log(k) + 2} )
 //  more specifically: registers out[0][0 or 2][idx] are in [0, 3*2^{2n + log(k)} )
 //                     all other registers are in [0, 2^{2n + log(k) + 1}) 
-template LineFunctionUnequalNoCarry(n, k){
+template LineFunctionUnequalNoCarry(n, k, m_out){
     signal input P[2][2][k];
     signal input Q[2][6][2][k];
     signal output out[6][4][2*k-1];
 
     // (y_1 - y_2) X
-    component Xmult = Fp12ScalarMultiplyNoCarry(n, k); // registers in [0, k*2^{2n} )
+    var LOGK = log_ceil(k);
+    component Xmult = Fp12ScalarMultiplyNoCarry(n, k, 2*n + LOGK); // registers in [0, k*2^{2n} )
     // (x_2 - x_1) Y
-    component Ymult = Fp12ScalarMultiplyNoCarry(n, k);
+    component Ymult = Fp12ScalarMultiplyNoCarry(n, k, 2*n + LOGK);
     for(var i=0; i<k; i++){
         Xmult.a[0][i] <== P[0][1][i];
         Xmult.a[1][i] <== P[1][1][i];
@@ -381,8 +382,8 @@ template LineFunctionUnequalNoCarry(n, k){
         Ymult.b[i][j+2][idx] <== 0;
     } 
     
-    component x1y2 = BigMultShortLong(n, k); // registers in [0, k*2^{2n}) 
-    component x2y1 = BigMultShortLong(n, k);
+    component x1y2 = BigMultShortLong(n, k, 2*n + LOGK); // registers in [0, k*2^{2n}) 
+    component x2y1 = BigMultShortLong(n, k, 2*n + LOGK);
     for(var i=0; i<k; i++){
         x1y2.a[i] <== P[0][0][i]; 
         x1y2.b[i] <== P[1][1][i];
@@ -400,6 +401,15 @@ template LineFunctionUnequalNoCarry(n, k){
         }else 
             out[i][j][idx] <== Xmult.out[i][j][idx] + Ymult.out[i][j][idx]; // register in [0, k*2^{2n+1} )
     }
+    component range_checks[6][4][2*k-1];
+    for (var outer = 0; outer < 6; outer ++) {
+        for (var i = 0; i < 4; i ++) {
+            for (var j = 0; j < 2*k-1; j ++) {
+                range_checks[outer][i][j] = Num2Bits(m_out);
+                range_checks[outer][i][j].in <== out[outer][i][j];
+            }
+        }
+    }
 }
 
 // Assuming curve is of form Y^2 = X^3 + b for now (a = 0) for better register bounds 
@@ -412,19 +422,20 @@ template LineFunctionUnequalNoCarry(n, k){
 // We evaluate out without carries 
 // If P, Q have registers in [0, 2^n) 
 // Then out has registers in [0, 3k^2*2^{3n} + 2k*2^{2n} < 2^{3n + 2log(k) + 2})
-template LineFunctionEqualNoCarry(n, k){
+template LineFunctionEqualNoCarry(n, k, m_out){
     signal input P[2][k]; 
     signal input Q[2][6][2][k];
     signal output out[6][4][3*k-2];
+    var LOGK = log_ceil(k);
 
-    component x_sq3 = BigMultShortLong(n, k); // 2k-1 registers in [0, 3*k*2^{2n} )
+    component x_sq3 = BigMultShortLong(n, k, 2*n + 2 + LOGK); // 2k-1 registers in [0, 3*k*2^{2n} )
     for(var i=0; i<k; i++){
         x_sq3.a[i] <== 3*P[0][i];
         x_sq3.b[i] <== P[0][i];
     } 
     
     // 3 x^2 (-X + x)
-    component Xmult = Fp12ScalarMultiplyNoCarryUnequal(n, 2*k-1, k); // 3k-2 registers in [0, 3 * k^2 * 2^{3n})
+    component Xmult = Fp12ScalarMultiplyNoCarryUnequal(n, 2*k-1, k, 3*n + 2*LOGK + 2); // 3k-2 registers in [0, 3 * k^2 * 2^{3n})
     for(var idx=0; idx<2*k-1; idx++){
         Xmult.a[0][idx] <== x_sq3.out[idx];
         Xmult.a[1][idx] <== 0;
@@ -438,7 +449,7 @@ template LineFunctionEqualNoCarry(n, k){
     }
 
     // 2 y (Y-y)
-    component Ymult = Fp12ScalarMultiplyNoCarry(n, k); // 2k-1 registers in [0, 2*k*2^{2n}) 
+    component Ymult = Fp12ScalarMultiplyNoCarry(n, k, 2*n + LOGK + 1); // 2k-1 registers in [0, 2*k*2^{2n}) 
     for(var idx=0; idx < k; idx++){
         Ymult.a[0][idx] <== 2*P[1][idx];
         Ymult.a[1][idx] <== 0;
@@ -457,6 +468,15 @@ template LineFunctionEqualNoCarry(n, k){
         else
             out[i][j][idx] <== Xmult.out[i][j][idx];
     }
+    component range_checks[6][4][3*k-2];
+    for (var outer = 0; outer < 6; outer ++) {
+        for (var i = 0; i < 4; i ++) {
+            for (var j = 0; j < 3*k-2; j ++) {
+                range_checks[outer][i][j] = Num2Bits(m_out);
+                range_checks[outer][i][j].in <== out[outer][i][j];
+            }
+        }
+    }
 }
 
 // Inputs:
@@ -471,8 +491,9 @@ template LineFunctionUnequal(n, k, q) {
     signal input Q[2][6][2][k];
 
     signal output out[6][2][k];
+    var LOGK = log_ceil(k);
 
-    component nocarry = LineFunctionUnequalNoCarry(n, k);
+    component nocarry = LineFunctionUnequalNoCarry(n, k, 2 + 2 * n + LOGK);
     for (var i = 0; i < 2; i++) {
 	for (var j = 0; j < 2; j++) {
 	    for (var idx = 0; idx < k; idx++) {
@@ -490,11 +511,10 @@ template LineFunctionUnequal(n, k, q) {
 	    }
 	}
     }
-    
     component reduce[6][4];
     for (var i = 0; i < 6; i++) {
 	for (var j = 0; j < 4; j++) {
-	    reduce[i][j] = PrimeReduce(n, k, k - 1, q);
+	    reduce[i][j] = PrimeReduce(n, k, k - 1, q, 3 * n + 2 * LOGK + 2);
 	}
 
 	for (var j = 0; j < 4; j++) {
@@ -504,7 +524,6 @@ template LineFunctionUnequal(n, k, q) {
 	}	
     }
 
-    var LOGK = log_ceil(k);
     // max overflow register size is 3 * k * 2^{3n + log(k)}
     component carry = Fp12CarryModP(n, k, 3 * n + 2 * LOGK + 2, q);
     for (var i = 0; i < 6; i++) {
@@ -538,7 +557,8 @@ template LineFunctionEqual(n, k, q) {
 
     signal output out[6][2][k];
 
-    component nocarry = LineFunctionEqualNoCarry(n, k);
+    var LOGK = log_ceil(k);
+    component nocarry = LineFunctionEqualNoCarry(n, k, 3*n + 2*LOGK + 2);
     for (var i = 0; i < 2; i++) {
 	for (var idx = 0; idx < k; idx++) {
 	    nocarry.P[i][idx] <== P[i][idx];
@@ -554,11 +574,10 @@ template LineFunctionEqual(n, k, q) {
 	    }
 	}
     }
-    
     component reduce[6][4];
     for (var i = 0; i < 6; i++) {
         for (var j = 0; j < 4; j++) {
-            reduce[i][j] = PrimeReduce(n, k, 2 * k - 2, q);
+            reduce[i][j] = PrimeReduce(n, k, 2 * k - 2, q, 4 * n + 3 * LOGK + 3);
         }
 
         for (var j = 0; j < 4; j++) {
@@ -568,7 +587,6 @@ template LineFunctionEqual(n, k, q) {
         }	
     }
 
-    var LOGK = log_ceil(k);
     // max overflow register size is (2k - 1) * 2^{4n + 2 * log(k) + 2}
     component carry = Fp12CarryModP(n, k, 4 * n + 3 * LOGK + 3, q);
     for (var i = 0; i < 6; i++) {
@@ -603,31 +621,31 @@ template Fp12MultiplyWithLineUnequal(n, k, kg, overflowg, q){
     signal input Q[2][6][2][k];
     signal output out[6][2][k];
 
-    component line = LineFunctionUnequalNoCarry(n, k); // 6 x 4 x 2k - 1 registers in [0, 2^{2n + log(k) + 2})
+    var LOGK = log_ceil(k);
+    component line = LineFunctionUnequalNoCarry(n, k, 2*n + LOGK + 2); // 6 x 4 x 2k - 1 registers in [0, 2^{2n + log(k) + 2})
     for(var l=0; l<2; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         line.P[l][j][idx] <== P[l][j][idx];
     for(var l=0; l<2; l++)for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         line.Q[l][i][j][idx] <== Q[l][i][j][idx];
     
-    component mult = Fp12MultiplyNoCarryUnequal(n, kg, 2*k - 1); // 6 x 4 x 2k + kg - 2 registers in [0, 12 * min(kg, 2k - 1) * 2^{overflowg + 2n + log(k) + 2} )
-    
-    for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<kg; idx++)
-        mult.a[i][j][idx] <== g[i][j][idx];
-    for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<2*k-1; idx++)
-        mult.b[i][j][idx] <== line.out[i][j][idx];
-
-    component reduce = Fp12Compress(n, k, k + kg - 2, q); // 6 x 4 x k registers in [0, 12 * (k + kg - 1) * min(kg, 2k - 1) * 2^{overflowg + 3n + log(k) + 2} )
-    for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<2*k + kg - 2; idx++)
-        reduce.in[i][j][idx] <== mult.out[i][j][idx];
-
     var mink;
     if(kg < 2*k - 1)
         mink = kg;
     else
         mink = 2*k - 1;
-    var logc = log_ceil(12 * (k + kg - 1) * mink * k);
+    var logc2 = log_ceil(12 * mink * k);
+    component mult = Fp12MultiplyNoCarryUnequal(n, kg, 2*k - 1, overflowg + 2*n + logc2 + 2); // 6 x 4 x 2k + kg - 2 registers in [0, 12 * min(kg, 2k - 1) * 2^{overflowg + 2n + log(k) + 2} )
     
+    for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<kg; idx++)
+        mult.a[i][j][idx] <== g[i][j][idx];
+    for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<2*k-1; idx++)
+        mult.b[i][j][idx] <== line.out[i][j][idx];
+    var logc = log_ceil(12 * (k + kg - 1) * mink * k);
     assert( overflowg + 3*n + logc + 2 < 252 );
+    component reduce = Fp12Compress(n, k, k + kg - 2, q, overflowg + 3*n + logc + 2); // 6 x 4 x k registers in [0, 12 * (k + kg - 1) * min(kg, 2k - 1) * 2^{overflowg + 3n + log(k) + 2} )
+    for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<2*k + kg - 2; idx++)
+        reduce.in[i][j][idx] <== mult.out[i][j][idx];
+    
     component carry = Fp12CarryModP(n, k, overflowg + 3*n + logc + 2, q);
 
     for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<k; idx++)
@@ -696,7 +714,7 @@ template MillerLoop(n, k, b, x, q){
                 Pintermed[i][j][idx] <== P[j][idx];
         }else{
             // compute fdouble[i] = f[i+1]^2 * l_{Pintermed[i+1], Pintermed[i+1]}(Q) 
-            square[i] = Fp12MultiplyNoCarry(n, k); // 6 x 4 x 2k-1 registers in [0, 12 * k * 2^{2n} )
+            square[i] = Fp12MultiplyNoCarry(n, k, 2*n + 4 + LOGK); // 6 x 4 x 2k-1 registers in [0, 12 * k * 2^{2n} )
             for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
                 square[i].a[l][j][idx] <== f[i+1][l][j][idx];
                 square[i].a[l][j+2][idx] <== 0;
@@ -710,14 +728,15 @@ template MillerLoop(n, k, b, x, q){
             for(var eps=0; eps<2; eps++)for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
                 line[i].Q[eps][l][j][idx] <== Q[eps][l][j][idx];
 
-            nocarry[i] = Fp12MultiplyNoCarryUnequal(n, 2*k-1, k); // 6 x 4 x 3k-2 registers in [0, 144 * k^2 * 2^{3n} ) 
+            var logc2 = log_ceil(144 * k * k);
+            nocarry[i] = Fp12MultiplyNoCarryUnequal(n, 2*k-1, k, logc2 + 3*n); // 6 x 4 x 3k-2 registers in [0, 144 * k^2 * 2^{3n} ) 
             for(var l=0; l<6; l++)for(var j=0; j<4; j++)for(var idx=0; idx<2*k-1; idx++)
                 nocarry[i].a[l][j][idx] <== square[i].out[l][j][idx];
             for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
                 nocarry[i].b[l][j][idx] <== line[i].out[l][j][idx];
                 nocarry[i].b[l][j+2][idx] <== 0;
             }
-            compress[i] = Fp12Compress(n, k, 2*k-2, q); // 6 x 4 x k registers in [0, 144 * k^2 * (2k-1) * 2^{4n} )
+            compress[i] = Fp12Compress(n, k, 2*k-2, q, logc + 1 + 4*n); // 6 x 4 x k registers in [0, 144 * k^2 * (2k-1) * 2^{4n} )
             for(var l=0; l<6; l++)for(var j=0; j<4; j++)for(var idx=0; idx<3*k-2; idx++)
                 compress[i].in[l][j][idx] <== nocarry[i].out[l][j][idx];
 
@@ -795,7 +814,7 @@ template MillerLoopOptimized(n, k, q){
     // fx[i] = f_{x^{i+1}} 
     component fx[4]; 
     for(var e=0; e<4; e++){
-        fx[e] = MillerLoopSparse(n, k, b, x, q);
+        fx[e] = MillerLoop(n, k, b, x, q);
         if( e == 0 ){
             for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
                 if(i == 0 && j == 0 && idx == 0)
@@ -830,7 +849,8 @@ template MillerLoopOptimized(n, k, q){
         fx4l.Q[l][i][j][idx] <== Q[l][i][j][idx];
     
     // f_{x^2} * l_{r,x^2}(P,Q) where l_{r,x^2}(P,Q) = Q.x - ([x^2]P).x 
-    component fx2l = Fp12MultiplyNoCarryCompress(n, k, q); // registers in [0, 12*k^2*2^{3n} )
+    var LOGK = log_ceil(k);
+    component fx2l = Fp12MultiplyNoCarryCompress(n, k, q, n, 3*n + 2*LOGK + 4); // registers in [0, 12*k^2*2^{3n} )
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
         fx2l.a[i][j][idx] <== fx[1].out[i][j][idx];
         fx2l.a[i][j+2][idx] <== 0;
@@ -842,7 +862,6 @@ template MillerLoopOptimized(n, k, q){
             fx2l.b[i][j+2][idx] <== 0;
     }
 
-    var LOGK = log_ceil(k);
     // find fx2l^{-1}. Not going to optimize this for now since it's just one call
     component carry = Fp12CarryModP(n, k, 3*n + 2*LOGK + 4, q);
     for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<k; idx++)
@@ -861,4 +880,3 @@ template MillerLoopOptimized(n, k, q){
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         out[i][j][idx] <== fr.out[i][j][idx];
 }
-
