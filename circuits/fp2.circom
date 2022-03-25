@@ -64,7 +64,7 @@ template Fp2MultiplyNoCarry(n, k, m_out){
     for (var i = 0; i < 4; i ++) {
         for (var j = 0; j < 2*k-1; j ++) {
             range_checks[i][j] = Num2Bits(m_out);
-            range_checks[i][j] <== out[i][j];
+            range_checks[i][j].in <== out[i][j];
         }
     }
 }
