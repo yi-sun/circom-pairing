@@ -1,16 +1,17 @@
 pragma circom 2.0.3;
 
 include "../../circuits/curve.circom";
+include "../../circuits/extra_curve.circom";
 
-component main = MillerLoopOptimized(55, 7, // 4, 
+component main = MillerLoop1(55, 7, 4, 
 /*[36028792723996673,
 20272795337883135,
 9049562129190646,
 21651489585483456,
 31119275314,
 0,
-0],
-[2, 0, 0, 0, 0, 0, 0], */
+0],*/
+[3,0,0,0,0,0,0],
 [35747322042231467,
  36025922209447795,
  1084959616957103,

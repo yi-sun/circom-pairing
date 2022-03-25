@@ -242,7 +242,7 @@ template EllipticCurveAddUnequal4Reg(n, q0, q1, q2, q3) {
 // lamb =  (3 * in[0] ** 2 + a) / (2 * in[1]) % q
 // out[0] = lamb ** 2 - 2 * in[0] % q
 // out[1] = lamb * (in[0] - out[0]) - in[1] % q
-template EllipticCurveDouble(n, k, a, q0, q1, q2, q3) {
+template EllipticCurveDouble0(n, k, a, q0, q1, q2, q3) {
     signal input in[2][k];
 
     signal output out[2][k];
@@ -389,8 +389,8 @@ template LineEqualCoefficients(n, k, q){
     component xsq3 = BigMultShortLong(n, k); // 2k-1 registers [0, 3*k* 2^{2n})
     component ysq = BigMultShortLong(n, k); // 2k-1 registers [0, k*2^{2n}) 
     for(var i=0; i<k; i++){
-        xsq.a[i] <== 3*P[0][i];
-        xsq.b[i] <== P[0][i];
+        xsq3.a[i] <== 3*P[0][i];
+        xsq3.b[i] <== P[0][i];
         
         ysq.a[i] <== P[1][i];
         ysq.b[i] <== P[1][i];

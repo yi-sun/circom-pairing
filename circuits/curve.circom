@@ -422,7 +422,7 @@ template LineFunctionUnequalNoCarry(n, k, m_out){
 //  3 x^2 (-X + x) + 2 y (Y - y)
 // We evaluate out without carries 
 // If P, Q have registers in [0, 2^n) 
-// Then out has registers in [0, 3k^2*2^{3n} + 2k*2^{2n} < 2^{3n + 2log(k) + 2})
+// Then out has registers in [0, 3k^2*2^{3n} + 2k*2^{2n} < (3k + 2/2^n )*k*2^{3n})
 // m_out is the expected max number of bits in the output registers
 template LineFunctionEqualNoCarry(n, k, m_out){
     signal input P[2][k]; 
@@ -576,10 +576,12 @@ template LineFunctionEqual(n, k, q) {
 	    }
 	}
     }
-    component reduce[6][4];
+    
+    var logc = log_ceil((2*k-1)*(3*k+1)*k);
+    component reduce[6][4]; 
     for (var i = 0; i < 6; i++) {
         for (var j = 0; j < 4; j++) {
-            reduce[i][j] = PrimeReduce(n, k, 2 * k - 2, q, 4 * n + 3 * LOGK + 3);
+            reduce[i][j] = PrimeReduce(n, k, 2 * k - 2, q, 4 * n + logc);
         }
 
         for (var j = 0; j < 4; j++) {
@@ -589,8 +591,8 @@ template LineFunctionEqual(n, k, q) {
         }	
     }
 
-    // max overflow register size is (2k - 1) * 2^{4n + 2 * log(k) + 2}
-    component carry = Fp12CarryModP(n, k, 4 * n + 3 * LOGK + 3, q);
+    // max overflow register size is (2k - 1) * (3k+1)* k * 2^{4n}
+    component carry = Fp12CarryModP(n, k, 4 * n + logc, q);
     for (var i = 0; i < 6; i++) {
 	for (var j = 0; j < 4; j++) {
 	    for (var idx = 0; idx < k; idx++) {
@@ -704,6 +706,7 @@ template MillerLoop(n, k, b, x, q){
 
     var LOGK = log_ceil(k);
     var logc = log_ceil(144*k*k*k);
+    var logc2 = log_ceil(144 * k * k);
     assert( 4*n + logc + 1 < 252 );
     
     for(var i=BitLength - 1; i>=0; i--){
@@ -730,7 +733,6 @@ template MillerLoop(n, k, b, x, q){
             for(var eps=0; eps<2; eps++)for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
                 line[i].Q[eps][l][j][idx] <== Q[eps][l][j][idx];
 
-            var logc2 = log_ceil(144 * k * k);
             nocarry[i] = Fp12MultiplyNoCarryUnequal(n, 2*k-1, k, logc2 + 3*n); // 6 x 4 x 3k-2 registers in [0, 144 * k^2 * 2^{3n} ) 
             for(var l=0; l<6; l++)for(var j=0; j<4; j++)for(var idx=0; idx<2*k-1; idx++)
                 nocarry[i].a[l][j][idx] <== square[i].out[l][j][idx];
@@ -838,7 +840,7 @@ template MillerLoopOptimized(n, k, q){
     
     // f_{x^4} * l_{x^4, 1}(P,Q) 
     component fx4l = Fp12MultiplyWithLineUnequal(n, k, k, n, q); 
-    // assert( 4*n + log_ceil(12 * (2*k-1) *k * k) + 2 < 252 );  // need this to run MillerLoopSparse anyways
+    // assert( 4*n + log_ceil(12 * (2*k-1) *k * k) + 2 < 252 );  // need this to run MillerLoop anyways
     for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
         fx4l.g[l][j][idx] <== fx[3].out[l][j][idx];
         fx4l.g[l][j+2][idx] <== 0;

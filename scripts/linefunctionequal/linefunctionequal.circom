@@ -1,8 +1,8 @@
-pragma circom 2.0.2;
+pragma circom 2.0.3;
 
 include "../../circuits/curve.circom";
 
-component main = LineFunctionEqualNoCarry(55, 7, 
+component main = LineFunctionEqual(55, 7, 
 [35747322042231467,
  36025922209447795,
  1084959616957103,
