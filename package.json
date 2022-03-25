@@ -9,6 +9,7 @@
         "build:millerloop2": "cd ./scripts/millerloop && ./build_millerloop_35_11.sh",
         "build:fp12multiply": "cd ./scripts/fp12multiply&& ./build_fp12multiply.sh",
         "build:linefunctionequal": "cd ./scripts/linefunctionequal && ./build_linefunctionequal.sh",
+        "build:tatepairing": "cd ./scripts/tatepairing && ./build_tatepairing.sh",
         "test": "NODE_OPTIONS='--max-old-space-size=560000' mocha -r ts-node/register 'test/**/*.ts'"
     },
     "repository": "git@github.com:yi-sun/circom-pairing.git",

@@ -7,6 +7,7 @@ include "./bigint_func.circom";
 include "./fp.circom";
 include "./fp2.circom";
 include "./fp12.circom";
+include "./bls12_381_func.circom";
 
 // taken from https://zkrepl.dev/?gist=1e0a28ec3cc4967dc0994e30d316a8af
 template IsArrayEqual(k){
@@ -807,7 +808,7 @@ template MillerLoop(n, k, b, x, q){
 //  q has k registers in [0, 2^n)
 //  r is prime
 //  P != O so the order of P in E(Fq) is r, so [i]P != [j]P for i != j in Z/r 
-template MillerLoopOptimized(n, k, q){
+template BLSMillerLoop(n, k, q){
     signal input P[2][k]; 
     signal input Q[2][6][2][k];
     signal output out[6][2][k];

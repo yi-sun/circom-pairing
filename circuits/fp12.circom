@@ -4,7 +4,7 @@ include "bigint.circom";
 include "field_elements_func.circom";
 include "fp.circom";
 include "fp2.circom";
-include "bls12-381_func.circom";
+include "bls12_381_func.circom";
 
 template Fp12FrobeniusMap(n, k, power){
     signal input in[6][2][k];
