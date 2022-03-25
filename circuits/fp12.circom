@@ -93,6 +93,7 @@ template Fp12Add(n, k, p) {
 // b is 6 x 4 x k array representing element (b0 - b2) + (b1 - b3) u of Fp12 keeping track of negatives
 //      where b_i = b[][i][] is 6 x k array
 // out is a*b in Fp12 as 6 x 4 x (2k-1) array
+// m_out is the expected max number of bits in the output registers
 template Fp12ScalarMultiplyNoCarry(n, k, m_out){
     signal input a[2][k];
     signal input b[6][4][k];
@@ -113,7 +114,7 @@ template Fp12ScalarMultiplyNoCarry(n, k, m_out){
             out[i][j+2*eps][idx] <== ab[i][j].out[eps][idx];
 }
 
-
+// m_out is the expected max number of bits in the output registers
 template Fp12ScalarMultiplyNoCarryUnequal(n, ka, kb, m_out){
     signal input a[2][ka];
     signal input b[6][4][kb];
@@ -368,6 +369,7 @@ template Fp12Multiply(n, k, p) {
 //     X_0 + X_1 + W_1 - Z_0 - Z_1 - Y_1 + (Y_0 + Y_1 + X_1 - W_0 - W_1 - Z_1) u
 // The real and imaginary parts are
 //     * length 6 vectors with 2k-1 registers in [0, B_a * B_b * 12 * k)
+// m_out is the expected max number of bits in the output registers
 template Fp12MultiplyNoCarry(n, k, m_out){
     var l = 6;
     signal input a[l][4][k];
@@ -476,6 +478,7 @@ template Fp12MultiplyNoCarry(n, k, m_out){
 
 // The real and imaginary parts are
 //     * length 6 vectors with 2k-1 registers in [0, B_a * B_b * 12 * min(ka, kb) )
+// m_out is the expected max number of bits in the output registers
 template Fp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
     var l = 6;
     signal input a[l][4][ka];
@@ -584,6 +587,7 @@ template Fp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
     }
 }
 
+// m_out is the expected max number of bits in the output registers
 template Fp12Compress(n, k, m, p, m_out){
     var l = 6;
     signal input in[l][4][k+m];
@@ -609,6 +613,8 @@ template Fp12Compress(n, k, m, p, m_out){
 // Our answer is the prime reduction of output of Fp12MultiplyNoCarry to
 //     * length 6 vectors with k registers in [0, B_a * B_b * 2^n * 12 * k^2 )
 // p is length k
+// m_in is the expected max number of bits in the input registers (necessary for some intermediate overflow validation)
+// m_out is the expected max number of bits in the output registers
 template Fp12MultiplyNoCarryCompress(n, k, p, m_in, m_out) {
     var l = 6;
     signal input a[l][4][k];

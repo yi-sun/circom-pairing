@@ -211,6 +211,7 @@ template BigAdd(n, k) {
 
 // a[i] and b[i] are short unsigned integers
 // out[i] is a long unsigned integer
+// m_out is the expected max number of bits in the output registers
 template BigMultShortLong(n, k, m_out) {
    assert(n <= 126);
    signal input a[k];
@@ -264,6 +265,7 @@ template BigMultShortLong(n, k, m_out) {
 
 // a[i] and b[i] are short unsigned integers
 // out[i] is a long unsigned integer
+// m_out is the expected max number of bits in the output registers
 template BigMultShortLongUnequal(n, ka, kb, m_out) {
     assert(n <= 126);
     signal input a[ka];
@@ -762,6 +764,7 @@ template CheckCarryToZero(n, m, k) {
 //      where r[i] represented as k registers with r[i][j] in [0, 2^n) 
 // Output has k registers where in[i] * X^i is replaced by sum_j in[i] * r[i][j] * X^j
 // if in[i] in (-B, B) for all i, then out[i] < (-2^n * B * (m+1), 2^n * B * (m+1))
+// m_out is the expected max number of bits in the output registers
 template PrimeReduce(n, k, m, p, m_out){
     signal input in[m+k]; 
     signal output out[k];
@@ -959,6 +962,7 @@ template BigMultShortLong2DUnequal(n, ka, kb, la, lb) {
 // computed without carrying 
 // we keep track of "positives" and "negatives" since circom isn't able to 
 // if all registers of a, b are in [0, B) then out has registers in [0, 2*(k+1)*B^2 )
+// m_out is the expected max number of bits in the output registers
 template BigMultNoCarry(n, k, m_out){
     signal input a[2][k];
     signal input b[2][k];
@@ -990,7 +994,7 @@ template BigMultNoCarry(n, k, m_out){
     }
 }
 
-
+// m_out is the expected max number of bits in the output registers
 template BigMultNoCarryUnequal(n, ka, kb, m_out){
     signal input a[2][ka];
     signal input b[2][kb];

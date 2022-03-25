@@ -357,6 +357,7 @@ template EllipticCurveDouble(n, k, a, b, p) {
 // Then all registers of out in [0, 2^{2n + log(k) + 2} )
 //  more specifically: registers out[0][0 or 2][idx] are in [0, 3*2^{2n + log(k)} )
 //                     all other registers are in [0, 2^{2n + log(k) + 1}) 
+// m_out is the expected max number of bits in the output registers
 template LineFunctionUnequalNoCarry(n, k, m_out){
     signal input P[2][2][k];
     signal input Q[2][6][2][k];
@@ -422,6 +423,7 @@ template LineFunctionUnequalNoCarry(n, k, m_out){
 // We evaluate out without carries 
 // If P, Q have registers in [0, 2^n) 
 // Then out has registers in [0, 3k^2*2^{3n} + 2k*2^{2n} < 2^{3n + 2log(k) + 2})
+// m_out is the expected max number of bits in the output registers
 template LineFunctionEqualNoCarry(n, k, m_out){
     signal input P[2][k]; 
     signal input Q[2][6][2][k];

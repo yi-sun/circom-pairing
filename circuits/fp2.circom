@@ -36,6 +36,7 @@ template Fp2Add(n, k, p) {
 //      we keep track of "positive" and "negatives" since circom isn't able to 
 //      if each a[i][j] is in [0, B) then out[i][j] is in [0, 4*(k+1)*B^2 )
 //  out[i] has 2*k-1 registers since that's output of BigMultShortLong
+// m_out is the expected max number of bits in the output registers
 template Fp2MultiplyNoCarry(n, k, m_out){
     signal input a[4][k];
     signal input b[4][k];
@@ -71,7 +72,8 @@ template Fp2MultiplyNoCarry(n, k, m_out){
 
 // input is 4 x (k+m) where registers can overflow [0,B)
 //  in[0] - in[1] + (in[2] - in[3])*u
-// output is congruent to input (mod p) and represented as 4 x k where registers overflow [0,(m+1)*2^n*B) 
+// output is congruent to input (mod p) and represented as 4 x k where registers overflow [0,(m+1)*2^n*B)
+// m_out is the expected max number of bits in the output registers
 template Fp2Compress(n, k, m, p, m_out){
     signal input in[4][k+m]; 
     signal output out[4][k];
@@ -93,6 +95,8 @@ template Fp2Compress(n, k, m, p, m_out){
 //          (k+1)B^2 from BigMultShortLong
 //          *4 from adding 
 //          *k*2^n from prime trick
+// m_in is the expected max number of bits in the input registers (necessary for some intermediate overflow validation)
+// m_out is the expected max number of bits in the output registers
 template Fp2MultiplyNoCarryCompress(n, k, p, m_in, m_out){
     signal input a[4][k];
     signal input b[4][k];
