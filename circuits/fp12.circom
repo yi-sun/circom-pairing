@@ -234,7 +234,7 @@ template Fp12Multiply(n, k, p) {
             out[i][1][j] <== XYimag[i][1][j];
         }
     }
-
+    /* BigLessThan does Num2Bits! 
     component range_checks[l][2][k];
     for(var i=0; i<l; i++){
         for (var j = 0; j < 2; j ++) {
@@ -243,7 +243,7 @@ template Fp12Multiply(n, k, p) {
                 range_checks[i][j][m].in <== out[i][j][m];
             }
         }
-    }
+    } */
     component lt[l][2];
     for (var i = 0; i < l; i ++) {
         for (var j = 0; j < 2; j ++) {
@@ -465,6 +465,7 @@ template Fp12MultiplyNoCarry(n, k, m_out){
             }
         }
     }
+    /*
     component range_checks[l][4][2*k-1];
     for (var outer = 0; outer < l; outer ++) {
         for (var i = 0; i < 4; i ++) {
@@ -473,7 +474,7 @@ template Fp12MultiplyNoCarry(n, k, m_out){
                 range_checks[outer][i][j].in <== out[outer][i][j];
             }
         }
-    }
+    }*/
 }
 
 // The real and imaginary parts are
@@ -576,6 +577,7 @@ template Fp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
             }
         }
     }
+    /*
     component range_checks[l][4][ka+kb-1];
     for (var outer = 0; outer < l; outer ++) {
         for (var i = 0; i < 4; i ++) {
@@ -584,7 +586,7 @@ template Fp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
                 range_checks[outer][i][j].in <== out[outer][i][j];
             }
         }
-    }
+    }*/
 }
 
 // m_out is the expected max number of bits in the output registers

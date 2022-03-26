@@ -129,14 +129,15 @@ template FpCarryModP(n, k, overflow, p){
     assert( overflow < 252 );
 
     var Xvar[2][50] = get_Fp_carry_witness(n, k, m, in, p); 
-    component range_checks[k]; 
+    //component range_checks[k]; 
     component X_range_checks[m];
     component lt = BigLessThan(n, k);
 
     for(var i=0; i<k; i++){
         out[i] <-- Xvar[1][i];
-        range_checks[i] = Num2Bits(n);
-        range_checks[i].in <== out[i];
+        //BigLessThan calls Num2Bits!
+        //range_checks[i] = Num2Bits(n);
+        //range_checks[i].in <== out[i];
 
         lt.a[i] <== out[i];
         lt.b[i] <== p[i];

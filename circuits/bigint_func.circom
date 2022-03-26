@@ -1,5 +1,6 @@
 pragma circom 2.0.3;
 
+
 function log_ceil(n) {
    var n_temp = n;
    for (var i = 0; i < 254; i++) {

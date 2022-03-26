@@ -403,7 +403,7 @@ template LineFunctionUnequalNoCarry(n, k, m_out){
         }else 
             out[i][j][idx] <== Xmult.out[i][j][idx] + Ymult.out[i][j][idx]; // register in [0, k*2^{2n+1} )
     }
-    component range_checks[6][4][2*k-1];
+    /*component range_checks[6][4][2*k-1];
     for (var outer = 0; outer < 6; outer ++) {
         for (var i = 0; i < 4; i ++) {
             for (var j = 0; j < 2*k-1; j ++) {
@@ -411,7 +411,7 @@ template LineFunctionUnequalNoCarry(n, k, m_out){
                 range_checks[outer][i][j].in <== out[outer][i][j];
             }
         }
-    }
+    }*/
 }
 
 // Assuming curve is of form Y^2 = X^3 + b for now (a = 0) for better register bounds 
@@ -471,7 +471,7 @@ template LineFunctionEqualNoCarry(n, k, m_out){
         else
             out[i][j][idx] <== Xmult.out[i][j][idx];
     }
-    component range_checks[6][4][3*k-2];
+    /*component range_checks[6][4][3*k-2];
     for (var outer = 0; outer < 6; outer ++) {
         for (var i = 0; i < 4; i ++) {
             for (var j = 0; j < 3*k-2; j ++) {
@@ -479,7 +479,7 @@ template LineFunctionEqualNoCarry(n, k, m_out){
                 range_checks[outer][i][j].in <== out[outer][i][j];
             }
         }
-    }
+    }*/
 }
 
 // Inputs:

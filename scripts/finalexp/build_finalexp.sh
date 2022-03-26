@@ -1,8 +1,8 @@
 #!/bin/bash
 
-PHASE1=../../circuits/pot25_final.ptau
-BUILD_DIR=../../build/tatepairing
-CIRCUIT_NAME=tatepairing
+PHASE1=../../circuits/pot24_final.ptau
+BUILD_DIR=../../build/finalexp
+CIRCUIT_NAME=finalexp
 
 if [ -f "$PHASE1" ]; then
     echo "Found Phase 1 ptau file"

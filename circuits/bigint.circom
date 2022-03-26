@@ -256,11 +256,11 @@ template BigMultShortLong(n, k, m_out) {
    for (var i = 0; i < 2 * k - 1; i++) {
       out_poly[i] === a_poly[i] * b_poly[i];
    }
-   component range_checks[2*k-1];
+   /*component range_checks[2*k-1];
    for (var i = 0; i < 2*k-1; i ++) {
         range_checks[i] = Num2Bits(m_out);
         range_checks[i].in <== out[i];
-   }
+   }*/
 }
 
 // a[i] and b[i] are short unsigned integers
@@ -310,11 +310,13 @@ template BigMultShortLongUnequal(n, ka, kb, m_out) {
    for (var i = 0; i < ka + kb - 1; i++) {
       out_poly[i] === a_poly[i] * b_poly[i];
    }
-    component range_checks[ka+kb-1];
-    for (var i = 0; i < ka+kb-1; i ++) {
-        range_checks[i] = Num2Bits(m_out);
-        range_checks[i].in <== out[i];
-   }
+    // range check using asserts on witnesses
+    //component range_checks[ka+kb-1];
+    //for (var i = 0; i < ka+kb-1; i ++) {
+    //    range_checks[i] = Num2Bits(m_out);
+    //    range_checks[i].in <== out[i];
+    //    
+    //}
 }
 
 
@@ -801,11 +803,11 @@ template PrimeReduce(n, k, m, p, m_out){
             out_sum[j] += in[i+k] * r[i][j]; // linear constraint 
     for(var i=0; i<k; i++)
         out[i] <== out_sum[i]; 
-    component range_checks[k];
+    /*component range_checks[k];
     for (var i = 0; i < k; i++) {
         range_checks[i] = Num2Bits(m_out+1);
         range_checks[i].in <== out[i] + (1 << m_out);
-    }
+    }*/
 }
 
 // a[i][j], b[j][j] are short unsigned integers
@@ -985,13 +987,13 @@ template BigMultNoCarry(n, k, m_out){
         out[0][j] <== ab[0][0].out[j] + ab[1][1].out[j];
         out[1][j] <== ab[0][1].out[j] + ab[1][0].out[j];
     }
-    component range_checks[2][2*k-1];
+    /*component range_checks[2][2*k-1];
     for (var i = 0; i < 2; i ++) {
         for (var j = 0; j < 2*k - 1; j ++) {
             range_checks[i][j] = Num2Bits(m_out);
             range_checks[i][j].in <== out[i][j];
         }
-    }
+    }*/
 }
 
 // m_out is the expected max number of bits in the output registers
@@ -1016,11 +1018,11 @@ template BigMultNoCarryUnequal(n, ka, kb, m_out){
         out[0][j] <== ab[0][0].out[j] + ab[1][1].out[j];
         out[1][j] <== ab[0][1].out[j] + ab[1][0].out[j];
     }
-    component range_checks[2][ka+kb-1];
+    /*component range_checks[2][ka+kb-1];
     for (var i = 0; i < 2; i ++) {
         for (var j = 0; j < ka+kb - 1; j ++) {
             range_checks[i][j] = Num2Bits(m_out);
             range_checks[i][j].in <== out[i][j];
         }
-    }
+    }*/
 }

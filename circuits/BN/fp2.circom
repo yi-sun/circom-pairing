@@ -1,9 +1,9 @@
 pragma circom 2.0.3;
 
-include "bigint.circom";
-include "bigint_func.circom";
-include "field_elements_func.circom";
-include "fp.circom";
+include "../bigint.circom";
+include "../bigint_func.circom";
+include "../field_elements_func.circom";
+include "../fp.circom";
 
 // add two elements in Fp2
 template Fp2Add(n, k, p) {
@@ -26,6 +26,7 @@ template Fp2Add(n, k, p) {
 
 
 // p has k registers 
+// beta is number such that u^2 = -beta, where Fp2 = Fp[u]/(u^2+beta)
 // inputs: 
 //  a[4][k] allow overflow
 //  b[4][k] 
@@ -34,7 +35,7 @@ template Fp2Add(n, k, p) {
 //      ( (a[0] - a[1]) + (a[2] - a[3])*u ) * ( (b[0] - b[1]) + (b[2] - b[3])*u ) 
 //      = (out[0] - out[1]) + (out[2] - out[3])*u  
 //      we keep track of "positive" and "negatives" since circom isn't able to 
-//      if each a[i][j] is in [0, B) then out[i][j] is in [0, 4*(k+1)*B^2 )
+//      if each a[i][j] is in [0, B) then out[i][j] is in [0, (2+2*beta)*k*B^2 )
 //  out[i] has 2*k-1 registers since that's output of BigMultShortLong
 // m_out is the expected max number of bits in the output registers
 template Fp2MultiplyNoCarry(n, k, m_out){
@@ -42,6 +43,7 @@ template Fp2MultiplyNoCarry(n, k, m_out){
     signal input b[4][k];
     signal output out[4][2*k-1];
 
+    var beta = 5; // 1 for BLS
     // if a,b registers were in [0,2^n), then
     // var LOGK = log_ceil(k);
     // assert(2*n + 2 + LOGK <252);
@@ -56,12 +58,11 @@ template Fp2MultiplyNoCarry(n, k, m_out){
     }
     
     for(var j=0; j<2*k-1; j++){
-        out[0][j] <== ab[0][0].out[j] + ab[1][1].out[j] + ab[2][3].out[j] + ab[3][2].out[j];
-        out[1][j] <== ab[0][1].out[j] + ab[1][0].out[j] + ab[2][2].out[j] + ab[3][3].out[j];
+        out[0][j] <== ab[0][0].out[j] + ab[1][1].out[j] + beta * ab[2][3].out[j] + beta * ab[3][2].out[j];
+        out[1][j] <== ab[0][1].out[j] + ab[1][0].out[j] + beta * ab[2][2].out[j] + beta * ab[3][3].out[j];
         out[2][j] <== ab[0][2].out[j] + ab[1][3].out[j] + ab[2][0].out[j] + ab[3][1].out[j];
         out[3][j] <== ab[0][3].out[j] + ab[1][2].out[j] + ab[2][1].out[j] + ab[3][0].out[j];
     }
-    /*
     component range_checks[4][2*k-1];
     for (var i = 0; i < 4; i ++) {
         for (var j = 0; j < 2*k-1; j ++) {
@@ -69,7 +70,6 @@ template Fp2MultiplyNoCarry(n, k, m_out){
             range_checks[i][j].in <== out[i][j];
         }
     }
-    */
 }
 
 // input is 4 x (k+m) where registers can overflow [0,B)
@@ -93,9 +93,9 @@ template Fp2Compress(n, k, m, p, m_out){
 // outputs:
 //  out[4][k] such that 
 //      out[i] has k registers because we use the "prime trick" to compress from 2*k-1 to k registers 
-//      if each a[i][j] is in [0, B) then out[i][j] is in [0, 4*(k+1)*k*2^n*B^2 )
-//          (k+1)B^2 from BigMultShortLong
-//          *4 from adding 
+//      if each a[i][j] is in [0, B) then out[i][j] is in [0, (2+2*beta)*k*k * 2^n*B^2 )
+//          k * B^2 from BigMultShortLong
+//          *(2+2*beta) from adding 
 //          *k*2^n from prime trick
 // m_in is the expected max number of bits in the input registers (necessary for some intermediate overflow validation)
 // m_out is the expected max number of bits in the output registers
@@ -104,8 +104,9 @@ template Fp2MultiplyNoCarryCompress(n, k, p, m_in, m_out){
     signal input b[4][k];
     signal output out[4][k];
     
-    var LOGK1 = log_ceil(k+1);
-    component ab = Fp2MultiplyNoCarry(n, k, 2*m_in + 2 + LOGK1);
+    var beta = 5;
+    var LOGK1 = log_ceil( (2+2*beta) * k );
+    component ab = Fp2MultiplyNoCarry(n, k, 2*m_in + LOGK1);
     for(var i=0; i<4; i++)for(var j=0; j<k; j++){
         ab.a[i][j] <== a[i][j];
         ab.b[i][j] <== b[i][j]; 
@@ -122,16 +123,11 @@ template Fp2MultiplyNoCarryCompress(n, k, p, m_in, m_out){
 // check if in[0] + in[0]*u is a valid point of Fp2 with in[0],in[1] both with k registers in [0,2^n) and in[i] in [0,p)
 template CheckValidFp2(n, k, p){
     signal input in[2][k];
-    //component range_checks[2][k];
     component lt[2];
     
     for(var eps=0; eps<2; eps++){
         lt[eps] = BigLessThan(n, k);
         for(var i=0; i<k; i++){
-            //BigLessThan calls Num2Bits!
-            //range_checks[eps][i] = Num2Bits(n); 
-            //range_checks[eps][i].in <== in[eps][i];
-            
             lt[eps].a[i] <== in[eps][i];
             lt[eps].b[i] <== p[i];
         }
@@ -192,10 +188,12 @@ template Fp2Multiply(n, k, p){
     signal input b[2][k];
     signal output out[2][k];
 
-    var LOGK = log_ceil(k); // LOGK = ceil( log_2( (k) ) )
-    assert(3*n + 2 + 2*LOGK<252);
+    //var LOGK = log_ceil(k); // LOGK = ceil( log_2( (k) ) )
+    var beta = 5;
+    var LOGK2 = log_ceil( (2+2*beta) * k * k );
+    assert(3*n + LOGK2 < 252);
 
-    component c = Fp2MultiplyNoCarryCompress(n, k, p, n, 3*n+2+2*LOGK); 
+    component c = Fp2MultiplyNoCarryCompress(n, k, p, n, 3*n + LOGK2); 
     for(var i=0; i<k; i++){
         c.a[0][i] <== a[0][i];
         c.a[1][i] <== 0;
@@ -207,29 +205,12 @@ template Fp2Multiply(n, k, p){
         c.b[3][i] <== 0;
     }
     // bounds below say X[eps] will only require 4 registers max 
-    var m = 4;
-    component carry_mod = Fp2CarryModP(n, k, 3*n+2+2*LOGK, p); // 3n+1+2*LOGK probably enough but safety first
+    component carry_mod = Fp2CarryModP(n, k, 3*n + LOGK2, p); 
     for(var i=0; i<4; i++)for(var j=0; j<k; j++)
         carry_mod.in[i][j] <== c.out[i][j]; 
     
     for(var i=0; i<2; i++)for(var j=0; j<k; j++)
         out[i][j] <== carry_mod.out[i][j]; 
-
-    // out[0] constraint: X = X[0], Y = out[0] 
-    // c0 = a0b0, c1 = a1b1
-    // constrain by Carry( c0 -' c1 - p *' X - Y ) = 0 
-    // where all operations are performed without carry 
-    // each register is an overflow representation in the range 
-    //      (-k*k*2^{3n}-2^{2n}-2^n, k*k*2^{3n}+2^{2n} )
-    //      which is contained in (-2^{3n + 2*LOGK + 1}, 2^{3n + 2*LOGK + 1})
-
-    // out[1] constraint: X = X[1], Y = out[1]
-    // c2 = a0b1 + a1b0, c3 = 0
-    // constrain by Carry( c2 -' c3 -' p *' X - Y) = 0 
-    // each register is an overflow representation in the range 
-    //      (-2^{2n}-2^n, k*k*2^{3n+1} + 2^{2n} )
-    //      which is contained in (-2^{3n+2*LOGK+1}, 2^{3n+2*LOGK+1 +1}) // extra +1 just to be safe..
-   
 }
 
 
@@ -355,8 +336,14 @@ template Fp2Divide(n, k, overflow, p){
     // precompute out * b = p * X' + Y' and a = p * X'' + Y''
     //            should have Y' = Y'' so X = X' - X''
     
-    // out * b, registers overflow in 2*k*k * 2^{2n + (overflow - 2n - 2*LOGK - 1)} <= 2^{overflow}  
-    component mult = Fp2MultiplyNoCarryCompress(n, k, p, overflow, overflow); 
+    // out * b, registers overflow in (1+beta) *k*k * 2^{2n + (overflow - 2n - log_ceil( (1+beta)*k*k)} <= 2^{overflow}  
+    var beta = 5;
+    var LOGK2 = log_ceil( (1+beta)*k*k );
+    var m_in;
+    if( n > overflow - 2*n - LOGK2 ) m_in = n;
+    else m_in = overflow - 2*n - LOGK2;
+
+    component mult = Fp2MultiplyNoCarryCompress(n, k, p, m_in, overflow); 
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
         mult.a[2*eps][i] <== out[eps][i]; 
         mult.a[2*eps+1][i] <== 0;

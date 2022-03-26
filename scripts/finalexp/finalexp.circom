@@ -1,8 +1,8 @@
 pragma circom 2.0.3;
 
-include "../../circuits/fp12.circom";
+include "../../circuits/final_exp.circom";
 
-component main = Fp12Multiply2(55, 7, 
+component main = FinalExponentiate(55, 7, 
 [35747322042231467,
  36025922209447795,
  1084959616957103,
