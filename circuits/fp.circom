@@ -14,27 +14,26 @@ template FpAdd(n, k, p){
 
     component add = BigAdd(n,k);
     for (var i = 0; i < k; i++) {
-        add.a[i] <== a[i];
-        add.b[i] <== b[i];
+        add.a[i] <-- a[i];
+        add.b[i] <-- b[i];
     }
     component lt = BigLessThan(n, k+1);
     for (var i = 0; i < k; i++) {
-        lt.a[i] <== add.out[i];
+        lt.a[i] <-- add.out[i];
     }
-    lt.a[k] <== add.out[k];
-    lt.b[k] <== 0; 
+    lt.a[k] <-- add.out[k];
+    lt.b[k] <-- 0; 
 
     component sub = BigSub(n,k+1);
     for (var i = 0; i < k; i++) {
-        sub.a[i] <== add.out[i];
-        sub.b[i] <== (1-lt.out) * p[i];
+        sub.a[i] <-- add.out[i];
+        sub.b[i] <-- (1-lt.out) * p[i];
     }
-    sub.a[k] <== add.out[k];
-    sub.b[k] <== 0;
+    sub.a[k] <-- add.out[k];
+    sub.b[k] <-- 0;
     
-    sub.out[k] === 0;
     for (var i = 0; i < k; i++) {
-        out[i] <== sub.out[i];
+        out[i] <-- sub.out[i];
     }
 }
 
@@ -47,20 +46,20 @@ template FpSubtract(n, k, p){
     signal output out[k];
     component sub = BigSub(n, k);
     for (var i = 0; i < k; i++){
-        sub.a[i] <== a[i];
-        sub.b[i] <== b[i];
+        sub.a[i] <-- a[i];
+        sub.b[i] <-- b[i];
     }
     signal flag;
-    flag <== sub.underflow;
+    flag <-- sub.underflow;
     component add = BigAdd(n, k);
     for (var i = 0; i < k; i++){
-        add.a[i] <== sub.out[i];
-        add.b[i] <== p[i];
+        add.a[i] <-- sub.out[i];
+        add.b[i] <-- p[i];
     }
     signal tmp[k];
     for (var i = 0; i < k; i++){
-        tmp[i] <== (1 - flag) * sub.out[i];
-        out[i] <== tmp[i] + flag * add.out[i];
+        tmp[i] <-- (1 - flag) * sub.out[i];
+        out[i] <-- tmp[i] + flag * add.out[i];
     }
 }
 
@@ -72,18 +71,18 @@ template FpMultiply(n, k, p) {
 
     component big_mult = BigMult(n, k);
     for (var i = 0; i < k; i++) {
-        big_mult.a[i] <== a[i];
-        big_mult.b[i] <== b[i];
+        big_mult.a[i] <-- a[i];
+        big_mult.b[i] <-- b[i];
     }
     component big_mod = BigMod(n, k);
     for (var i = 0; i < 2 * k; i++) {
-        big_mod.a[i] <== big_mult.out[i];
+        big_mod.a[i] <-- big_mult.out[i];
     }
     for (var i = 0; i < k; i++) {
-        big_mod.b[i] <== p[i];
+        big_mod.b[i] <-- p[i];
     }
     for (var i = 0; i < k; i++) {
-        out[i] <== big_mod.mod[i];
+        out[i] <-- big_mod.mod[i];
     }
 }
 
@@ -103,17 +102,17 @@ template CheckCarryModP(n, k, m, overflow, p){
     pX = BigMultShortLongUnequal(n, k, m, overflow+2); // p has k registers, X has m registers, so output really has k+m-1 registers 
     // overflow register in  (-2^overflow , 2^overflow)
     for(var i=0; i<k; i++)
-        pX.a[i] <== p[i];
+        pX.a[i] <-- p[i];
     for(var i=0; i<m; i++)
-        pX.b[i] <== X[i];
+        pX.b[i] <-- X[i];
 
     // in - p*X has registers in (-2^{overflow+1}, 2^{overflow+1})
     carry_check = CheckCarryToZero(n, overflow+2, k+m-1 ); 
     for(var i=0; i<k; i++){
-        carry_check.in[i] <== in[i] - pX.out[i] - Y[i]; 
+        carry_check.in[i] <-- in[i] - pX.out[i] - Y[i]; 
     }
     for(var i=k; i<k+m-1; i++)
-        carry_check.in[i] <== -pX.out[i];
+        carry_check.in[i] <-- -pX.out[i];
 }
 
 // solve for in0 - in1 = p * X + out
@@ -137,26 +136,25 @@ template FpCarryModP(n, k, overflow, p){
         out[i] <-- Xvar[1][i];
         //BigLessThan calls Num2Bits!
         //range_checks[i] = Num2Bits(n);
-        //range_checks[i].in <== out[i];
+        //range_checks[i].in <-- out[i];
 
-        lt.a[i] <== out[i];
-        lt.b[i] <== p[i];
+        lt.a[i] <-- out[i];
+        lt.b[i] <-- p[i];
     }
-    lt.out === 1;
     
     for(var i=0; i<m; i++){
         X[i] <-- Xvar[0][i];
         X_range_checks[i] = Num2Bits(n+1);
-        X_range_checks[i].in <== X[i] + (1<<n); // X[i] should be between [-2^n, 2^n)
+        X_range_checks[i].in <-- X[i] + (1<<n); // X[i] should be between [-2^n, 2^n)
     }
     
     component mod_check = CheckCarryModP(n, k, m, overflow, p);
     for(var i=0; i<k; i++){
-        mod_check.in[i] <== in[0][i] - in[1][i];
-        mod_check.Y[i] <== out[i];
+        mod_check.in[i] <-- in[0][i] - in[1][i];
+        mod_check.Y[i] <-- out[i];
     }
     for(var i=0; i<m; i++){
-        mod_check.X[i] <== X[i];
+        mod_check.X[i] <-- X[i];
     }
 }
 
@@ -180,16 +178,16 @@ template CheckCarryModToZero(n, k, overflow, p){
     for(var i=0; i<m; i++){
         X[i] <-- Xvar[0][i];
         X_range_checks[i] = Num2Bits(n+1);
-        X_range_checks[i].in <== X[i] + (1<<n); // X[i] should be between [-2^n, 2^n)
+        X_range_checks[i].in <-- X[i] + (1<<n); // X[i] should be between [-2^n, 2^n)
     }
     
     component mod_check = CheckCarryModP(n, k, m, overflow, p);
     for(var i=0; i<k; i++){
-        mod_check.in[i] <== in[0][i] - in[1][i];
-        mod_check.Y[i] <== 0;
+        mod_check.in[i] <-- in[0][i] - in[1][i];
+        mod_check.Y[i] <-- 0;
     }
     for(var i=0; i<m; i++){
-        mod_check.X[i] <== X[i];
+        mod_check.X[i] <-- X[i];
     }
 }
 

@@ -22,22 +22,22 @@ template Fp12FrobeniusMap(n, k, power){
     component mult_even[6][2];
     if( (pow % 2) == 0 ){
         for(var j=0; j<k; j++){
-            out[0][0][j] <== in[0][0][j];
-            out[0][1][j] <== in[0][1][j];
+            out[0][0][j] <-- in[0][0][j];
+            out[0][1][j] <-- in[0][1][j];
         } 
         for(var i=1; i<6; i++){
             mult_even[i][0] = FpMultiply(n, k, p);
             mult_even[i][1] = FpMultiply(n, k, p);
             for(var j=0; j<k; j++){
-                mult_even[i][0].a[j] <== in[i][0][j];
-                mult_even[i][1].a[j] <== in[i][1][j];
+                mult_even[i][0].a[j] <-- in[i][0][j];
+                mult_even[i][1].a[j] <-- in[i][1][j];
 
-                mult_even[i][0].b[j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][0][j];
-                mult_even[i][1].b[j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][0][j];
+                mult_even[i][0].b[j] <-- FP12_FROBENIUS_COEFFICIENTS[pow][i][0][j];
+                mult_even[i][1].b[j] <-- FP12_FROBENIUS_COEFFICIENTS[pow][i][0][j];
             }
             for(var j=0; j<k; j++){
-                out[i][0][j] <== mult_even[i][0].out[j];
-                out[i][1][j] <== mult_even[i][1].out[j];
+                out[i][0][j] <-- mult_even[i][0].out[j];
+                out[i][1][j] <-- mult_even[i][1].out[j];
             }
         }
     }else{
@@ -45,25 +45,25 @@ template Fp12FrobeniusMap(n, k, power){
         for(var i=0; i<6; i++){
             in_frob[i] = Fp2FrobeniusMap(n, k, pow, p); 
             for(var j=0; j<k; j++){
-                in_frob[i].in[0][j] <== in[i][0][j];
-                in_frob[i].in[1][j] <== in[i][1][j];
+                in_frob[i].in[0][j] <-- in[i][0][j];
+                in_frob[i].in[1][j] <-- in[i][1][j];
             }
         }
         for(var j=0; j<k; j++){
-            out[0][0][j] <== in_frob[0].out[0][j];
-            out[0][1][j] <== in_frob[0].out[1][j];
+            out[0][0][j] <-- in_frob[0].out[0][j];
+            out[0][1][j] <-- in_frob[0].out[1][j];
         } 
         for(var i=1; i<6; i++){
             mult_odd[i] = Fp2Multiply(n, k, p);
             for(var j=0; j<k; j++){
                 for(var eps=0; eps<2; eps++){
-                    mult_odd[i].a[eps][j] <== in_frob[i].out[eps][j];
-                    mult_odd[i].b[eps][j] <== FP12_FROBENIUS_COEFFICIENTS[pow][i][eps][j];
+                    mult_odd[i].a[eps][j] <-- in_frob[i].out[eps][j];
+                    mult_odd[i].b[eps][j] <-- FP12_FROBENIUS_COEFFICIENTS[pow][i][eps][j];
                 }
             }
             for(var j=0; j<k; j++){
-                out[i][0][j] <== mult_odd[i].out[0][j];
-                out[i][1][j] <== mult_odd[i].out[1][j];
+                out[i][0][j] <-- mult_odd[i].out[0][j];
+                out[i][1][j] <-- mult_odd[i].out[1][j];
             }
         }
     }
@@ -78,12 +78,12 @@ template Fp12Add(n, k, p) {
         for (var j = 0; j < 2; j ++) {
             adders[i][j] = FpAdd(n,k, p);
             for (var m = 0; m < k; m ++) {
-                adders[i][j].a[m] <== a[i][j][m];
-                adders[i][j].b[m] <== b[i][j][m];
-                adders[i][j].p[m] <== p[m];
+                adders[i][j].a[m] <-- a[i][j][m];
+                adders[i][j].b[m] <-- b[i][j][m];
+                adders[i][j].p[m] <-- p[m];
             }
             for (var m = 0; m < k; m ++) {
-                out[i][j][m] <== adders[i][j].out[m];
+                out[i][j][m] <-- adders[i][j].out[m];
             }
         }
     }
@@ -104,14 +104,14 @@ template Fp12ScalarMultiplyNoCarry(n, k, m_out){
         ab[i][j] = BigMultNoCarry(n, k, m_out); // 2k-1 registers 
 
         for(var eps=0; eps<2; eps++)for(var idx=0; idx<k; idx++){
-            ab[i][j].a[eps][idx] <== a[eps][idx];
-            ab[i][j].b[eps][idx] <== b[i][j+2*eps][idx]; 
+            ab[i][j].a[eps][idx] <-- a[eps][idx];
+            ab[i][j].b[eps][idx] <-- b[i][j+2*eps][idx]; 
         } 
     }
     
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)
         for(var eps=0; eps<2; eps++)for(var idx=0; idx<2*k-1; idx++)
-            out[i][j+2*eps][idx] <== ab[i][j].out[eps][idx];
+            out[i][j+2*eps][idx] <-- ab[i][j].out[eps][idx];
 }
 
 // m_out is the expected max number of bits in the output registers
@@ -125,14 +125,14 @@ template Fp12ScalarMultiplyNoCarryUnequal(n, ka, kb, m_out){
         ab[i][j] = BigMultNoCarryUnequal(n, ka, kb, m_out); // 2k-1 registers 
 
         for(var eps=0; eps<2; eps++)for(var idx=0; idx<ka; idx++)
-            ab[i][j].a[eps][idx] <== a[eps][idx];
+            ab[i][j].a[eps][idx] <-- a[eps][idx];
         for(var eps=0; eps<2; eps++)for(var idx=0; idx<kb; idx++)
-            ab[i][j].b[eps][idx] <== b[i][j+2*eps][idx]; 
+            ab[i][j].b[eps][idx] <-- b[i][j+2*eps][idx]; 
     }
     
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)
         for(var eps=0; eps<2; eps++)for(var idx=0; idx<ka+kb-1; idx++)
-            out[i][j+2*eps][idx] <== ab[i][j].out[eps][idx];
+            out[i][j+2*eps][idx] <-- ab[i][j].out[eps][idx];
 }
 
 
@@ -223,15 +223,15 @@ template Fp12Multiply(n, k, p) {
                 XYreal[i][1][j] <-- XYreal_temp[i][1][j];
                 XYimag[i][1][j] <-- XYimag_temp[i][1][j];
             } else {
-                XYreal[i][1][j] <== 0;
-                XYimag[i][1][j] <== 0;
+                XYreal[i][1][j] <-- 0;
+                XYimag[i][1][j] <-- 0;
             }
         }
     }
     for (var i = 0; i < l; i ++) {
         for (var j = 0; j < k; j ++) {
-            out[i][0][j] <== XYreal[i][1][j];
-            out[i][1][j] <== XYimag[i][1][j];
+            out[i][0][j] <-- XYreal[i][1][j];
+            out[i][1][j] <-- XYimag[i][1][j];
         }
     }
     /* BigLessThan does Num2Bits! 
@@ -240,7 +240,7 @@ template Fp12Multiply(n, k, p) {
         for (var j = 0; j < 2; j ++) {
             for (var m = 0; m < k; m ++) {
                 range_checks[i][j][m] = Num2Bits(n);
-                range_checks[i][j][m].in <== out[i][j][m];
+                range_checks[i][j][m].in <-- out[i][j][m];
             }
         }
     } */
@@ -249,10 +249,9 @@ template Fp12Multiply(n, k, p) {
         for (var j = 0; j < 2; j ++) {
             lt[i][j] = BigLessThan(n, k);
             for (var m = 0; m < k; m ++) {
-                lt[i][j].a[m] <== out[i][j][m];
-                lt[i][j].b[m] <== p[m];
+                lt[i][j].a[m] <-- out[i][j][m];
+                lt[i][j].b[m] <-- p[m];
             }
-            lt[i][j].out === 1;
         }
     }
 
@@ -261,8 +260,8 @@ template Fp12Multiply(n, k, p) {
         for (var j = 0; j < k+4; j ++) {
             X_range_checks[i][0][j] = Num2Bits(n);
             X_range_checks[i][1][j] = Num2Bits(n);
-            X_range_checks[i][0][j].in <== XYreal[i][0][j];
-            X_range_checks[i][1][j].in <== XYimag[i][0][j];
+            X_range_checks[i][0][j].in <-- XYreal[i][0][j];
+            X_range_checks[i][1][j].in <-- XYimag[i][0][j];
         }
     }
 
@@ -288,35 +287,35 @@ template Fp12Multiply(n, k, p) {
         pXreal[i] = BigMultShortLong(n, k+4, 2*n+4+LOGK+LOGL);
         pXimag[i] = BigMultShortLong(n, k+4, 2*n+4+LOGK+LOGL);
         for (var j = 0; j < k; j ++) {
-            a0b0.a[i][j] <== a[i][0][j];
-            a0b0.b[i][j] <== b[i][0][j];
+            a0b0.a[i][j] <-- a[i][0][j];
+            a0b0.b[i][j] <-- b[i][0][j];
 
-            a1b1.a[i][j] <== a[i][1][j];
-            a1b1.b[i][j] <== b[i][1][j];
+            a1b1.a[i][j] <-- a[i][1][j];
+            a1b1.b[i][j] <-- b[i][1][j];
 
-            pa1.a[i][j] <== p[j];
-            pa0.a[i][j] <== p[j];
+            pa1.a[i][j] <-- p[j];
+            pa0.a[i][j] <-- p[j];
 
-            pa1.b[i][j] <== a[i][1][j];
-            pa0.b[i][j] <== a[i][0][j];
+            pa1.b[i][j] <-- a[i][1][j];
+            pa0.b[i][j] <-- a[i][0][j];
 
-            a1b0.a[i][j] <== a[i][1][j];
-            a1b0.b[i][j] <== b[i][0][j];
+            a1b0.a[i][j] <-- a[i][1][j];
+            a1b0.b[i][j] <-- b[i][0][j];
 
-            a0b1.a[i][j] <== a[i][0][j];
-            a0b1.b[i][j] <== b[i][1][j];
+            a0b1.a[i][j] <-- a[i][0][j];
+            a0b1.b[i][j] <-- b[i][1][j];
 
-            pXreal[i].a[j] <== p[j];
-            pXreal[i].b[j] <== XYreal[i][0][j];
+            pXreal[i].a[j] <-- p[j];
+            pXreal[i].b[j] <-- XYreal[i][0][j];
 
-            pXimag[i].a[j] <== p[j];
-            pXimag[i].b[j] <== XYimag[i][0][j];
+            pXimag[i].a[j] <-- p[j];
+            pXimag[i].b[j] <-- XYimag[i][0][j];
         }
         for (var j = k; j < k+4; j ++) {
-            pXreal[i].a[j] <== 0;
-            pXreal[i].b[j] <== XYreal[i][0][j];
-            pXimag[i].a[j] <== 0;
-            pXimag[i].b[j] <== XYimag[i][0][j];
+            pXreal[i].a[j] <-- 0;
+            pXreal[i].b[j] <-- XYreal[i][0][j];
+            pXimag[i].a[j] <-- 0;
+            pXimag[i].b[j] <-- XYimag[i][0][j];
         }
     }
 
@@ -330,16 +329,16 @@ template Fp12Multiply(n, k, p) {
         carry_check[i][0] = CheckCarryToZero(n, 2*n+4+LOGK+LOGL, 2*k+4);
         carry_check[i][1] = CheckCarryToZero(n, 2*n+4+LOGK+LOGL, 2*k+4);
         for (var j = 0; j < k; j ++) {
-            carry_check[i][0].in[j] <== (a0b0.out[i][j] + pa1.out[i][j] - a1b1.out[i][j]) + (a0b0.out[i+l][j] + pa1.out[i+l][j] - a1b1.out[i+l][j]) + (pa0.out[i+l][j] - a0b1.out[i+l][j] + pa1.out[i+l][j] - a1b0.out[i+l][j]) - pXreal[i].out[j] - out[i][0][j];
-            carry_check[i][1].in[j] <== (a0b1.out[i][j] + a1b0.out[i][j]) + (a0b1.out[i+l][j] + a1b0.out[i+l][j]) + (a0b0.out[i+l][j] + pa1.out[i+l][j] - a1b1.out[i+l][j]) - pXimag[i].out[j] - out[i][1][j];
+            carry_check[i][0].in[j] <-- (a0b0.out[i][j] + pa1.out[i][j] - a1b1.out[i][j]) + (a0b0.out[i+l][j] + pa1.out[i+l][j] - a1b1.out[i+l][j]) + (pa0.out[i+l][j] - a0b1.out[i+l][j] + pa1.out[i+l][j] - a1b0.out[i+l][j]) - pXreal[i].out[j] - out[i][0][j];
+            carry_check[i][1].in[j] <-- (a0b1.out[i][j] + a1b0.out[i][j]) + (a0b1.out[i+l][j] + a1b0.out[i+l][j]) + (a0b0.out[i+l][j] + pa1.out[i+l][j] - a1b1.out[i+l][j]) - pXimag[i].out[j] - out[i][1][j];
         }
         for (var j = k; j < 2*k-1; j ++) {
-            carry_check[i][0].in[j] <== (a0b0.out[i][j] + pa1.out[i][j] - a1b1.out[i][j]) + (a0b0.out[i+l][j] + pa1.out[i+l][j] - a1b1.out[i+l][j]) + (pa0.out[i+l][j] - a0b1.out[i+l][j] + pa1.out[i+l][j] - a1b0.out[i+l][j]) - pXreal[i].out[j];
-            carry_check[i][1].in[j] <== (a0b1.out[i][j] + a1b0.out[i][j]) + (a0b1.out[i+l][j] + a1b0.out[i+l][j]) + (a0b0.out[i+l][j] + pa1.out[i+l][j] - a1b1.out[i+l][j]) - pXimag[i].out[j];
+            carry_check[i][0].in[j] <-- (a0b0.out[i][j] + pa1.out[i][j] - a1b1.out[i][j]) + (a0b0.out[i+l][j] + pa1.out[i+l][j] - a1b1.out[i+l][j]) + (pa0.out[i+l][j] - a0b1.out[i+l][j] + pa1.out[i+l][j] - a1b0.out[i+l][j]) - pXreal[i].out[j];
+            carry_check[i][1].in[j] <-- (a0b1.out[i][j] + a1b0.out[i][j]) + (a0b1.out[i+l][j] + a1b0.out[i+l][j]) + (a0b0.out[i+l][j] + pa1.out[i+l][j] - a1b1.out[i+l][j]) - pXimag[i].out[j];
         }
         for (var j = 2*k-1; j < 2*k+4; j ++) {
-            carry_check[i][0].in[j] <== - pXreal[i].out[j];
-            carry_check[i][1].in[j] <== - pXimag[i].out[j];
+            carry_check[i][0].in[j] <-- - pXreal[i].out[j];
+            carry_check[i][1].in[j] <-- - pXimag[i].out[j];
         }
     }
 
@@ -347,16 +346,16 @@ template Fp12Multiply(n, k, p) {
     carry_check[l-1][1] = CheckCarryToZero(n, 2*n+4+LOGK+LOGL, 2*k+4);
     // do the last part, less carries
     for (var j = 0; j < k; j ++) {
-        carry_check[l-1][0].in[j] <== (a0b0.out[l-1][j] + pa1.out[l-1][j] - a1b1.out[l-1][j]) - pXreal[l-1].out[j] - out[l-1][0][j];
-        carry_check[l-1][1].in[j] <== (a0b1.out[l-1][j] + a1b0.out[l-1][j]) - pXimag[l-1].out[j] - out[l-1][1][j];
+        carry_check[l-1][0].in[j] <-- (a0b0.out[l-1][j] + pa1.out[l-1][j] - a1b1.out[l-1][j]) - pXreal[l-1].out[j] - out[l-1][0][j];
+        carry_check[l-1][1].in[j] <-- (a0b1.out[l-1][j] + a1b0.out[l-1][j]) - pXimag[l-1].out[j] - out[l-1][1][j];
     }
     for (var j = k; j < 2*k-1; j ++) {
-        carry_check[l-1][0].in[j] <== (a0b0.out[l-1][j] + pa1.out[l-1][j] - a1b1.out[l-1][j]) - pXreal[l-1].out[j];
-        carry_check[l-1][1].in[j] <== (a0b1.out[l-1][j] + a1b0.out[l-1][j]) - pXimag[l-1].out[j];
+        carry_check[l-1][0].in[j] <-- (a0b0.out[l-1][j] + pa1.out[l-1][j] - a1b1.out[l-1][j]) - pXreal[l-1].out[j];
+        carry_check[l-1][1].in[j] <-- (a0b1.out[l-1][j] + a1b0.out[l-1][j]) - pXimag[l-1].out[j];
     }
     for (var j = 2*k-1; j < 2*k+4; j ++) {
-        carry_check[l-1][0].in[j] <== - pXreal[l-1].out[j];
-        carry_check[l-1][1].in[j] <== - pXimag[l-1].out[j];
+        carry_check[l-1][0].in[j] <-- - pXreal[l-1].out[j];
+        carry_check[l-1][1].in[j] <-- - pXimag[l-1].out[j];
     }
 }
 
@@ -395,45 +394,45 @@ template Fp12MultiplyNoCarry(n, k, m_out){
     
     for (var i = 0; i < l; i ++) {
         for (var j = 0; j < k; j ++) {
-	    a0b0.a[i][j] <== a[i][0][j];
-	    a0b1.a[i][j] <== a[i][0][j];
-	    a0b2.a[i][j] <== a[i][0][j];
-	    a0b3.a[i][j] <== a[i][0][j];
+	    a0b0.a[i][j] <-- a[i][0][j];
+	    a0b1.a[i][j] <-- a[i][0][j];
+	    a0b2.a[i][j] <-- a[i][0][j];
+	    a0b3.a[i][j] <-- a[i][0][j];
 
-	    a1b0.a[i][j] <== a[i][1][j];
-	    a1b1.a[i][j] <== a[i][1][j];
-	    a1b2.a[i][j] <== a[i][1][j];
-	    a1b3.a[i][j] <== a[i][1][j];
+	    a1b0.a[i][j] <-- a[i][1][j];
+	    a1b1.a[i][j] <-- a[i][1][j];
+	    a1b2.a[i][j] <-- a[i][1][j];
+	    a1b3.a[i][j] <-- a[i][1][j];
 
-	    a2b0.a[i][j] <== a[i][2][j];
-	    a2b1.a[i][j] <== a[i][2][j];
-	    a2b2.a[i][j] <== a[i][2][j];
-	    a2b3.a[i][j] <== a[i][2][j];
+	    a2b0.a[i][j] <-- a[i][2][j];
+	    a2b1.a[i][j] <-- a[i][2][j];
+	    a2b2.a[i][j] <-- a[i][2][j];
+	    a2b3.a[i][j] <-- a[i][2][j];
 
-	    a3b0.a[i][j] <== a[i][3][j];
-	    a3b1.a[i][j] <== a[i][3][j];
-	    a3b2.a[i][j] <== a[i][3][j];
-	    a3b3.a[i][j] <== a[i][3][j];
+	    a3b0.a[i][j] <-- a[i][3][j];
+	    a3b1.a[i][j] <-- a[i][3][j];
+	    a3b2.a[i][j] <-- a[i][3][j];
+	    a3b3.a[i][j] <-- a[i][3][j];
 
-	    a0b0.b[i][j] <== b[i][0][j];
-	    a1b0.b[i][j] <== b[i][0][j];
-	    a2b0.b[i][j] <== b[i][0][j];
-	    a3b0.b[i][j] <== b[i][0][j];
+	    a0b0.b[i][j] <-- b[i][0][j];
+	    a1b0.b[i][j] <-- b[i][0][j];
+	    a2b0.b[i][j] <-- b[i][0][j];
+	    a3b0.b[i][j] <-- b[i][0][j];
 
-	    a0b1.b[i][j] <== b[i][1][j];
-	    a1b1.b[i][j] <== b[i][1][j];
-	    a2b1.b[i][j] <== b[i][1][j];
-	    a3b1.b[i][j] <== b[i][1][j];
+	    a0b1.b[i][j] <-- b[i][1][j];
+	    a1b1.b[i][j] <-- b[i][1][j];
+	    a2b1.b[i][j] <-- b[i][1][j];
+	    a3b1.b[i][j] <-- b[i][1][j];
 
-	    a0b2.b[i][j] <== b[i][2][j];
-	    a1b2.b[i][j] <== b[i][2][j];
-	    a2b2.b[i][j] <== b[i][2][j];
-	    a3b2.b[i][j] <== b[i][2][j];
+	    a0b2.b[i][j] <-- b[i][2][j];
+	    a1b2.b[i][j] <-- b[i][2][j];
+	    a2b2.b[i][j] <-- b[i][2][j];
+	    a3b2.b[i][j] <-- b[i][2][j];
 
-	    a0b3.b[i][j] <== b[i][3][j];
-	    a1b3.b[i][j] <== b[i][3][j];
-	    a2b3.b[i][j] <== b[i][3][j];
-	    a3b3.b[i][j] <== b[i][3][j];
+	    a0b3.b[i][j] <-- b[i][3][j];
+	    a1b3.b[i][j] <-- b[i][3][j];
+	    a2b3.b[i][j] <-- b[i][3][j];
+	    a3b3.b[i][j] <-- b[i][3][j];
 	}
     }
 
@@ -443,25 +442,25 @@ template Fp12MultiplyNoCarry(n, k, m_out){
     signal W[2 * l - 1][2 * k - 1];
     for (var i = 0; i < 2 * l - 1; i++) {
 	for (var j = 0; j < 2 * k - 1; j++) {
-	    X[i][j] <== a0b0.out[i][j] + a2b2.out[i][j] + a1b3.out[i][j] + a3b1.out[i][j];
-	    Z[i][j] <== a0b2.out[i][j] + a2b0.out[i][j] + a1b1.out[i][j] + a3b3.out[i][j];
-	    Y[i][j] <== a0b1.out[i][j] + a2b3.out[i][j] + a1b0.out[i][j] + a3b2.out[i][j];
-	    W[i][j] <== a0b3.out[i][j] + a2b1.out[i][j] + a1b2.out[i][j] + a3b0.out[i][j];	   
+	    X[i][j] <-- a0b0.out[i][j] + a2b2.out[i][j] + a1b3.out[i][j] + a3b1.out[i][j];
+	    Z[i][j] <-- a0b2.out[i][j] + a2b0.out[i][j] + a1b1.out[i][j] + a3b3.out[i][j];
+	    Y[i][j] <-- a0b1.out[i][j] + a2b3.out[i][j] + a1b0.out[i][j] + a3b2.out[i][j];
+	    W[i][j] <-- a0b3.out[i][j] + a2b1.out[i][j] + a1b2.out[i][j] + a3b0.out[i][j];	   
 	}
     }
 
     for (var i = 0; i < l; i++) {
         for (var j = 0; j < 2 * k - 1; j++) {
             if (i < l - 1) {
-                out[i][0][j] <== X[i][j] + X[l + i][j] + W[l + i][j];
-                out[i][1][j] <== Y[i][j] + Y[l + i][j] + X[l + i][j];
-                out[i][2][j] <== Z[i][j] + Z[l + i][j] + Y[l + i][j];
-                out[i][3][j] <== W[i][j] + W[l + i][j] + Z[l + i][j];
+                out[i][0][j] <-- X[i][j] + X[l + i][j] + W[l + i][j];
+                out[i][1][j] <-- Y[i][j] + Y[l + i][j] + X[l + i][j];
+                out[i][2][j] <-- Z[i][j] + Z[l + i][j] + Y[l + i][j];
+                out[i][3][j] <-- W[i][j] + W[l + i][j] + Z[l + i][j];
             } else {
-                out[i][0][j] <== X[i][j];
-                out[i][1][j] <== Y[i][j];
-                out[i][2][j] <== Z[i][j];
-                out[i][3][j] <== W[i][j];
+                out[i][0][j] <-- X[i][j];
+                out[i][1][j] <-- Y[i][j];
+                out[i][2][j] <-- Z[i][j];
+                out[i][3][j] <-- W[i][j];
             }
         }
     }
@@ -471,7 +470,7 @@ template Fp12MultiplyNoCarry(n, k, m_out){
         for (var i = 0; i < 4; i ++) {
             for (var j = 0; j < 2*k-1; j ++) {
                 range_checks[outer][i][j] = Num2Bits(m_out);
-                range_checks[outer][i][j].in <== out[outer][i][j];
+                range_checks[outer][i][j].in <-- out[outer][i][j];
             }
         }
     }*/
@@ -505,46 +504,46 @@ template Fp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
     
     for (var i = 0; i < l; i ++) {
         for (var j = 0; j < ka; j ++) {
-            a0b0.a[i][j] <== a[i][0][j];
-            a0b1.a[i][j] <== a[i][0][j];
-            a0b2.a[i][j] <== a[i][0][j];
-            a0b3.a[i][j] <== a[i][0][j];
+            a0b0.a[i][j] <-- a[i][0][j];
+            a0b1.a[i][j] <-- a[i][0][j];
+            a0b2.a[i][j] <-- a[i][0][j];
+            a0b3.a[i][j] <-- a[i][0][j];
 
-            a1b0.a[i][j] <== a[i][1][j];
-            a1b1.a[i][j] <== a[i][1][j];
-            a1b2.a[i][j] <== a[i][1][j];
-            a1b3.a[i][j] <== a[i][1][j];
+            a1b0.a[i][j] <-- a[i][1][j];
+            a1b1.a[i][j] <-- a[i][1][j];
+            a1b2.a[i][j] <-- a[i][1][j];
+            a1b3.a[i][j] <-- a[i][1][j];
 
-            a2b0.a[i][j] <== a[i][2][j];
-            a2b1.a[i][j] <== a[i][2][j];
-            a2b2.a[i][j] <== a[i][2][j];
-            a2b3.a[i][j] <== a[i][2][j];
+            a2b0.a[i][j] <-- a[i][2][j];
+            a2b1.a[i][j] <-- a[i][2][j];
+            a2b2.a[i][j] <-- a[i][2][j];
+            a2b3.a[i][j] <-- a[i][2][j];
 
-            a3b0.a[i][j] <== a[i][3][j];
-            a3b1.a[i][j] <== a[i][3][j];
-            a3b2.a[i][j] <== a[i][3][j];
-            a3b3.a[i][j] <== a[i][3][j];
+            a3b0.a[i][j] <-- a[i][3][j];
+            a3b1.a[i][j] <-- a[i][3][j];
+            a3b2.a[i][j] <-- a[i][3][j];
+            a3b3.a[i][j] <-- a[i][3][j];
         }
         for (var j = 0; j < kb; j ++) {
-            a0b0.b[i][j] <== b[i][0][j];
-            a1b0.b[i][j] <== b[i][0][j];
-            a2b0.b[i][j] <== b[i][0][j];
-            a3b0.b[i][j] <== b[i][0][j];
+            a0b0.b[i][j] <-- b[i][0][j];
+            a1b0.b[i][j] <-- b[i][0][j];
+            a2b0.b[i][j] <-- b[i][0][j];
+            a3b0.b[i][j] <-- b[i][0][j];
 
-            a0b1.b[i][j] <== b[i][1][j];
-            a1b1.b[i][j] <== b[i][1][j];
-            a2b1.b[i][j] <== b[i][1][j];
-            a3b1.b[i][j] <== b[i][1][j];
+            a0b1.b[i][j] <-- b[i][1][j];
+            a1b1.b[i][j] <-- b[i][1][j];
+            a2b1.b[i][j] <-- b[i][1][j];
+            a3b1.b[i][j] <-- b[i][1][j];
 
-            a0b2.b[i][j] <== b[i][2][j];
-            a1b2.b[i][j] <== b[i][2][j];
-            a2b2.b[i][j] <== b[i][2][j];
-            a3b2.b[i][j] <== b[i][2][j];
+            a0b2.b[i][j] <-- b[i][2][j];
+            a1b2.b[i][j] <-- b[i][2][j];
+            a2b2.b[i][j] <-- b[i][2][j];
+            a3b2.b[i][j] <-- b[i][2][j];
 
-            a0b3.b[i][j] <== b[i][3][j];
-            a1b3.b[i][j] <== b[i][3][j];
-            a2b3.b[i][j] <== b[i][3][j];
-            a3b3.b[i][j] <== b[i][3][j];
+            a0b3.b[i][j] <-- b[i][3][j];
+            a1b3.b[i][j] <-- b[i][3][j];
+            a2b3.b[i][j] <-- b[i][3][j];
+            a3b3.b[i][j] <-- b[i][3][j];
         }
 	}
     
@@ -555,25 +554,25 @@ template Fp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
     signal W[2 * l - 1][ka + kb - 1];
     for (var i = 0; i < 2 * l - 1; i++) {
 	for (var j = 0; j < ka + kb - 1; j++) {
-	    X[i][j] <== a0b0.out[i][j] + a2b2.out[i][j] + a1b3.out[i][j] + a3b1.out[i][j];
-	    Z[i][j] <== a0b2.out[i][j] + a2b0.out[i][j] + a1b1.out[i][j] + a3b3.out[i][j];
-	    Y[i][j] <== a0b1.out[i][j] + a2b3.out[i][j] + a1b0.out[i][j] + a3b2.out[i][j];
-	    W[i][j] <== a0b3.out[i][j] + a2b1.out[i][j] + a1b2.out[i][j] + a3b0.out[i][j];	   
+	    X[i][j] <-- a0b0.out[i][j] + a2b2.out[i][j] + a1b3.out[i][j] + a3b1.out[i][j];
+	    Z[i][j] <-- a0b2.out[i][j] + a2b0.out[i][j] + a1b1.out[i][j] + a3b3.out[i][j];
+	    Y[i][j] <-- a0b1.out[i][j] + a2b3.out[i][j] + a1b0.out[i][j] + a3b2.out[i][j];
+	    W[i][j] <-- a0b3.out[i][j] + a2b1.out[i][j] + a1b2.out[i][j] + a3b0.out[i][j];	   
 	}
     }
 
     for (var i = 0; i < l; i++) {
         for (var j = 0; j < ka + kb - 1; j++) {
             if (i < l - 1) {
-                out[i][0][j] <== X[i][j] + X[l + i][j] + W[l + i][j];
-                out[i][1][j] <== Y[i][j] + Y[l + i][j] + X[l + i][j];
-                out[i][2][j] <== Z[i][j] + Z[l + i][j] + Y[l + i][j];
-                out[i][3][j] <== W[i][j] + W[l + i][j] + Z[l + i][j];
+                out[i][0][j] <-- X[i][j] + X[l + i][j] + W[l + i][j];
+                out[i][1][j] <-- Y[i][j] + Y[l + i][j] + X[l + i][j];
+                out[i][2][j] <-- Z[i][j] + Z[l + i][j] + Y[l + i][j];
+                out[i][3][j] <-- W[i][j] + W[l + i][j] + Z[l + i][j];
             } else {
-                out[i][0][j] <== X[i][j];
-                out[i][1][j] <== Y[i][j];
-                out[i][2][j] <== Z[i][j];
-                out[i][3][j] <== W[i][j];
+                out[i][0][j] <-- X[i][j];
+                out[i][1][j] <-- Y[i][j];
+                out[i][2][j] <-- Z[i][j];
+                out[i][3][j] <-- W[i][j];
             }
         }
     }
@@ -583,7 +582,7 @@ template Fp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
         for (var i = 0; i < 4; i ++) {
             for (var j = 0; j < ka+kb-1; j ++) {
                 range_checks[outer][i][j] = Num2Bits(m_out);
-                range_checks[outer][i][j].in <== out[outer][i][j];
+                range_checks[outer][i][j].in <-- out[outer][i][j];
             }
         }
     }*/
@@ -601,14 +600,14 @@ template Fp12Compress(n, k, m, p, m_out){
             reduce[i][j] = PrimeReduce(n, k, m, p, m_out);
 
             for (var idx = 0; idx < k + m; idx++) 
-                reduce[i][j].in[idx] <== in[i][j][idx];
+                reduce[i][j].in[idx] <-- in[i][j][idx];
         }
     }
 
     for (var i = 0; i < l; i++) 
         for (var j = 0; j < 4; j++) 
             for (var idx = 0; idx < k; idx++) 
-                out[i][j][idx] <== reduce[i][j].out[idx];
+                out[i][j][idx] <-- reduce[i][j].out[idx];
 }
 
 // Input is same as for Fp12MultiplyNoCarry
@@ -629,20 +628,20 @@ template Fp12MultiplyNoCarryCompress(n, k, p, m_in, m_out) {
 
     component nocarry = Fp12MultiplyNoCarry(n, k, 2*m_in + 4 + LOGK);
     for (var i = 0; i < l; i ++)for(var j=0; j<4; j++)for(var idx=0; idx<k; idx++){ 
-         nocarry.a[i][j][idx] <== a[i][j][idx];
-         nocarry.b[i][j][idx] <== b[i][j][idx];
+         nocarry.a[i][j][idx] <-- a[i][j][idx];
+         nocarry.b[i][j][idx] <-- b[i][j][idx];
     }
 
     component reduce = Fp12Compress(n, k, k-1, p, m_out);
     for (var i = 0; i < l; i++)
         for (var j = 0; j < 4; j++)
             for (var idx = 0; idx < 2 * k - 1; idx++) 
-                reduce.in[i][j][idx] <== nocarry.out[i][j][idx];
+                reduce.in[i][j][idx] <-- nocarry.out[i][j][idx];
 
     for (var i = 0; i < l; i++) 
         for (var j = 0; j < 4; j++)
             for (var idx = 0; idx < k; idx++) 
-                out[i][j][idx] <== reduce.out[i][j][idx];
+                out[i][j][idx] <-- reduce.out[i][j][idx];
 }
 
 // solve for: in0 - in2 = X * p + out
@@ -679,11 +678,11 @@ template Fp12CarryModP(n, k, overflow, p) {
     for(var i=0; i<l; i++)for(var j=0; j<2; j++){
         carry_check[i][j] = CheckCarryModP(n, k, kX, overflow, p); 
         for(var idx=0; idx<k; idx++){
-            carry_check[i][j].in[idx] <== in[i][j][idx] - in[i][j+2][idx];
-            carry_check[i][j].Y[idx] <== out[i][j][idx];
+            carry_check[i][j].in[idx] <-- in[i][j][idx] - in[i][j+2][idx];
+            carry_check[i][j].Y[idx] <-- out[i][j][idx];
         }
         for(var idx=0; idx<kX; idx++)
-            carry_check[i][j].X[idx] <== X[i][j][idx];
+            carry_check[i][j].X[idx] <-- X[i][j][idx];
     }
 
 }
@@ -705,13 +704,13 @@ template Fp12Multiply2(n, k, p) {
     for (var i = 0; i < l; i++) {
 	for (var idx = 0; idx < k; idx++) {
 	    for (var j = 0; j < 2; j++) {
-		no_carry.a[i][j][idx] <== a[i][j][idx];
-		no_carry.b[i][j][idx] <== b[i][j][idx];
+		no_carry.a[i][j][idx] <-- a[i][j][idx];
+		no_carry.b[i][j][idx] <-- b[i][j][idx];
 	    }
-	    no_carry.a[i][2][idx] <== 0;
-	    no_carry.a[i][3][idx] <== 0;
-	    no_carry.b[i][2][idx] <== 0;
-	    no_carry.b[i][3][idx] <== 0;
+	    no_carry.a[i][2][idx] <-- 0;
+	    no_carry.a[i][3][idx] <-- 0;
+	    no_carry.b[i][2][idx] <-- 0;
+	    no_carry.b[i][3][idx] <-- 0;
 	}
     }
     // This is from old Fp12MultiplyNoCarryCompress: 
@@ -736,7 +735,7 @@ template Fp12Multiply2(n, k, p) {
     for (var i = 0; i < l; i++) {
 	for (var idx = 0; idx < k; idx++) {
 	    for (var j = 0; j < 4; j++) {
-		carry_mod.in[i][j][idx] <== no_carry.out[i][j][idx];
+		carry_mod.in[i][j][idx] <-- no_carry.out[i][j][idx];
 	    }
 	}
     }
@@ -744,7 +743,7 @@ template Fp12Multiply2(n, k, p) {
     for (var i = 0; i < l; i++) {
 	for (var idx = 0; idx < k; idx++) {
 	    for (var j = 0; j < 2; j++) {
-		out[i][j][idx] <== carry_mod.out[i][j][idx];
+		out[i][j][idx] <-- carry_mod.out[i][j][idx];
 	    }
 	}
     }
@@ -758,16 +757,16 @@ template Fp12Square(n, k, p) {
     // for now just use plain multiplication, this can be optimized later
     component square = Fp12Multiply(n, k, p);
     for(var i=0; i<6; i++)for(var j=0; j<k; j++){
-        square.a[i][0][j] <== in[i][0][j];
-        square.a[i][1][j] <== in[i][1][j];
+        square.a[i][0][j] <-- in[i][0][j];
+        square.a[i][1][j] <-- in[i][1][j];
     
-        square.b[i][0][j] <== in[i][0][j];
-        square.b[i][1][j] <== in[i][1][j];
+        square.b[i][0][j] <-- in[i][0][j];
+        square.b[i][1][j] <-- in[i][1][j];
     }
 
     for(var i=0; i<6; i++)for(var j=0; j<k; j++){
-        out[i][0][j] <== square.out[i][0][j];
-        out[i][1][j] <== square.out[i][1][j];
+        out[i][0][j] <-- square.out[i][0][j];
+        out[i][1][j] <-- square.out[i][1][j];
     }
 }
 
@@ -806,21 +805,15 @@ template Fp12Invert(n, k, p){
     component outRangeChecks[6][2][k];
     for(var i=0; i<6; i++) for(var j=0; j<2; j++) for(var m=0; m<k; m++) {
         outRangeChecks[i][j][m] = Num2Bits(n);
-        outRangeChecks[i][j][m].in <== out[i][j][m];
+        outRangeChecks[i][j][m].in <-- out[i][j][m];
     }
 
     component in_out = Fp12Multiply(n, k, p);
     for(var i=0; i<6; i++) for(var j=0; j<2; j++) for(var m=0; m<k; m++) {
-        in_out.a[i][j][m] <== in[i][j][m];
-        in_out.b[i][j][m] <== out[i][j][m];
+        in_out.a[i][j][m] <-- in[i][j][m];
+        in_out.b[i][j][m] <-- out[i][j][m];
     }
 
-    for(var i=0; i<6; i++)for(var j=0; j<2; j++) for(var m = 0; m < k; m ++) {
-        if(i == 0 && j == 0 && m == 0)
-            in_out.out[i][j][m] === 1;
-        else
-            in_out.out[i][j][m] === 0;
-    }
 }
 
 // input is an element of Fp12 
@@ -851,35 +844,35 @@ template Fp12Exp(n, k, e, p) {
         // compute pow2[i] = pow2[i-1]**2
         if( i > 0 ){ // pow2[0] is never defined since there is no squaring involved
             pow2[i] = Fp12Square(n, k, p);
-            for(var j=0; j<k; j++) pow2[i].p[j] <== p[j];
+            for(var j=0; j<k; j++) pow2[i].p[j] <-- p[j];
             if( i == 1 ){
                 for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-                    pow2[i].in[id][eps][j] <== in[id][eps][j];
+                    pow2[i].in[id][eps][j] <-- in[id][eps][j];
             }else{
                 for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-                    pow2[i].in[id][eps][j] <== pow2[i-1].out[id][eps][j];
+                    pow2[i].in[id][eps][j] <-- pow2[i-1].out[id][eps][j];
             }
         }
         if( ((e >> i) & 1) == 1 ){
             if(curid == 0){ // this is the least significant bit
                 if( i == 0 ){
                     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-                        first[id][eps][j] <== in[id][eps][j];
+                        first[id][eps][j] <-- in[id][eps][j];
                 }else{
                     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-                        first[id][eps][j] <== pow2[i].out[id][eps][j];
+                        first[id][eps][j] <-- pow2[i].out[id][eps][j];
                 }
             }else{
                 // multiply what we already have with pow2[i]
                 mult[curid] = Fp12Multiply(n, k, p); 
                 for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-                    mult[curid].a[id][eps][j] <== pow2[i].out[id][eps][j];
+                    mult[curid].a[id][eps][j] <-- pow2[i].out[id][eps][j];
                 if(curid == 1){
                     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-                        mult[curid].b[id][eps][j] <== first[id][eps][j];
+                        mult[curid].b[id][eps][j] <-- first[id][eps][j];
                 }else{
                     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-                        mult[curid].b[id][eps][j] <== mult[curid-1].out[id][eps][j];
+                        mult[curid].b[id][eps][j] <-- mult[curid-1].out[id][eps][j];
                 }
             } 
             curid++; 
@@ -888,10 +881,10 @@ template Fp12Exp(n, k, e, p) {
     curid--;
     if(curid == 0){
         for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-            out[id][eps][j] <== first[id][eps][j];
+            out[id][eps][j] <-- first[id][eps][j];
     }else{
         for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-            out[id][eps][j] <== mult[curid].out[id][eps][j];
+            out[id][eps][j] <-- mult[curid].out[id][eps][j];
     }
 }
 

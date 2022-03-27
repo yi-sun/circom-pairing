@@ -22,12 +22,12 @@ template FieldAdd2D(n, k, l) {
     for (var i = 0; i < l; i++) {
         adders[i] = BigAddModP(n, k);
         for (var j = 0; j < k; j++) {
-            adders[i].a[j] <== a[i][j];
-            adders[i].b[j] <== b[i][j];
-            adders[i].p[j] <== p[j];
+            adders[i].a[j] <-- a[i][j];
+            adders[i].b[j] <-- b[i][j];
+            adders[i].p[j] <-- p[j];
         }   
         for (var j = 0; j < k; j ++) {
-            c[i][j] <== adders[i].out[j];
+            c[i][j] <-- adders[i].out[j];
         }
     }
 }
@@ -54,25 +54,23 @@ template PolynomialReduce(l) {
     }
     component mult = BigMultShortLong(1, l+1);
     for (var i = 0; i < l-1; i ++) {
-        mult.a[i] <== quotient[i];
-        mult.b[i] <== poly[i];
+        mult.a[i] <-- quotient[i];
+        mult.b[i] <-- poly[i];
     }
-    mult.a[l-1] <== 0;
-    mult.a[l] <== 0;
-    mult.b[l-1] <== poly[l-1];
-    mult.b[l] <== 1;
+    mult.a[l-1] <-- 0;
+    mult.a[l] <-- 0;
+    mult.b[l-1] <-- poly[l-1];
+    mult.b[l] <-- 1;
     signal a_out[2*l-1];
     for (var i = 0; i < 2*l-1; i++) {
-        a_out[i] <== mult.out[i];
+        a_out[i] <-- mult.out[i];
     }
     for (var i = 0; i < l; i ++ ) {
         out[i] <-- residue[i];
     }
     for (var i = 0; i < l; i ++) {
-        a[i] === a_out[i] + out[i];
     }
     for (var i = l; i < 2*l-1; i ++) {
-        a[i] === a_out[i];
     }
 }
 
@@ -83,15 +81,15 @@ template Fp2PolynomialReduce(n, k, p) {
     signal output out[l][k];
 
     for (var i = 0; i < k; i ++) {
-        out[1][i] <== a[1][i];
+        out[1][i] <-- a[1][i];
     }
     component sub = FpSubtract(n, k, p);
     for (var i = 0; i < k; i ++) {
-        sub.a[i] <== a[0][i];
-        sub.b[i] <== a[2][i];
+        sub.a[i] <-- a[0][i];
+        sub.b[i] <-- a[2][i];
     }
     for (var i = 0; i < k; i ++) {
-        out[0][i] <== sub.out[i];
+        out[0][i] <-- sub.out[i];
     }
 }
 
@@ -115,36 +113,36 @@ template Fp2Multiply1(n, k, p) {
     component mult = BigMultShortLong2D(n, k, l);
     for (var i = 0; i < l; i ++) {
         for (var j = 0; j < k; j ++) {
-            mult.a[i][j] <== a[i][j];
-            mult.b[i][j] <== b[i][j];
+            mult.a[i][j] <-- a[i][j];
+            mult.b[i][j] <-- b[i][j];
         }
     } // out: 2l-1 x 2k-1 array of longs
     component longshorts[2*l-1];
     for (var i = 0; i < 2*l-1; i++) {
         longshorts[i] = LongToShortNoEndCarry(n, 2*k-1);
         for (var j = 0; j < 2*k-1; j ++) {
-            longshorts[i].in[j] <== mult.out[i][j];
+            longshorts[i].in[j] <-- mult.out[i][j];
         }
     } // out: 2l-1 x 2k array of shorts
     component bigmods[2*l-1];
     for (var i = 0; i < 2*l-1; i ++) {
         bigmods[i] = BigMod(n, k);
         for (var j = 0; j < 2*k; j ++) {
-            bigmods[i].a[j] <== longshorts[i].out[j];
+            bigmods[i].a[j] <-- longshorts[i].out[j];
         }
         for (var j = 0; j < k; j ++) {
-            bigmods[i].b[j] <== p[j];
+            bigmods[i].b[j] <-- p[j];
         }
     } // out: 2l-1 x k array of shorts
     component reduce = Fp2PolynomialReduce(n, k, p);
     for (var i = 0; i < 2*l-1; i ++) {
         for (var j = 0; j < k; j ++) {
-            reduce.a[i][j] <== bigmods[i].mod[j];
+            reduce.a[i][j] <-- bigmods[i].mod[j];
         }
     } // out: l x k array of shorts
     for (var i = 0; i < l; i++) {
         for (var j = 0; j < k; j++) {
-            out[i][j] <== reduce.out[i][j];
+            out[i][j] <-- reduce.out[i][j];
         }
     } // out: l x k array of shorts
 }
@@ -160,53 +158,53 @@ template Fp2Square(n, k){
     
     component sum = BigAdd(n, k);
     for(var i=0; i<k; i++){
-        sum.a[i] <== in[0][i];
-        sum.b[i] <== in[1][i];
+        sum.a[i] <-- in[0][i];
+        sum.b[i] <-- in[1][i];
     }
     component diff = BigSubModP(n, k);
     for(var i=0; i<k; i++){
-        diff.a[i] <== in[0][i];
-        diff.b[i] <== in[1][i];
-        diff.p[i] <== p[i];
+        diff.a[i] <-- in[0][i];
+        diff.b[i] <-- in[1][i];
+        diff.p[i] <-- p[i];
     }
     component prod = BigMult(n, k+1);
     for(var i=0; i<k; i++){
-        prod.a[i] <== sum.out[i];
-        prod.b[i] <== diff.out[i];
+        prod.a[i] <-- sum.out[i];
+        prod.b[i] <-- diff.out[i];
     }
-    prod.a[k] <== sum.out[k];
-    prod.b[k] <== 0;
+    prod.a[k] <-- sum.out[k];
+    prod.b[k] <-- 0;
 
     component prod_mod = BigMod2(n, k, 2*k+2);
     for(var i=0; i<2*k+2; i++){
-        prod_mod.a[i] <== prod.out[i];
+        prod_mod.a[i] <-- prod.out[i];
         if(i<k){
-            prod_mod.b[i] <== p[i];
+            prod_mod.b[i] <-- p[i];
         }
     }
     for(var i=0; i<k; i++){
-        out[0][i] <== prod_mod.mod[i];
+        out[0][i] <-- prod_mod.mod[i];
     }
     
     component ab = BigMult(n, k);
     for(var i=0; i<k; i++){
-        ab.a[i] <== in[0][i];
-        ab.b[i] <== in[1][i];
+        ab.a[i] <-- in[0][i];
+        ab.b[i] <-- in[1][i];
     }
     component two_ab = BigAdd(n, 2*k); 
     for(var i=0; i<2*k; i++){
-        two_ab.a[i] <== ab.out[i];
-        two_ab.b[i] <== ab.out[i];
+        two_ab.a[i] <-- ab.out[i];
+        two_ab.b[i] <-- ab.out[i];
     }
     component two_ab_mod = BigMod2(n, k, 2*k+1);
     for(var i=0; i<2*k+1; i++){
-        two_ab_mod.a[i] <== two_ab.out[i];
+        two_ab_mod.a[i] <-- two_ab.out[i];
         if(i < k){
-            two_ab_mod.b[i] <== p[i];
+            two_ab_mod.b[i] <-- p[i];
         }
     }
     for(var i=0; i<k; i++){
-        out[1][i] <== two_ab_mod.mod[i];
+        out[1][i] <-- two_ab_mod.mod[i];
     }
 }
 
@@ -259,25 +257,25 @@ template Fp2multiplyNoCarry(n, k){
     component a1b0 = BigMultShortLong(n, k);
     
     for(var i=0; i<k; i++){
-        a0b0.a[i] <== a[0][i];
-        a0b0.b[i] <== b[0][i];
+        a0b0.a[i] <-- a[0][i];
+        a0b0.b[i] <-- b[0][i];
 
-        a1b1.a[i] <== a[1][i];
-        a1b1.b[i] <== b[1][i];
+        a1b1.a[i] <-- a[1][i];
+        a1b1.b[i] <-- b[1][i];
 
-        pb1.a[i] <== p[i];
-        pb1.b[i] <== b[1][i];
+        pb1.a[i] <-- p[i];
+        pb1.b[i] <-- b[1][i];
 
-        a0b1.a[i] <== a[0][i];
-        a0b1.b[i] <== b[1][i];
+        a0b1.a[i] <-- a[0][i];
+        a0b1.b[i] <-- b[1][i];
 
-        a1b0.a[i] <== a[1][i];
-        a1b0.b[i] <== b[0][i];
+        a1b0.a[i] <-- a[1][i];
+        a1b0.b[i] <-- b[0][i];
     }
  
     for(var i=0; i<2*k-1; i++){
-        out[0][i] <== a0b0.out[i] + pb1.out[i] - a1b1.out[i];
-        out[1][i] <== a0b1.out[i] + a1b0.out[i];
+        out[0][i] <-- a0b0.out[i] + pb1.out[i] - a1b1.out[i];
+        out[1][i] <-- a0b1.out[i] + a1b0.out[i];
     }
 }
 
@@ -303,17 +301,16 @@ template Fp2multiply(n, k){
         for(var i=0; i<k; i++){
             out[eps][i] <-- Xvar[eps][1][i];
             range_checks[eps][i] = Num2Bits(n);
-            range_checks[eps][i].in <== out[eps][i];
+            range_checks[eps][i].in <-- out[eps][i];
             
-            lt[eps].a[i] <== out[eps][i];
-            lt[eps].b[i] <== p[i];
+            lt[eps].a[i] <-- out[eps][i];
+            lt[eps].b[i] <-- p[i];
         }
-        lt[eps].out === 1;
         
         for(var i=0; i<k+2; i++){
             X[eps][i] <-- Xvar[eps][0][i];
             X_range_checks[eps][i] = Num2Bits(n);
-            X_range_checks[eps][i].in <== X[eps][i];
+            X_range_checks[eps][i].in <-- X[eps][i];
         }
         
     }
@@ -332,32 +329,32 @@ template Fp2multiply(n, k){
     
     component ab = Fp2multiplyNoCarry(n, k); 
     for(var i=0; i<k; i++){
-        ab.p[i] <== p[i];
-        ab.a[0][i] <== a[0][i];
-        ab.a[1][i] <== a[1][i];
-        ab.b[0][i] <== b[0][i];
-        ab.b[1][i] <== b[1][i];
+        ab.p[i] <-- p[i];
+        ab.a[0][i] <-- a[0][i];
+        ab.a[1][i] <-- a[1][i];
+        ab.b[0][i] <-- b[0][i];
+        ab.b[1][i] <-- b[1][i];
     }
     component pX[2];
     component carry_check[2];
     for(var eps=0; eps<2; eps++){
         pX[eps] = BigMultShortLong(n, k+2); // 2*k+3 registers
         for(var i=0; i<k; i++){
-            pX[eps].a[i] <== p[i];
-            pX[eps].b[i] <== X[eps][i];
+            pX[eps].a[i] <-- p[i];
+            pX[eps].b[i] <-- X[eps][i];
         }
         for(var i=k; i<k+2; i++){
-            pX[eps].a[i] <== 0;
-            pX[eps].b[i] <== X[eps][i];
+            pX[eps].a[i] <-- 0;
+            pX[eps].b[i] <-- X[eps][i];
         }
 
         carry_check[eps] = CheckCarryToZero(n, 2*n+2+LOGK, 2*k+3); 
         for(var i=0; i<k; i++)
-            carry_check[eps].in[i] <== ab.out[eps][i] - pX[eps].out[i] - out[eps][i]; 
+            carry_check[eps].in[i] <-- ab.out[eps][i] - pX[eps].out[i] - out[eps][i]; 
         for(var i=k; i<2*k-1; i++)
-            carry_check[eps].in[i] <== ab.out[eps][i] - pX[eps].out[i]; 
+            carry_check[eps].in[i] <-- ab.out[eps][i] - pX[eps].out[i]; 
         for(var i=2*k-1; i<2*k+3; i++)
-            carry_check[eps].in[i] <== -pX[eps].out[i];
+            carry_check[eps].in[i] <-- -pX[eps].out[i];
     }
 
 }
@@ -530,15 +527,15 @@ template Fp12MultiplyThree(n, k, p) {
                 prod_real[i][1][j] <-- prod_real_temp[i][1][j];
                 prod_imag[i][1][j] <-- prod_imag_temp[i][1][j];
             } else {
-                prod_real[i][1][j] <== 0;
-                prod_imag[i][1][j] <== 0;
+                prod_real[i][1][j] <-- 0;
+                prod_imag[i][1][j] <-- 0;
             }
         }
     }
     for (var i = 0; i < l; i ++) {
         for (var j = 0; j < k; j ++) {
-            out[i][0][j] <== prod_real[i][1][j];
-            out[i][1][j] <== prod_imag[i][1][j];
+            out[i][0][j] <-- prod_real[i][1][j];
+            out[i][1][j] <-- prod_imag[i][1][j];
         }
     }
 
@@ -547,7 +544,7 @@ template Fp12MultiplyThree(n, k, p) {
         for (var j = 0; j < 2; j ++) {
             for (var m = 0; m < k; m ++) {
                 out_range_checks[i][j][m] = Num2Bits(n);
-                out_range_checks[i][j][m].in <== out[i][j][m];
+                out_range_checks[i][j][m].in <-- out[i][j][m];
             }
         }
     }
@@ -556,10 +553,9 @@ template Fp12MultiplyThree(n, k, p) {
         for (var j = 0; j < 2; j ++) {
             lt[i][j] = BigLessThan(n, k);
             for (var m = 0; m < k; m ++) {
-                lt[i][j].a[m] <== out[i][j][m];
-                lt[i][j].b[m] <== p[m];
+                lt[i][j].a[m] <-- out[i][j][m];
+                lt[i][j].b[m] <-- p[m];
             }
-            lt[i][j].out === 1;
         }
     }
 
@@ -568,8 +564,8 @@ template Fp12MultiplyThree(n, k, p) {
         for (var j = 0; j < 2 * k + 4; j ++) {
             div_range_checks[i][0][j] = Num2Bits(n);
             div_range_checks[i][1][j] = Num2Bits(n);
-            div_range_checks[i][0][j].in <== prod_real[i][0][j];
-            div_range_checks[i][1][j].in <== prod_imag[i][0][j];
+            div_range_checks[i][0][j].in <-- prod_real[i][0][j];
+            div_range_checks[i][1][j].in <-- prod_imag[i][0][j];
         }
     }
 
@@ -589,14 +585,14 @@ template Fp12MultiplyThree(n, k, p) {
     component b1c1 = BigMultShortLong2D(n, k, l);
     for (var i = 0; i < l; i ++) {
         for (var j = 0; j < k; j ++) {
-            b0c0.a[i][j] <== b[i][0][j];
-            b0c0.b[i][j] <== c[i][0][j];
-            b0c1.a[i][j] <== b[i][0][j];
-            b0c1.b[i][j] <== c[i][1][j];
-            b1c0.a[i][j] <== b[i][1][j];
-            b1c0.b[i][j] <== c[i][0][j];
-            b1c1.a[i][j] <== b[i][1][j];
-            b1c1.b[i][j] <== c[i][1][j];
+            b0c0.a[i][j] <-- b[i][0][j];
+            b0c0.b[i][j] <-- c[i][0][j];
+            b0c1.a[i][j] <-- b[i][0][j];
+            b0c1.b[i][j] <-- c[i][1][j];
+            b1c0.a[i][j] <-- b[i][1][j];
+            b1c0.b[i][j] <-- c[i][0][j];
+            b1c1.a[i][j] <-- b[i][1][j];
+            b1c1.b[i][j] <-- c[i][1][j];
 	}
     }
     
@@ -614,34 +610,34 @@ template Fp12MultiplyThree(n, k, p) {
     component pb1c1 = BigMultShortLong2DUnequal(n, k, 2 * k - 1, l, 2 * l - 1);
     for (var i = 0; i < l; i ++) {
         for (var j = 0; j < k; j ++) {
-	    a0b0c0.a[i][j] <== a[i][0][j];
-	    a0b0c1.a[i][j] <== a[i][0][j];
-	    a0b1c0.a[i][j] <== a[i][0][j];
-	    a0b1c1.a[i][j] <== a[i][0][j];
-	    a1b0c0.a[i][j] <== a[i][1][j];
-	    a1b0c1.a[i][j] <== a[i][1][j];
-	    a1b1c0.a[i][j] <== a[i][1][j];
-	    a1b1c1.a[i][j] <== a[i][1][j];
+	    a0b0c0.a[i][j] <-- a[i][0][j];
+	    a0b0c1.a[i][j] <-- a[i][0][j];
+	    a0b1c0.a[i][j] <-- a[i][0][j];
+	    a0b1c1.a[i][j] <-- a[i][0][j];
+	    a1b0c0.a[i][j] <-- a[i][1][j];
+	    a1b0c1.a[i][j] <-- a[i][1][j];
+	    a1b1c0.a[i][j] <-- a[i][1][j];
+	    a1b1c1.a[i][j] <-- a[i][1][j];
 
-	    pb0c1.a[i][j] <== p[j];
-	    pb1c0.a[i][j] <== p[j];
-	    pb1c1.a[i][j] <== p[j];
+	    pb0c1.a[i][j] <-- p[j];
+	    pb1c0.a[i][j] <-- p[j];
+	    pb1c1.a[i][j] <-- p[j];
 	}
     }
     for (var i = 0; i < 2 * l - 1; i++) {
 	for (var j = 0; j < 2 * k - 1; j++) {
-	    a0b0c0.b[i][j] <== b0c0.out[i][j];
-	    a1b0c0.b[i][j] <== b0c0.out[i][j];
-	    a0b0c1.b[i][j] <== b0c1.out[i][j];
-	    a1b0c1.b[i][j] <== b0c1.out[i][j];
-	    a0b1c0.b[i][j] <== b1c0.out[i][j];
-	    a1b1c0.b[i][j] <== b1c0.out[i][j];
-	    a0b1c1.b[i][j] <== b1c1.out[i][j];
-	    a1b1c1.b[i][j] <== b1c1.out[i][j];
+	    a0b0c0.b[i][j] <-- b0c0.out[i][j];
+	    a1b0c0.b[i][j] <-- b0c0.out[i][j];
+	    a0b0c1.b[i][j] <-- b0c1.out[i][j];
+	    a1b0c1.b[i][j] <-- b0c1.out[i][j];
+	    a0b1c0.b[i][j] <-- b1c0.out[i][j];
+	    a1b1c0.b[i][j] <-- b1c0.out[i][j];
+	    a0b1c1.b[i][j] <-- b1c1.out[i][j];
+	    a1b1c1.b[i][j] <-- b1c1.out[i][j];
 
-	    pb0c1.b[i][j] <== b0c1.out[i][j];
-	    pb1c0.b[i][j] <== b1c0.out[i][j];
-	    pb1c1.b[i][j] <== b1c1.out[i][j];
+	    pb0c1.b[i][j] <-- b0c1.out[i][j];
+	    pb1c0.b[i][j] <-- b1c0.out[i][j];
+	    pb1c1.b[i][j] <-- b1c1.out[i][j];
 	}
     }
     
@@ -652,12 +648,12 @@ template Fp12MultiplyThree(n, k, p) {
         p_prod_imag0[i] = BigMultShortLongUnequal(n, k, 2 * k + 4);
 
 	for (var j = 0; j < k; j++) {
-	    p_prod_real0[i].a[j] <== p[j];
-	    p_prod_imag0[i].a[j] <== p[j];
+	    p_prod_real0[i].a[j] <-- p[j];
+	    p_prod_imag0[i].a[j] <-- p[j];
 	}
 	for (var j = 0; j < 2 * k + 4; j++) {
-	    p_prod_real0[i].b[j] <== prod_real[i][0][j];
-	    p_prod_imag0[i].b[j] <== prod_imag[i][0][j];
+	    p_prod_real0[i].b[j] <-- prod_real[i][0][j];
+	    p_prod_imag0[i].b[j] <-- prod_imag[i][0][j];
 	}
     }    
 
@@ -694,26 +690,26 @@ template Fp12MultiplyThree(n, k, p) {
 	}
 	    
         for (var j = 0; j < k; j ++) {
-            carry_check[i][0].in[j] <== X0[i][j] + X1[i][j] - Y1[i][j] - Y2[i][j] - Y2[i][j] - p_prod_real0[i].out[j] - prod_real[i][1][j];
-	    carry_check[i][1].in[j] <== Y0[i][j] + X1[i][j] + Y1[i][j] + X2[i][j] + X2[i][j] - p_prod_imag0[i].out[j] - prod_imag[i][1][j];
+            carry_check[i][0].in[j] <-- X0[i][j] + X1[i][j] - Y1[i][j] - Y2[i][j] - Y2[i][j] - p_prod_real0[i].out[j] - prod_real[i][1][j];
+	    carry_check[i][1].in[j] <-- Y0[i][j] + X1[i][j] + Y1[i][j] + X2[i][j] + X2[i][j] - p_prod_imag0[i].out[j] - prod_imag[i][1][j];
         }
 	if (3 * k - 2 < 2 * k + 4) {
             for (var j = k; j < 3 * k - 2; j ++) {
-		carry_check[i][0].in[j] <== X0[i][j] + X1[i][j] - Y1[i][j] - Y2[i][j] - Y2[i][j] - p_prod_real0[i].out[j] - prod_real[i][1][j];
-		carry_check[i][1].in[j] <== Y0[i][j] + X1[i][j] + Y1[i][j] + X2[i][j] + X2[i][j] - p_prod_imag0[i].out[j] - prod_imag[i][1][j];
+		carry_check[i][0].in[j] <-- X0[i][j] + X1[i][j] - Y1[i][j] - Y2[i][j] - Y2[i][j] - p_prod_real0[i].out[j] - prod_real[i][1][j];
+		carry_check[i][1].in[j] <-- Y0[i][j] + X1[i][j] + Y1[i][j] + X2[i][j] + X2[i][j] - p_prod_imag0[i].out[j] - prod_imag[i][1][j];
             }
             for (var j = 3 * k - 2; j < 2 * k + 4; j++) {
-		carry_check[i][0].in[j] <== - prod_real[i][1][j];
-		carry_check[i][1].in[j] <== - prod_imag[i][1][j];
+		carry_check[i][0].in[j] <-- - prod_real[i][1][j];
+		carry_check[i][1].in[j] <-- - prod_imag[i][1][j];
 	    }
         } else {
 	    for (var j = k; j < 2 * k + 4; j ++) {
-		carry_check[i][0].in[j] <== X0[i][j] + X1[i][j] - Y1[i][j] - Y2[i][j] - Y2[i][j] - p_prod_real0[i].out[j] - prod_real[i][1][j];
-		carry_check[i][1].in[j] <== Y0[i][j] + X1[i][j] + Y1[i][j] + X2[i][j] + X2[i][j] - p_prod_imag0[i].out[j] - prod_imag[i][1][j];
+		carry_check[i][0].in[j] <-- X0[i][j] + X1[i][j] - Y1[i][j] - Y2[i][j] - Y2[i][j] - p_prod_real0[i].out[j] - prod_real[i][1][j];
+		carry_check[i][1].in[j] <-- Y0[i][j] + X1[i][j] + Y1[i][j] + X2[i][j] + X2[i][j] - p_prod_imag0[i].out[j] - prod_imag[i][1][j];
             }
             for (var j = 2 * k + 4; j < 3 * k - 2; j++) {
-		carry_check[i][0].in[j] <== X0[i][j] + X1[i][j] - Y1[i][j] - Y2[i][j] - Y2[i][j] - p_prod_real0[i].out[j];
-		carry_check[i][1].in[j] <== Y0[i][j] + X1[i][j] + Y1[i][j] + X2[i][j] + X2[i][j] - p_prod_imag0[i].out[j];
+		carry_check[i][0].in[j] <-- X0[i][j] + X1[i][j] - Y1[i][j] - Y2[i][j] - Y2[i][j] - p_prod_real0[i].out[j];
+		carry_check[i][1].in[j] <-- Y0[i][j] + X1[i][j] + Y1[i][j] + X2[i][j] + X2[i][j] - p_prod_imag0[i].out[j];
 	    }
 
 	}

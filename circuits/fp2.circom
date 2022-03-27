@@ -15,11 +15,11 @@ template Fp2Add(n, k, p) {
     for (var i = 0; i < 2; i++) {
         adders[i] = FpAdd(n, k, p);
         for (var j = 0; j < k; j++) {
-            adders[i].a[j] <== a[i][j];
-            adders[i].b[j] <== b[i][j];
+            adders[i].a[j] <-- a[i][j];
+            adders[i].b[j] <-- b[i][j];
         }   
         for (var j = 0; j < k; j ++) {
-            out[i][j] <== adders[i].out[j];
+            out[i][j] <-- adders[i].out[j];
         }
     }
 }
@@ -50,23 +50,23 @@ template Fp2MultiplyNoCarry(n, k, m_out){
     for(var i=0; i<4; i++)for(var j=0; j<4; j++){
         ab[i][j] = BigMultShortLong(n, k, m_out); // output has 2*k-1 registers
         for(var l=0; l<k; l++){
-            ab[i][j].a[l] <== a[i][l];
-            ab[i][j].b[l] <== b[j][l];
+            ab[i][j].a[l] <-- a[i][l];
+            ab[i][j].b[l] <-- b[j][l];
         }
     }
     
     for(var j=0; j<2*k-1; j++){
-        out[0][j] <== ab[0][0].out[j] + ab[1][1].out[j] + ab[2][3].out[j] + ab[3][2].out[j];
-        out[1][j] <== ab[0][1].out[j] + ab[1][0].out[j] + ab[2][2].out[j] + ab[3][3].out[j];
-        out[2][j] <== ab[0][2].out[j] + ab[1][3].out[j] + ab[2][0].out[j] + ab[3][1].out[j];
-        out[3][j] <== ab[0][3].out[j] + ab[1][2].out[j] + ab[2][1].out[j] + ab[3][0].out[j];
+        out[0][j] <-- ab[0][0].out[j] + ab[1][1].out[j] + ab[2][3].out[j] + ab[3][2].out[j];
+        out[1][j] <-- ab[0][1].out[j] + ab[1][0].out[j] + ab[2][2].out[j] + ab[3][3].out[j];
+        out[2][j] <-- ab[0][2].out[j] + ab[1][3].out[j] + ab[2][0].out[j] + ab[3][1].out[j];
+        out[3][j] <-- ab[0][3].out[j] + ab[1][2].out[j] + ab[2][1].out[j] + ab[3][0].out[j];
     }
     /*
     component range_checks[4][2*k-1];
     for (var i = 0; i < 4; i ++) {
         for (var j = 0; j < 2*k-1; j ++) {
             range_checks[i][j] = Num2Bits(m_out);
-            range_checks[i][j].in <== out[i][j];
+            range_checks[i][j].in <-- out[i][j];
         }
     }
     */
@@ -84,10 +84,10 @@ template Fp2Compress(n, k, m, p, m_out){
     for(var i=0; i<4; i++){
         c[i] = PrimeReduce(n, k, m, p, m_out);
         for(var j=0; j<k+m; j++)
-            c[i].in[j] <== in[i][j]; 
+            c[i].in[j] <-- in[i][j]; 
     }
     for(var i=0; i<4; i++)for(var j=0; j<k; j++)
-        out[i][j] <== c[i].out[j];
+        out[i][j] <-- c[i].out[j];
 }
 // same input as above
 // outputs:
@@ -107,16 +107,16 @@ template Fp2MultiplyNoCarryCompress(n, k, p, m_in, m_out){
     var LOGK1 = log_ceil(k+1);
     component ab = Fp2MultiplyNoCarry(n, k, 2*m_in + 2 + LOGK1);
     for(var i=0; i<4; i++)for(var j=0; j<k; j++){
-        ab.a[i][j] <== a[i][j];
-        ab.b[i][j] <== b[i][j]; 
+        ab.a[i][j] <-- a[i][j];
+        ab.b[i][j] <-- b[i][j]; 
     }
     
     component compress = Fp2Compress(n, k, k-1, p, m_out);
     for(var i=0; i<4; i++)for(var j=0; j<2*k-1; j++)
-        compress.in[i][j] <== ab.out[i][j]; 
+        compress.in[i][j] <-- ab.out[i][j]; 
  
     for(var i=0; i<4; i++)for(var j=0; j<k; j++)
-        out[i][j] <== compress.out[i][j];
+        out[i][j] <-- compress.out[i][j];
 }
 
 // check if in[0] + in[0]*u is a valid point of Fp2 with in[0],in[1] both with k registers in [0,2^n) and in[i] in [0,p)
@@ -130,12 +130,11 @@ template CheckValidFp2(n, k, p){
         for(var i=0; i<k; i++){
             //BigLessThan calls Num2Bits!
             //range_checks[eps][i] = Num2Bits(n); 
-            //range_checks[eps][i].in <== in[eps][i];
+            //range_checks[eps][i].in <-- in[eps][i];
             
-            lt[eps].a[i] <== in[eps][i];
-            lt[eps].b[i] <== p[i];
+            lt[eps].a[i] <-- in[eps][i];
+            lt[eps].b[i] <-- p[i];
         }
-        lt[eps].out === 1;
     }    
 }
 
@@ -159,13 +158,13 @@ template Fp2CarryModP(n, k, overflow, p){
     for(var eps=0; eps<2; eps++){
         for(var i=0; i<k; i++){
             out[eps][i] <-- Xvar[eps][1][i];
-            range_check.in[eps][i] <== out[eps][i];
+            range_check.in[eps][i] <-- out[eps][i];
         }
         
         for(var i=0; i<m; i++){
             X[eps][i] <-- Xvar[eps][0][i];
             X_range_checks[eps][i] = Num2Bits(n+1);
-            X_range_checks[eps][i].in <== X[eps][i] + (1<<n); // X[eps][i] should be between [-2^n, 2^n)
+            X_range_checks[eps][i].in <-- X[eps][i] + (1<<n); // X[eps][i] should be between [-2^n, 2^n)
         }
     }
 
@@ -173,11 +172,11 @@ template Fp2CarryModP(n, k, overflow, p){
     for(var eps=0; eps<2; eps++){
         mod_check[eps] = CheckCarryModP(n, k, m, overflow, p);
         for(var i=0; i<k; i++){
-            mod_check[eps].in[i] <== in[2*eps][i] - in[2*eps+1][i];
-            mod_check[eps].Y[i] <== out[eps][i];
+            mod_check[eps].in[i] <-- in[2*eps][i] - in[2*eps+1][i];
+            mod_check[eps].Y[i] <-- out[eps][i];
         }
         for(var i=0; i<m; i++){
-            mod_check[eps].X[i] <== X[eps][i];
+            mod_check[eps].X[i] <-- X[eps][i];
         }
     }
 }
@@ -197,23 +196,23 @@ template Fp2Multiply(n, k, p){
 
     component c = Fp2MultiplyNoCarryCompress(n, k, p, n, 3*n+2+2*LOGK); 
     for(var i=0; i<k; i++){
-        c.a[0][i] <== a[0][i];
-        c.a[1][i] <== 0;
-        c.a[2][i] <== a[1][i];
-        c.a[3][i] <== 0;
-        c.b[0][i] <== b[0][i];
-        c.b[1][i] <== 0;
-        c.b[2][i] <== b[1][i];
-        c.b[3][i] <== 0;
+        c.a[0][i] <-- a[0][i];
+        c.a[1][i] <-- 0;
+        c.a[2][i] <-- a[1][i];
+        c.a[3][i] <-- 0;
+        c.b[0][i] <-- b[0][i];
+        c.b[1][i] <-- 0;
+        c.b[2][i] <-- b[1][i];
+        c.b[3][i] <-- 0;
     }
     // bounds below say X[eps] will only require 4 registers max 
     var m = 4;
     component carry_mod = Fp2CarryModP(n, k, 3*n+2+2*LOGK, p); // 3n+1+2*LOGK probably enough but safety first
     for(var i=0; i<4; i++)for(var j=0; j<k; j++)
-        carry_mod.in[i][j] <== c.out[i][j]; 
+        carry_mod.in[i][j] <-- c.out[i][j]; 
     
     for(var i=0; i<2; i++)for(var j=0; j<k; j++)
-        out[i][j] <== carry_mod.out[i][j]; 
+        out[i][j] <-- carry_mod.out[i][j]; 
 
     // out[0] constraint: X = X[0], Y = out[0] 
     // c0 = a0b0, c1 = a1b1
@@ -245,14 +244,14 @@ template Fp2Negate(n, k, p){
     component neg0 = BigSub(n, k);
     component neg1 = BigSub(n, k);
     for(var i=0; i<k; i++){
-        neg0.a[i] <== p[i];
-        neg1.a[i] <== p[i];
-        neg0.b[i] <== in[0][i];
-        neg1.b[i] <== in[1][i];
+        neg0.a[i] <-- p[i];
+        neg1.a[i] <-- p[i];
+        neg0.b[i] <-- in[0][i];
+        neg1.b[i] <-- in[1][i];
     }
     for(var i=0; i<k; i++){
-        out[0][i] <== neg0.out[i];
-        out[1][i] <== neg1.out[i];
+        out[0][i] <-- neg0.out[i];
+        out[1][i] <-- neg1.out[i];
     }
 }
 
@@ -266,14 +265,14 @@ template Fp2Subtract(n, k, p){
     component sub0 = FpSubtract(n, k, p);
     component sub1 = FpSubtract(n, k, p);
     for(var i=0; i<k; i++){
-        sub0.a[i] <== a[0][i];
-        sub0.b[i] <== b[0][i];
-        sub1.a[i] <== a[1][i];
-        sub1.b[i] <== b[1][i];
+        sub0.a[i] <-- a[0][i];
+        sub0.b[i] <-- b[0][i];
+        sub1.a[i] <-- a[1][i];
+        sub1.b[i] <-- b[1][i];
     }
     for(var i=0; i<k; i++){
-        out[0][i] <== sub0.out[i];
-        out[1][i] <== sub1.out[i];
+        out[0][i] <-- sub0.out[i];
+        out[1][i] <-- sub1.out[i];
     }
 }
 
@@ -294,21 +293,15 @@ template Fp2Invert(n, k, p){
     component outRangeChecks[2][k];
     for(var i=0; i<2; i++) for(var j=0; j<k; j++){
         outRangeChecks[i][j] = Num2Bits(n);
-        outRangeChecks[i][j].in <== out[i][j];
+        outRangeChecks[i][j].in <-- out[i][j];
     }
 
     component in_out = Fp2Multiply(n, k, p);
     for(var i=0; i<2; i++)for(var j=0; j<k; j++){
-        in_out.a[i][j] <== in[i][j];
-        in_out.b[i][j] <== out[i][j];
+        in_out.a[i][j] <-- in[i][j];
+        in_out.b[i][j] <-- out[i][j];
     }
 
-    for(var i=0; i<2; i++)for(var j=0; j<k; j++){
-        if(i == 0 && j == 0)
-            in_out.out[i][j] === 1;
-        else
-            in_out.out[i][j] === 0;
-    }
 }
 
 // a, b are two elements of Fp2 where we use the 4 x k format that remembers negatives 
@@ -349,7 +342,7 @@ template Fp2Divide(n, k, overflow, p){
     
     component check = CheckValidFp2(n, k, p);
     for(var eps=0; eps<2; eps++)for(var i=0; i<k; i++)
-        check.in[eps][i] <== out[eps][i];
+        check.in[eps][i] <-- out[eps][i];
     
     // constraint is a out * b = a + p * X 
     // precompute out * b = p * X' + Y' and a = p * X'' + Y''
@@ -358,10 +351,10 @@ template Fp2Divide(n, k, overflow, p){
     // out * b, registers overflow in 2*k*k * 2^{2n + (overflow - 2n - 2*LOGK - 1)} <= 2^{overflow}  
     component mult = Fp2MultiplyNoCarryCompress(n, k, p, overflow, overflow); 
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
-        mult.a[2*eps][i] <== out[eps][i]; 
-        mult.a[2*eps+1][i] <== 0;
-        mult.b[2*eps][i] <== b[2*eps][i]; 
-        mult.b[2*eps+1][i] <== b[2*eps+1][i];
+        mult.a[2*eps][i] <-- out[eps][i]; 
+        mult.a[2*eps+1][i] <-- 0;
+        mult.b[2*eps][i] <-- b[2*eps][i]; 
+        mult.b[2*eps+1][i] <-- b[2*eps+1][i];
     }
     
     // get mult = out * b = p*X' + Y'
@@ -375,7 +368,7 @@ template Fp2Divide(n, k, overflow, p){
             // X'' = X-X'
             X[eps][i] <-- XY[eps][0][i] - XY1[eps][0][i]; // each XY[eps][0] is in [-2^n, 2^n) so difference is in [-2^{n+1}, 2^{n+1})
             X_range_checks[eps][i] = Num2Bits(n+2);
-            X_range_checks[eps][i].in <== X[eps][i] + (1<<(n+1)); // X[eps][i] should be between [-2^{n+1}, 2^{n+1})
+            X_range_checks[eps][i].in <-- X[eps][i] + (1<<(n+1)); // X[eps][i] should be between [-2^{n+1}, 2^{n+1})
         }
     }
     
@@ -386,11 +379,11 @@ template Fp2Divide(n, k, overflow, p){
     for(var eps=0; eps<2; eps++){
         mod_check[eps] = CheckCarryModP(n, k, m, overflow + 1, p);
         for(var i=0; i<k; i++){
-            mod_check[eps].in[i] <== mult.out[2*eps][i] - mult.out[2*eps+1][i] - a[2*eps][i] + a[2*eps+1][i];
-            mod_check[eps].Y[i] <== 0;
+            mod_check[eps].in[i] <-- mult.out[2*eps][i] - mult.out[2*eps+1][i] - a[2*eps][i] + a[2*eps+1][i];
+            mod_check[eps].Y[i] <-- 0;
         }
         for(var i=0; i<m; i++){
-            mod_check[eps].X[i] <== X[eps][i];
+            mod_check[eps].X[i] <-- X[eps][i];
         }
     }
 }
@@ -405,12 +398,12 @@ template Fp2Conjugate(n, k, p){
     
     component neg1 = BigSub(n, k);
     for(var i=0; i<k; i++){
-        neg1.a[i] <== p[i];
-        neg1.b[i] <== in[1][i];
+        neg1.a[i] <-- p[i];
+        neg1.b[i] <-- in[1][i];
     }
     for(var i=0; i<k; i++){
-        out[0][i] <== in[0][i];
-        out[1][i] <== neg1.out[i];
+        out[0][i] <-- in[0][i];
+        out[1][i] <-- neg1.out[i];
     }
 }
 
@@ -423,17 +416,17 @@ template Fp2FrobeniusMap(n, k, power, p){
     component neg1 = BigSub(n,k);
     if(pow == 0){
         for(var i=0; i<k; i++){
-            out[0][i] <== in[0][i];
-            out[1][i] <== in[1][i];
+            out[0][i] <-- in[0][i];
+            out[1][i] <-- in[1][i];
         }
     }else{
         for(var i=0; i<k; i++){
-            neg1.a[i] <== p[i];
-            neg1.b[i] <== in[1][i];
+            neg1.a[i] <-- p[i];
+            neg1.b[i] <-- in[1][i];
         }
         for(var i=0; i<k; i++){
-            out[0][i] <== in[0][i];
-            out[1][i] <== neg1.out[i];
+            out[0][i] <-- in[0][i];
+            out[1][i] <-- neg1.out[i];
         }
     }
 }

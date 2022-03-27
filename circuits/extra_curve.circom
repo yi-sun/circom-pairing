@@ -33,17 +33,17 @@ template EllipticCurveAddUnequal3Reg(n, q0, q1, q2) {
     // b[1] - a[1]
     component sub1 = BigSubModP(n, k);
     for (var i = 0; i < k; i++) {
-        sub1.a[i] <== b[1][i];
-        sub1.b[i] <== a[1][i];
-        sub1.p[i] <== q[i];
+        sub1.a[i] <-- b[1][i];
+        sub1.b[i] <-- a[1][i];
+        sub1.p[i] <-- q[i];
     }
 
     // b[0] - a[0]
     component sub0 = BigSubModP(n, k);
     for (var i = 0; i < k; i++) {
-        sub0.a[i] <== b[0][i];
-        sub0.b[i] <== a[0][i];
-        sub0.p[i] <== q[i];
+        sub0.a[i] <-- b[0][i];
+        sub0.b[i] <-- a[0][i];
+        sub0.p[i] <-- q[i];
     }
 
     signal lambda[k];
@@ -56,67 +56,65 @@ template EllipticCurveAddUnequal3Reg(n, q0, q1, q2) {
     component range_checks[k];
     for (var i = 0; i < k; i++) {
         range_checks[i] = Num2Bits(n);
-        range_checks[i].in <== lambda[i];
+        range_checks[i].in <-- lambda[i];
     }
     component lt = BigLessThan(n, k);
     for (var i = 0; i < k; i++) {
-        lt.a[i] <== lambda[i];
-        lt.b[i] <== q[i];
+        lt.a[i] <-- lambda[i];
+        lt.b[i] <-- q[i];
     }
-    lt.out === 1;
 
     component lambda_check = BigMultModP(n, k);
     for (var i = 0; i < k; i++) {
-        lambda_check.a[i] <== sub0.out[i];
-        lambda_check.b[i] <== lambda[i];
-        lambda_check.p[i] <== q[i];
+        lambda_check.a[i] <-- sub0.out[i];
+        lambda_check.b[i] <-- lambda[i];
+        lambda_check.p[i] <-- q[i];
     }
     for (var i = 0; i < k; i++) {
-        lambda_check.out[i] === sub1.out[i];
     }
 
     component lambdasq = BigMultModP(n, k);
     for (var i = 0; i < k; i++) {
-        lambdasq.a[i] <== lambda[i];
-        lambdasq.b[i] <== lambda[i];
-        lambdasq.p[i] <== q[i];
+        lambdasq.a[i] <-- lambda[i];
+        lambdasq.b[i] <-- lambda[i];
+        lambdasq.p[i] <-- q[i];
     }
     component out0_pre = BigSubModP(n, k);
     for (var i = 0; i < k; i++) {
-        out0_pre.a[i] <== lambdasq.out[i];
-        out0_pre.b[i] <== a[0][i];
-        out0_pre.p[i] <== q[i];
+        out0_pre.a[i] <-- lambdasq.out[i];
+        out0_pre.b[i] <-- a[0][i];
+        out0_pre.p[i] <-- q[i];
     }
     component out0 = BigSubModP(n, k);
     for (var i = 0; i < k; i++) {
-        out0.a[i] <== out0_pre.out[i];
-        out0.b[i] <== b[0][i];
-        out0.p[i] <== q[i];
+        out0.a[i] <-- out0_pre.out[i];
+        out0.b[i] <-- b[0][i];
+        out0.p[i] <-- q[i];
     }
     for (var i = 0; i < k; i++) {
-        out[0][i] <== out0.out[i];
+        out[0][i] <-- out0.out[i];
     }
 
     component out1_0 = BigSubModP(n, k);
     for (var i = 0; i < k; i++) {
-        out1_0.a[i] <== a[0][i];
-        out1_0.b[i] <== out[0][i];
-        out1_0.p[i] <== q[i];
+        out1_0.a[i] <-- a[0][i];
+        out1_0.b[i] <-- out[0][i];
+        out1_0.p[i] <-- q[i];
     }
     component out1_1 = BigMultModP(n, k);
     for (var i = 0; i < k; i++) {
-        out1_1.a[i] <== lambda[i];
-        out1_1.b[i] <== out1_0.out[i];
-        out1_1.p[i] <== q[i];
+        out1_1.a[i] <-- lambda[i];
+        out1_1.b[i] <-- out1_0.out[i];
+        out1_1.p[i] <-- q[i];
     }
     component out1 = BigSubModP(n, k);
     for (var i = 0; i < k; i++) {
-        out1.a[i] <== out1_1.out[i];
-        out1.b[i] <== a[1][i];
-        out1.p[i] <== q[i];
+        out1.a[i] <-- out1_1.out[i];
+        out1.b[i] <-- a[1][i];
+        out1.p[i] <-- q[i];
     }
     for (var i = 0; i < k; i++) {
-        out[1][i] <== out1.out[i];
+        out[1][i] <-- out1.out[i];
     }    
 }
 
@@ -145,17 +143,17 @@ template EllipticCurveAddUnequal4Reg(n, q0, q1, q2, q3) {
     // b[1] - a[1]
     component sub1 = BigSubModP(n, k);
     for (var i = 0; i < k; i++) {
-        sub1.a[i] <== b[1][i];
-        sub1.b[i] <== a[1][i];
-        sub1.p[i] <== q[i];
+        sub1.a[i] <-- b[1][i];
+        sub1.b[i] <-- a[1][i];
+        sub1.p[i] <-- q[i];
     }
 
     // b[0] - a[0]
     component sub0 = BigSubModP(n, k);
     for (var i = 0; i < k; i++) {
-        sub0.a[i] <== b[0][i];
-        sub0.b[i] <== a[0][i];
-        sub0.p[i] <== q[i];
+        sub0.a[i] <-- b[0][i];
+        sub0.b[i] <-- a[0][i];
+        sub0.p[i] <-- q[i];
     }
 
     signal lambda[k];
@@ -168,67 +166,65 @@ template EllipticCurveAddUnequal4Reg(n, q0, q1, q2, q3) {
     component range_checks[k];
     for (var i = 0; i < k; i++) {
         range_checks[i] = Num2Bits(n);
-        range_checks[i].in <== lambda[i];
+        range_checks[i].in <-- lambda[i];
     }
     component lt = BigLessThan(n, k);
     for (var i = 0; i < k; i++) {
-        lt.a[i] <== lambda[i];
-        lt.b[i] <== q[i];
+        lt.a[i] <-- lambda[i];
+        lt.b[i] <-- q[i];
     }
-    lt.out === 1;
 
     component lambda_check = BigMultModP(n, k);
     for (var i = 0; i < k; i++) {
-        lambda_check.a[i] <== sub0.out[i];
-        lambda_check.b[i] <== lambda[i];
-        lambda_check.p[i] <== q[i];
+        lambda_check.a[i] <-- sub0.out[i];
+        lambda_check.b[i] <-- lambda[i];
+        lambda_check.p[i] <-- q[i];
     }
     for (var i = 0; i < k; i++) {
-        lambda_check.out[i] === sub1.out[i];
     }
 
     component lambdasq = BigMultModP(n, k);
     for (var i = 0; i < k; i++) {
-        lambdasq.a[i] <== lambda[i];
-        lambdasq.b[i] <== lambda[i];
-        lambdasq.p[i] <== q[i];
+        lambdasq.a[i] <-- lambda[i];
+        lambdasq.b[i] <-- lambda[i];
+        lambdasq.p[i] <-- q[i];
     }
     component out0_pre = BigSubModP(n, k);
     for (var i = 0; i < k; i++) {
-        out0_pre.a[i] <== lambdasq.out[i];
-        out0_pre.b[i] <== a[0][i];
-        out0_pre.p[i] <== q[i];
+        out0_pre.a[i] <-- lambdasq.out[i];
+        out0_pre.b[i] <-- a[0][i];
+        out0_pre.p[i] <-- q[i];
     }
     component out0 = BigSubModP(n, k);
     for (var i = 0; i < k; i++) {
-        out0.a[i] <== out0_pre.out[i];
-        out0.b[i] <== b[0][i];
-        out0.p[i] <== q[i];
+        out0.a[i] <-- out0_pre.out[i];
+        out0.b[i] <-- b[0][i];
+        out0.p[i] <-- q[i];
     }
     for (var i = 0; i < k; i++) {
-        out[0][i] <== out0.out[i];
+        out[0][i] <-- out0.out[i];
     }
 
     component out1_0 = BigSubModP(n, k);
     for (var i = 0; i < k; i++) {
-        out1_0.a[i] <== a[0][i];
-        out1_0.b[i] <== out[0][i];
-        out1_0.p[i] <== q[i];
+        out1_0.a[i] <-- a[0][i];
+        out1_0.b[i] <-- out[0][i];
+        out1_0.p[i] <-- q[i];
     }
     component out1_1 = BigMultModP(n, k);
     for (var i = 0; i < k; i++) {
-        out1_1.a[i] <== lambda[i];
-        out1_1.b[i] <== out1_0.out[i];
-        out1_1.p[i] <== q[i];
+        out1_1.a[i] <-- lambda[i];
+        out1_1.b[i] <-- out1_0.out[i];
+        out1_1.p[i] <-- q[i];
     }
     component out1 = BigSubModP(n, k);
     for (var i = 0; i < k; i++) {
-        out1.a[i] <== out1_1.out[i];
-        out1.b[i] <== a[1][i];
-        out1.p[i] <== q[i];
+        out1.a[i] <-- out1_1.out[i];
+        out1.b[i] <-- a[1][i];
+        out1.p[i] <-- q[i];
     }
     for (var i = 0; i < k; i++) {
-        out[1][i] <== out1.out[i];
+        out[1][i] <-- out1.out[i];
     }    
 }
 
@@ -268,9 +264,9 @@ template EllipticCurveDouble0(n, k, a, q0, q1, q2, q3) {
 
     component in0_sq = BigMultModP(n, k);
     for (var i = 0; i < k; i++) {
-        in0_sq.a[i] <== in[0][i];
-        in0_sq.b[i] <== in[0][i];
-        in0_sq.p[i] <== q[i];
+        in0_sq.a[i] <-- in[0][i];
+        in0_sq.b[i] <-- in[0][i];
+        in0_sq.p[i] <-- q[i];
     }
 
     var long_2[20];
@@ -290,15 +286,15 @@ template EllipticCurveDouble0(n, k, a, q0, q1, q2, q3) {
     // numer1 = 3/2 * in[0]**2
     component numer1 = BigMultModP(n, k);
     for (var i = 0; i < k; i++) {
-        numer1.a[i] <== long_3_div_2_mod_q[1][i];
-        numer1.b[i] <== in0_sq.out[i];
-        numer1.p[i] <== q[i];
+        numer1.a[i] <-- long_3_div_2_mod_q[1][i];
+        numer1.b[i] <-- in0_sq.out[i];
+        numer1.p[i] <-- q[i];
     }
     component numer = BigAddModP(n, k);
     for (var i = 0; i < k; i++) {
-        numer.a[i] <== numer1.out[i];
-        numer.b[i] <== long_a[i];
-        numer.p[i] <== q[i];
+        numer.a[i] <-- numer1.out[i];
+        numer.b[i] <-- long_a[i];
+        numer.p[i] <-- q[i];
     }
 
     signal lambda[k];
@@ -310,68 +306,66 @@ template EllipticCurveDouble0(n, k, a, q0, q1, q2, q3) {
     }
     component lt = BigLessThan(n, k);
     for (var i = 0; i < k; i++) {
-        lt.a[i] <== lambda[i];
-        lt.b[i] <== q[i];
+        lt.a[i] <-- lambda[i];
+        lt.b[i] <-- q[i];
     }
-    lt.out === 1;
 
     component lambda_range_checks[k];
     component lambda_check = BigMultModP(n, k);
     for (var i = 0; i < k; i++) {
         lambda_range_checks[i] = Num2Bits(n);
-        lambda_range_checks[i].in <== lambda[i];
+        lambda_range_checks[i].in <-- lambda[i];
 
-        lambda_check.a[i] <== in[1][i];
-        lambda_check.b[i] <== lambda[i];
-        lambda_check.p[i] <== q[i];
+        lambda_check.a[i] <-- in[1][i];
+        lambda_check.b[i] <-- lambda[i];
+        lambda_check.p[i] <-- q[i];
     }
     for (var i = 0; i < k; i++) {
-        lambda_check.out[i] === numer.out[i];
     }
 
     component lambdasq = BigMultModP(n, k);
     for (var i = 0; i < k; i++) {
-        lambdasq.a[i] <== lambda[i];
-        lambdasq.b[i] <== lambda[i];
-        lambdasq.p[i] <== q[i];
+        lambdasq.a[i] <-- lambda[i];
+        lambdasq.b[i] <-- lambda[i];
+        lambdasq.p[i] <-- q[i];
     }
     component out0_pre = BigSubModP(n, k);
     for (var i = 0; i < k; i++) {
-        out0_pre.a[i] <== lambdasq.out[i];
-        out0_pre.b[i] <== in[0][i];
-        out0_pre.p[i] <== q[i];
+        out0_pre.a[i] <-- lambdasq.out[i];
+        out0_pre.b[i] <-- in[0][i];
+        out0_pre.p[i] <-- q[i];
     }
     // out0 = lambda**2 - 2*in[0]
     component out0 = BigSubModP(n, k);
     for (var i = 0; i < k; i++) {
-        out0.a[i] <== out0_pre.out[i];
-        out0.b[i] <== in[0][i];
-        out0.p[i] <== q[i];
+        out0.a[i] <-- out0_pre.out[i];
+        out0.b[i] <-- in[0][i];
+        out0.p[i] <-- q[i];
     }
     for (var i = 0; i < k; i++) {
-        out[0][i] <== out0.out[i];
+        out[0][i] <-- out0.out[i];
     }
 
     component out1_0 = BigSubModP(n, k);
     for (var i = 0; i < k; i++) {
-        out1_0.a[i] <== in[0][i];
-        out1_0.b[i] <== out[0][i];
-        out1_0.p[i] <== q[i];
+        out1_0.a[i] <-- in[0][i];
+        out1_0.b[i] <-- out[0][i];
+        out1_0.p[i] <-- q[i];
     }
     component out1_1 = BigMultModP(n, k);
     for (var i = 0; i < k; i++) {
-        out1_1.a[i] <== lambda[i];
-        out1_1.b[i] <== out1_0.out[i];
-        out1_1.p[i] <== q[i];
+        out1_1.a[i] <-- lambda[i];
+        out1_1.b[i] <-- out1_0.out[i];
+        out1_1.p[i] <-- q[i];
     }
     component out1 = BigSubModP(n, k);
     for (var i = 0; i < k; i++) {
-        out1.a[i] <== out1_1.out[i];
-        out1.b[i] <== in[1][i];
-        out1.p[i] <== q[i];
+        out1.a[i] <-- out1_1.out[i];
+        out1.b[i] <-- in[1][i];
+        out1.p[i] <-- q[i];
     }
     for (var i = 0; i < k; i++) {
-        out[1][i] <== out1.out[i];
+        out[1][i] <-- out1.out[i];
     }
 }
 
@@ -389,57 +383,57 @@ template LineEqualCoefficients(n, k, q){
     component xsq3 = BigMultShortLong(n, k); // 2k-1 registers [0, 3*k* 2^{2n})
     component ysq = BigMultShortLong(n, k); // 2k-1 registers [0, k*2^{2n}) 
     for(var i=0; i<k; i++){
-        xsq3.a[i] <== 3*P[0][i];
-        xsq3.b[i] <== P[0][i];
+        xsq3.a[i] <-- 3*P[0][i];
+        xsq3.b[i] <-- P[0][i];
         
-        ysq.a[i] <== P[1][i];
-        ysq.b[i] <== P[1][i];
+        ysq.a[i] <-- P[1][i];
+        ysq.b[i] <-- P[1][i];
     }
     
     component xcube3 = BigMultShortLongUnequal(n, 2*k-1, k); // 3k-2 registers [0, 3*k^2* 2^{3n} )
     for(var i=0; i<2*k-1; i++)
-        xcube3.a[i] <== xsq3.out[i];
+        xcube3.a[i] <-- xsq3.out[i];
     for(var i=0; i<k; i++)
-        xcube3.b[i] <== P[0][i];
+        xcube3.b[i] <-- P[0][i];
 
     
     component xsq3red = PrimeReduce(n, k, k-1, q); // k registers in [0, k^2 * 2^{3n} )
     for(var i=0; i<2*k-1; i++) 
-        xsq3red.in[i] <== xsq3.out[i];
+        xsq3red.in[i] <-- xsq3.out[i];
     
     component a = FpCarryModP(n, k, 3*n + log_ceil(k*k), q);
     for(var i=0; i<k; i++){
-        a.in[0][i] <== 0;
-        a.in[1][i] <== xsq3red.out[i];
+        a.in[0][i] <-- 0;
+        a.in[1][i] <-- xsq3red.out[i];
     }
     for(var i=0; i<k; i++)
-        out[0][i] <== a.out[i];
+        out[0][i] <-- a.out[i];
     
     // I think reducing registers of b to [0, 2^n) is still useful for future multiplications
     component b = BigAddModP(n, k);
     for(var i=0; i<k; i++){
-        b.a[i] <== P[1][i];
-        b.b[i] <== P[1][i];
-        b.p[i] <== q[i];
+        b.a[i] <-- P[1][i];
+        b.b[i] <-- P[1][i];
+        b.p[i] <-- q[i];
     }
     for(var i=0; i<k; i++)
-        out[1][i] <== b.out[i];
+        out[1][i] <-- b.out[i];
     
     component xcube3red = PrimeReduce(n, k, 2*k-2, q); // k registers in [0, 3*k^2*(2*k-2) * 2^{4n} )
     for(var i=0; i<3*k-2; i++) 
-        xcube3red.in[i] <== xcube3.out[i];
+        xcube3red.in[i] <-- xcube3.out[i];
     
     component ysqred = PrimeReduce(n, k, k-1, q); 
     for(var i=0; i<2*k-1; i++) 
-        ysqred.in[i] <== ysq.out[i];
+        ysqred.in[i] <-- ysq.out[i];
 
     component c = FpCarryModP(n, k, 4*n + log_ceil(3*k*k*(2*k-2)), q); 
     for(var i=0; i<k; i++){
-        c.in[0][i] <== xcube3red.out[i];
-        c.in[1][i] <== 2*ysqred.out[i];
+        c.in[0][i] <-- xcube3red.out[i];
+        c.in[1][i] <-- 2*ysqred.out[i];
     }
     for(var i=0; i<k; i++)
-        out[2][i] <== c.out[i];
+        out[2][i] <-- c.out[i];
     
 }
 
@@ -496,84 +490,84 @@ template MillerLoop1(n, k, b, r, q){
             // f = 1 
             for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
                 if(l==0 && j==0 && idx==0)
-                    f[i][l][j][idx] <== 1;
+                    f[i][l][j][idx] <-- 1;
                 else
-                    f[i][l][j][idx] <== 0;
+                    f[i][l][j][idx] <-- 0;
             }
             for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                Pintermed[i][j][idx] <== P[j][idx];
+                Pintermed[i][j][idx] <-- P[j][idx];
         }else{
             // compute fdouble[i] = f[i+1]^2 * l_{Pintermed[i+1], Pintermed[i+1]}(Q) 
             square[i] = Fp12MultiplyNoCarry(n, k, 2*n + 4 + LOGK); // 6 x 4 x 2k-1 registers in [0, 12 * k * 2^{2n} )
             for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-                square[i].a[l][j][idx] <== f[i+1][l][j][idx];
-                square[i].a[l][j+2][idx] <== 0;
-                square[i].b[l][j][idx] <== f[i+1][l][j][idx];
-                square[i].b[l][j+2][idx] <== 0;
+                square[i].a[l][j][idx] <-- f[i+1][l][j][idx];
+                square[i].a[l][j+2][idx] <-- 0;
+                square[i].b[l][j][idx] <-- f[i+1][l][j][idx];
+                square[i].b[l][j+2][idx] <-- 0;
             }
 
             line[i] = LineFunctionEqual(n, k, q); // 6 x 2 x k registers in [0, 2^n) 
             for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                line[i].P[j][idx] <== Pintermed[i+1][j][idx];            
+                line[i].P[j][idx] <-- Pintermed[i+1][j][idx];            
             for(var eps=0; eps<2; eps++)for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                line[i].Q[eps][l][j][idx] <== Q[eps][l][j][idx];
+                line[i].Q[eps][l][j][idx] <-- Q[eps][l][j][idx];
 
             var logc2 = log_ceil(144 * k * k);
             nocarry[i] = Fp12MultiplyNoCarryUnequal(n, 2*k-1, k, logc2 + 3*n); // 6 x 4 x 3k-2 registers in [0, 144 * k^2 * 2^{3n} ) 
             for(var l=0; l<6; l++)for(var j=0; j<4; j++)for(var idx=0; idx<2*k-1; idx++)
-                nocarry[i].a[l][j][idx] <== square[i].out[l][j][idx];
+                nocarry[i].a[l][j][idx] <-- square[i].out[l][j][idx];
             for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-                nocarry[i].b[l][j][idx] <== line[i].out[l][j][idx];
-                nocarry[i].b[l][j+2][idx] <== 0;
+                nocarry[i].b[l][j][idx] <-- line[i].out[l][j][idx];
+                nocarry[i].b[l][j+2][idx] <-- 0;
             }
             compress[i] = Fp12Compress(n, k, 2*k-2, q, logc + 1 + 4*n); // 6 x 4 x k registers in [0, 144 * k^2 * (2k-1) * 2^{4n} )
             for(var l=0; l<6; l++)for(var j=0; j<4; j++)for(var idx=0; idx<3*k-2; idx++)
-                compress[i].in[l][j][idx] <== nocarry[i].out[l][j][idx];
+                compress[i].in[l][j][idx] <-- nocarry[i].out[l][j][idx];
 
             fdouble[i] = Fp12CarryModP(n, k, logc + 1 + 4*n, q);
             for(var l=0; l<6; l++)for(var j=0; j<4; j++)for(var idx=0; idx<k; idx++)
-                fdouble[i].in[l][j][idx] <== compress[i].out[l][j][idx]; 
+                fdouble[i].in[l][j][idx] <-- compress[i].out[l][j][idx]; 
 
             if( i != 0 || (i == 0 && rBits[i] == 1) ){
                 Pdouble[i] = EllipticCurveDouble(n, k, 0, b, q);  
                 for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                    Pdouble[i].in[j][idx] <== Pintermed[i+1][j][idx]; 
+                    Pdouble[i].in[j][idx] <-- Pintermed[i+1][j][idx]; 
             }
             
             if(rBits[i] == 0){
                 for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                    f[i][l][j][idx] <== fdouble[i].out[l][j][idx]; 
+                    f[i][l][j][idx] <-- fdouble[i].out[l][j][idx]; 
                 if( i != 0 ){
                     for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                        Pintermed[i][j][idx] <== Pdouble[i].out[j][idx];
+                        Pintermed[i][j][idx] <-- Pdouble[i].out[j][idx];
                 }
             }else{
                 // fadd[curid] = fdouble * l_{Pdouble[i], P}(Q) 
                 fadd[curid] = Fp12MultiplyWithLineUnequal(n, k, k, n, q); 
                 for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-                    fadd[curid].g[l][j][idx] <== fdouble[i].out[l][j][idx];
-                    fadd[curid].g[l][j+2][idx] <== 0;
+                    fadd[curid].g[l][j][idx] <-- fdouble[i].out[l][j][idx];
+                    fadd[curid].g[l][j+2][idx] <-- 0;
                 }
                 for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-                    fadd[curid].P[0][j][idx] <== Pdouble[i].out[j][idx];            
-                    fadd[curid].P[1][j][idx] <== P[j][idx];            
+                    fadd[curid].P[0][j][idx] <-- Pdouble[i].out[j][idx];            
+                    fadd[curid].P[1][j][idx] <-- P[j][idx];            
                 }
                 for(var eps=0; eps<2; eps++)for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                    fadd[curid].Q[eps][l][j][idx] <== Q[eps][l][j][idx];
+                    fadd[curid].Q[eps][l][j][idx] <-- Q[eps][l][j][idx];
 
                 for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                    f[i][l][j][idx] <== fadd[curid].out[l][j][idx]; 
+                    f[i][l][j][idx] <-- fadd[curid].out[l][j][idx]; 
 
                 if(i != 0){
                     // Padd[curid] = Pdouble[i] + P 
                     Padd[curid] = EllipticCurveAddUnequal(n, k, q); 
                     for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-                        Padd[curid].a[j][idx] <== Pdouble[i].out[j][idx];
-                        Padd[curid].b[j][idx] <== P[j][idx];
+                        Padd[curid].a[j][idx] <-- Pdouble[i].out[j][idx];
+                        Padd[curid].b[j][idx] <-- P[j][idx];
                     }
 
                     for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                        Pintermed[i][j][idx] <== Padd[curid].out[j][idx];
+                        Pintermed[i][j][idx] <-- Padd[curid].out[j][idx];
                 }
                 
                 curid++;
@@ -581,7 +575,7 @@ template MillerLoop1(n, k, b, r, q){
         }
     }
     for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-        out[l][j][idx] <== f[0][l][j][idx];
+        out[l][j][idx] <-- f[0][l][j][idx];
     
 }
 
@@ -604,9 +598,9 @@ template Fp12MultiplyWithLineEqual(n, k, kg, overflowg, q){
     var LOGK = log_ceil(k);
     component line = LineFunctionEqualNoCarry(n, k, 3*n + 2*LOGK + 2); // 6 x 4 x (3k - 2) registers in [0, 2^{3n + 2log(k) + 2})
     for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++)
-        line.P[l][idx] <== P[l][idx];
+        line.P[l][idx] <-- P[l][idx];
     for(var l=0; l<2; l++)for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-        line.Q[l][i][j][idx] <== Q[l][i][j][idx];
+        line.Q[l][i][j][idx] <-- Q[l][i][j][idx];
 
     var mink;
     if(kg < 3*k - 2)
@@ -619,20 +613,20 @@ template Fp12MultiplyWithLineEqual(n, k, kg, overflowg, q){
     component mult = Fp12MultiplyNoCarryUnequal(n, kg, 3*k - 2, overflowg + 3*n + logc + 2 - log2kkg); // 3k + kg - 3 registers in [0, 12 * min(kg, 3k - 2) * 2^{overflowg + 3n + 2log(k) + 2} )
     
     for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<kg; idx++)
-        mult.a[i][j][idx] <== g[i][j][idx];
+        mult.a[i][j][idx] <-- g[i][j][idx];
     for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<3*k-2; idx++)
-        mult.b[i][j][idx] <== line.out[i][j][idx];
+        mult.b[i][j][idx] <-- line.out[i][j][idx];
     component reduce = Fp12Compress(n, k, 2*k + kg - 3, q, overflowg + 4*n + logc + 2); // k registers in [0, 12 * (2k + kg - 2) * min(kg, 3k - 2) * 2^{overflowg + 4n + 2log(k) + 2} )
     for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<3*k + kg - 3; idx++)
-        reduce.in[i][j][idx] <== mult.out[i][j][idx];
+        reduce.in[i][j][idx] <-- mult.out[i][j][idx];
 
     component carry = Fp12CarryModP(n, k, overflowg + 4*n + logc + 2, q);
 
     for(var i=0; i<6; i++)for(var j=0; j<4; j++)for(var idx=0; idx<k; idx++)
-        carry.in[i][j][idx] <== reduce.out[i][j][idx];
+        carry.in[i][j][idx] <-- reduce.out[i][j][idx];
 
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-        out[i][j][idx] <== carry.out[i][j][idx];
+        out[i][j][idx] <-- carry.out[i][j][idx];
 }
 
 
@@ -674,71 +668,71 @@ template MillerLoop2(n, k, b, r, q){
             // f = 1 
             for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
                 if(l==0 && j==0 && idx==0)
-                    f[i][l][j][idx] <== 1;
+                    f[i][l][j][idx] <-- 1;
                 else
-                    f[i][l][j][idx] <== 0;
+                    f[i][l][j][idx] <-- 0;
             }
             for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                Pintermed[i][j][idx] <== P[j][idx];
+                Pintermed[i][j][idx] <-- P[j][idx];
         }else{
             // compute fdouble[i] = f[i+1]^2 * l_{Pintermed[i+1], Pintermed[i+1]}(Q) 
             square[i] = Fp12MultiplyNoCarry(n, k, 2*n + LOGK + 4); // 2k-1 registers in [0, 12 * k * 2^{2n} )
             for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-                square[i].a[l][j][idx] <== f[i+1][l][j][idx];
-                square[i].a[l][j+2][idx] <== 0;
-                square[i].b[l][j][idx] <== f[i+1][l][j][idx];
-                square[i].b[l][j+2][idx] <== 0;
+                square[i].a[l][j][idx] <-- f[i+1][l][j][idx];
+                square[i].a[l][j+2][idx] <-- 0;
+                square[i].b[l][j][idx] <-- f[i+1][l][j][idx];
+                square[i].b[l][j+2][idx] <-- 0;
             }
 
             fdouble[i] = Fp12MultiplyWithLineEqual(n, k, 2*k-1, 2*n + LOGK + 4, q);
             // assert ( 6n + log(k) + 6 + log(12 * (4k-3) * (2k-1) * k * k ) ) < 252
             for(var l=0; l<6; l++)for(var j=0; j<4; j++)for(var idx=0; idx<2*k-1; idx++)
-                fdouble[i].g[l][j][idx] <== square[i].out[l][j][idx];
+                fdouble[i].g[l][j][idx] <-- square[i].out[l][j][idx];
             for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                fdouble[i].P[j][idx] <== Pintermed[i+1][j][idx];            
+                fdouble[i].P[j][idx] <-- Pintermed[i+1][j][idx];            
             for(var eps=0; eps<2; eps++)for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                fdouble[i].Q[eps][l][j][idx] <== Q[eps][l][j][idx];
+                fdouble[i].Q[eps][l][j][idx] <-- Q[eps][l][j][idx];
 
             if( i != 0 || (i == 0 && rBits[i] == 1) ){
                 Pdouble[i] = EllipticCurveDouble(n, k, 0, b, q);  
                 for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                    Pdouble[i].in[j][idx] <== Pintermed[i+1][j][idx]; 
+                    Pdouble[i].in[j][idx] <-- Pintermed[i+1][j][idx]; 
             }
             
             if(rBits[i] == 0){
                 for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                    f[i][l][j][idx] <== fdouble[i].out[l][j][idx]; 
+                    f[i][l][j][idx] <-- fdouble[i].out[l][j][idx]; 
                 if( i != 0 ){
                     for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                        Pintermed[i][j][idx] <== Pdouble[i].out[j][idx];
+                        Pintermed[i][j][idx] <-- Pdouble[i].out[j][idx];
                 }
             }else{
                 // fadd[curid] = fdouble * l_{Pdouble[i], P}(Q) 
                 fadd[curid] = Fp12MultiplyWithLineUnequal(n, k, k, n, q); 
                 for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-                    fadd[curid].g[l][j][idx] <== fdouble[i].out[l][j][idx];
-                    fadd[curid].g[l][j+2][idx] <== 0;
+                    fadd[curid].g[l][j][idx] <-- fdouble[i].out[l][j][idx];
+                    fadd[curid].g[l][j+2][idx] <-- 0;
                 }
                 for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-                    fadd[curid].P[0][j][idx] <== Pdouble[i].out[j][idx];            
-                    fadd[curid].P[1][j][idx] <== P[j][idx];            
+                    fadd[curid].P[0][j][idx] <-- Pdouble[i].out[j][idx];            
+                    fadd[curid].P[1][j][idx] <-- P[j][idx];            
                 }
                 for(var eps=0; eps<2; eps++)for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                    fadd[curid].Q[eps][l][j][idx] <== Q[eps][l][j][idx];
+                    fadd[curid].Q[eps][l][j][idx] <-- Q[eps][l][j][idx];
 
                 for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                    f[i][l][j][idx] <== fadd[curid].out[l][j][idx]; 
+                    f[i][l][j][idx] <-- fadd[curid].out[l][j][idx]; 
 
                 if(i != 0){
                     // Padd[curid] = Pdouble[i] + P 
                     Padd[curid] = EllipticCurveAddUnequal(n, k, q); 
                     for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-                        Padd[curid].a[j][idx] <== Pdouble[i].out[j][idx];
-                        Padd[curid].b[j][idx] <== P[j][idx];
+                        Padd[curid].a[j][idx] <-- Pdouble[i].out[j][idx];
+                        Padd[curid].b[j][idx] <-- P[j][idx];
                     }
 
                     for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                        Pintermed[i][j][idx] <== Padd[curid].out[j][idx];
+                        Pintermed[i][j][idx] <-- Padd[curid].out[j][idx];
                 }
                 
                 curid++;
@@ -746,6 +740,6 @@ template MillerLoop2(n, k, b, r, q){
         }
     }
     for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-        out[l][j][idx] <== f[0][l][j][idx];
+        out[l][j][idx] <-- f[0][l][j][idx];
     
 }
