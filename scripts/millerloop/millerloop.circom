@@ -12,6 +12,6 @@ component main = BLSMillerLoop(55, 7, //4,
 0,
 0],*/
 //[2, 0, 0, 0, 0, 0, 0], 
-get_bls12_381_prime(55, 7)
+get_BLS12_381_prime(55, 7)
 );
 

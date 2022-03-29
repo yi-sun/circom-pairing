@@ -209,8 +209,8 @@ template BigAdd(n, k) {
     out[k] <== unit[k - 2].carry;
 }
 
-// a[i] and b[i] are short unsigned integers
-// out[i] is a long unsigned integer
+// a[i] and b[i] are short signed integers
+// out[i] is a long signed integer
 // m_out is the expected max number of bits in the output registers
 template BigMultShortLong(n, k, m_out) {
    assert(n <= 126);
@@ -263,8 +263,8 @@ template BigMultShortLong(n, k, m_out) {
    }*/
 }
 
-// a[i] and b[i] are short unsigned integers
-// out[i] is a long unsigned integer
+// a[i] and b[i] are short signed integers
+// out[i] is a long signed integer
 // m_out is the expected max number of bits in the output registers
 template BigMultShortLongUnequal(n, ka, kb, m_out) {
     assert(n <= 126);
@@ -436,13 +436,6 @@ template BigLessThan(n, k){
         }
      }
      out <== ors[0].out;
-}
-
-function vlog(verbose, x) {
-    if (verbose == 1) {
-        log(x);
-    }
-    return x;
 }
 
 // leading register of b should be non-zero
@@ -765,7 +758,7 @@ template CheckCarryToZero(n, m, k) {
 // For i >= k, we precompute X^i = r[i] mod p 
 //      where r[i] represented as k registers with r[i][j] in [0, 2^n) 
 // Output has k registers where in[i] * X^i is replaced by sum_j in[i] * r[i][j] * X^j
-// if in[i] in (-B, B) for all i, then out[i] < (-2^n * B * (m+1), 2^n * B * (m+1))
+// if in[i] in (-B, B) for all i, then out[i] in (-2^n * B * (m+1), 2^n * B * (m+1))
 // m_out is the expected max number of bits in the output registers
 template PrimeReduce(n, k, m, p, m_out){
     signal input in[m+k]; 
@@ -951,78 +944,3 @@ template BigMultShortLong2DUnequal(n, ka, kb, la, lb) {
 }
 
 
-
-// adapted from Fp2multiplyNoCarry and Fp12multiplyNoCarry
-// perhaps we should make Fp12multiplyNoCarry into a general Fp^k-multiplyNoCarry template?
-//
-// inputs:
-//  a[2][k] allow overflow, all registers are "positive"
-//  b[2][k] 
-// output:
-//  out[2][2*k-1] such that:
-// (a[0] - a[1]) * (b[0] - b[1]) = out[0] - out[1] as BigInts 
-// computed without carrying 
-// we keep track of "positives" and "negatives" since circom isn't able to 
-// if all registers of a, b are in [0, B) then out has registers in [0, 2*(k+1)*B^2 )
-// m_out is the expected max number of bits in the output registers
-template BigMultNoCarry(n, k, m_out){
-    signal input a[2][k];
-    signal input b[2][k];
-    signal output out[2][2*k-1];
-
-    // if a,b have registers in [0, 2^n), then 
-    // assert( 2n + 1 + log(k+1) < 254 );
-
-    component ab[2][2];
-    var LOGK = log_ceil(k);
-    for(var i=0; i<2; i++)for(var j=0; j<2; j++){
-        ab[i][j] = BigMultShortLong(n, k, 2*n + LOGK); 
-        for(var l=0; l<k; l++){
-            ab[i][j].a[l] <== a[i][l];
-            ab[i][j].b[l] <== b[j][l];
-        }
-    }
-
-    for(var j=0; j<2*k-1; j++){
-        out[0][j] <== ab[0][0].out[j] + ab[1][1].out[j];
-        out[1][j] <== ab[0][1].out[j] + ab[1][0].out[j];
-    }
-    /*component range_checks[2][2*k-1];
-    for (var i = 0; i < 2; i ++) {
-        for (var j = 0; j < 2*k - 1; j ++) {
-            range_checks[i][j] = Num2Bits(m_out);
-            range_checks[i][j].in <== out[i][j];
-        }
-    }*/
-}
-
-// m_out is the expected max number of bits in the output registers
-template BigMultNoCarryUnequal(n, ka, kb, m_out){
-    signal input a[2][ka];
-    signal input b[2][kb];
-    signal output out[2][ka+kb-1];
-
-    // if a,b have registers in [0, 2^n), then 
-    // assert( 2n + 1 + log(k+1) < 254 );
-
-    component ab[2][2];
-    for(var i=0; i<2; i++)for(var j=0; j<2; j++){
-        ab[i][j] = BigMultShortLongUnequal(n, ka, kb, m_out); 
-        for(var l=0; l<ka; l++)
-            ab[i][j].a[l] <== a[i][l];
-        for(var l=0; l<kb; l++)
-            ab[i][j].b[l] <== b[j][l];
-    }
-
-    for(var j=0; j<ka+kb-1; j++){
-        out[0][j] <== ab[0][0].out[j] + ab[1][1].out[j];
-        out[1][j] <== ab[0][1].out[j] + ab[1][0].out[j];
-    }
-    /*component range_checks[2][ka+kb-1];
-    for (var i = 0; i < 2; i ++) {
-        for (var j = 0; j < ka+kb - 1; j ++) {
-            range_checks[i][j] = Num2Bits(m_out);
-            range_checks[i][j].in <== out[i][j];
-        }
-    }*/
-}

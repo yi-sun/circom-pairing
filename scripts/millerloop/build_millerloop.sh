@@ -20,7 +20,8 @@ echo $PWD
 
 echo "****COMPILING CIRCUIT****"
 start=`date +%s`
-circom "$CIRCUIT_NAME".circom --O1 --r1cs --wasm --sym --c --wat --output "$BUILD_DIR"
+#circom "$CIRCUIT_NAME".circom --O1 --r1cs --wasm --sym --c --wat --output "$BUILD_DIR"
+circom "$CIRCUIT_NAME".circom --O1 --r1cs --wasm --wat --output "$BUILD_DIR"
 end=`date +%s`
 echo "DONE ($((end-start))s)"
 
@@ -36,11 +37,11 @@ NODE_OPTIONS="--max-old-space-size=56000" npx snarkjs groth16 setup "$BUILD_DIR"
 end=`date +%s`
 echo "DONE ($((end-start))s)"
 
-echo "****GENERATING FINAL ZKEY****"
-start=`date +%s`
-NODE_OPTIONS="--max-old-space-size=56000" npx snarkjs zkey beacon "$BUILD_DIR"/"$CIRCUIT_NAME"_0.zkey "$BUILD_DIR"/"$CIRCUIT_NAME".zkey 0102030405060708090a0b0c0d0e0f101112231415161718221a1b1c1d1e1f 10 -n="Final Beacon phase2"
-end=`date +%s`
-echo "DONE ($((end-start))s)"
+#echo "****GENERATING FINAL ZKEY****"
+#start=`date +%s`
+#NODE_OPTIONS="--max-old-space-size=56000" npx snarkjs zkey beacon "$BUILD_DIR"/"$CIRCUIT_NAME"_0.zkey "$BUILD_DIR"/"$CIRCUIT_NAME".zkey 0102030405060708090a0b0c0d0e0f101112231415161718221a1b1c1d1e1f 10 -n="Final Beacon phase2"
+#end=`date +%s`
+#echo "DONE ($((end-start))s)"
 
 echo "****VERIFYING FINAL ZKEY****"
 start=`date +%s`

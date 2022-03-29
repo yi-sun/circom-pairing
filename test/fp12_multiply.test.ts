@@ -94,7 +94,7 @@ describe("Fp12Multiply n = 3, k = 2", function() {
     test_cases.forEach(test_field_multiply_32);
 });
 
-
+/*
 describe("Fp12Multiply2 n = 3, k = 2", function() {
     this.timeout(1000 * 1000);
 
@@ -143,7 +143,7 @@ describe("Fp12Multiply2 n = 3, k = 2", function() {
 
     test_cases.forEach(test_field_multiply_32);
 });
-
+*/
 
 describe("Fp12Compression n = 3, k = 2", function() {
     this.timeout(1000 * 1000);

@@ -38,7 +38,7 @@ template PointOnLine(n, k, p) {
     assert(3*n + 2*LOGK + 2 < 253);
 
     // AKA check point on line 
-    component left = BigMultNoCarry(n, k, 2*n + 2*LOGK + 2); // 2k-1 registers in [0, k*2^{2n+1})
+    component left = BigMult(n, k, 2*n + 2*LOGK + 2); // 2k-1 registers in [0, k*2^{2n+1})
     for(var i = 0; i < k; i++){
         left.a[0][i] <== in[0][1][i] + in[2][1][i];
         left.a[1][i] <== 0;

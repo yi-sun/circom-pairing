@@ -72,48 +72,76 @@ function find_Fp_inverse(n, k, num, p) {
     return ret;
 }
 
-// a[4][k] registers can overflow - let's say in [0, B) 
+// a[k] registers can overflow - let's say in [0, B) 
+//  assume actual value of a in  2^{k+m} 
+// p[k] registers in [0, 2^n)
+// out[2][k] solving
+//      a = p * out[0] + out[1] with out[1] in [0,p) 
+// out[0] has m registers in range [-2^n, 2^n)
+// out[1] has k registers in range [0, 2^n)
+function get_signed_Fp_carry_witness(n, k, m, a, p){
+    var out[2][50];
+    var a_short[51] = signed_long_to_short(n, k, a); 
+
+    // let me make sure everything is in <= k+m registers
+    /* commenting out to improve speed
+    for(var j=k+m; j<50; j++)
+        assert( a_short[j] == 0 );
+    */
+
+    if(a_short[50] == 0){
+        out = long_div2(n, k, m, a_short, p);    
+    }else{
+        var a_pos[50];
+        for(var i=0; i<k+m; i++) 
+            a_pos[i] = -a_short[i];
+
+        var X[2][50] = long_div2(n, k, m, a_pos, p);
+        // what if X[1] is 0? 
+        var Y_is_zero = 1;
+        for(var i=0; i<k; i++){
+            if(X[1][i] != 0)
+                Y_is_zero = 0;
+        }
+        if( Y_is_zero == 1 ){
+            out[1] = X[1];
+        }else{
+            out[1] = long_sub(n, k, p, X[1]); 
+            
+            X[0][0]++;
+            if(X[0][0] >= (1<<n)){
+                for(var i=0; i<m-1; i++){
+                    var carry = X[0][i] \ (1<<n); 
+                    X[0][i+1] += carry;
+                    X[0][i] -= carry * (1<<n);
+                }
+                assert( X[0][m-1] < (1<<n) ); 
+            }
+        }
+        for(var i=0; i<m; i++)
+            out[0][i] = -X[0][i]; 
+    }
+
+    return out;
+}
+
+
+// Implements: 
+//      calls get_signed_Fp_carry_witness twice
+// a[2][k] registers can overflow
 //  assume actual value of each a[i] < 2^{k+m} 
 // p[k] registers in [0, 2^n)
 // out[2][2][k] solving
-//      a[0] - a[1] = p * out[0][0] + out[0][1] with out[0][1] in [0,p) 
-//      a[2] - a[3] = p * out[1][0] + out[1][1] with out[1][1] in [0,p) 
+//      a[0] = p * out[0][0] + out[0][1] with out[0][1] in [0,p) 
+//      a[1] = p * out[1][0] + out[1][1] with out[1][1] in [0,p) 
 // out[i][0] has m registers in range [-2^n, 2^n)
 // out[i][1] has k registers in range [0, 2^n)
-function get_Fp2_carry_witness(n, k, m, a, p){
+function get_signed_Fp2_carry_witness(n, k, m, a, p){
     var out[2][2][50];
-    // solve for X and Y such that a0*b0 + (p-a1)*b1 = p*X + Y with Y in [0,p) 
-    // -a1*b1 = (p-a1)*b1 mod p
-    var a_short[4][50];
-    for(var i=0; i<4; i++)
-        a_short[i] = long_to_short(n, k, a[i]); 
 
-    // let me make sure everything is in <= k+m registers
-    /*
-    for(var i=0; i<4; i++)
-        for(var j=k+m; j<50; j++)
-            assert( a_short[i][j] == 0 );
-    */
+    for(var i=0; i<2; i++)
+        out[i] = get_signed_Fp_carry_witness(n, k, m, a[i], p);
 
-    var X[4][2][50];
-    for(var i=0; i<4; i++)
-        X[i] = long_div2(n, k, m, a_short[i], p);    
-
-    for(var eps=0; eps<2; eps++){
-        // compute X[2*eps][1] - X[2*eps+1][1] mod p 
-        var gt = long_gt(n, k, X[2*eps+1][1], X[2*eps][1]);
-        if(gt == 0){
-            out[eps][1] = long_sub(n, k, X[2*eps][1], X[2*eps+1][1]); 
-            for(var i=0; i<m; i++)
-                out[eps][0][i] = X[2*eps][0][i] - X[2*eps+1][0][i];
-        }else{
-            // X[2*eps][1] - X[2*eps+1][1] + p 
-            out[eps][1] = long_add(n, k, X[2*eps][1], long_sub(n, k, p, X[2*eps+1][1]) );
-            out[eps][0][0] = X[2*eps][0][0] - X[2*eps+1][0][0] - 1;
-            for(var i=1; i<m; i++)
-                out[eps][0][i] = X[2*eps][0][i] - X[2*eps+1][0][i]; 
-        }
-    }
     return out;
 }
 
@@ -153,15 +181,13 @@ function find_Fp2_diff(n, k, a, b, p){
     return out;
 }
 
-// a[4][k] elt in Fp2 
-// output multiplies by 1+u
-function Fp2multc(k, a){
-    var out[4][50];
+// a[2][k] elt in Fp2 
+// output multiplies by XI0 +u
+function signed_Fp2_mult_w6(k, a, XI0){
+    var out[2][50];
     for(var i=0; i<k; i++){
-        out[0][i] = a[0][i] + a[3][i];
-        out[1][i] = a[1][i] + a[2][i];
-        out[2][i] = a[0][i] + a[2][i];
-        out[3][i] = a[1][i] + a[3][i];
+        out[0][i] = a[0][i]*XI0 - a[1][i];
+        out[1][i] = a[0][i] + a[1][i]*XI0;
     }
     return out;
 }
@@ -288,37 +314,6 @@ function find_Fp2_inverse(n, k, a, p) {
     var out1[50] = prod(n, k, lambda, out1_pre);
     var out1_div[2][50] = long_div(n, k, out1, p);
     out[1] = out1_div[1];
-    return out;
-}
-
-
-// solve for
-// a - b = out0 * p + out1
-// assumes out0 has at most kX registers
-function get_Fp12_carry_witness(n, k, kX, p, a, b) {
-    var out[2][50];
-
-    var a_short[50] = long_to_short(n, k, a);
-    var b_short[50] = long_to_short(n, k, b);
-
-    var X[2][2][50];
-    X[0] = long_div2(n, k, kX, a_short, p);
-    X[1] = long_div2(n, k, kX, b_short, p);
-    
-    var gt = long_gt(n, k, X[1][1], X[0][1]);
-    if (gt == 0){
-        out[1] = long_sub(n, k, X[0][1], X[1][1]); 
-        for(var i = 0; i < kX; i++) {
-            out[0][i] = X[0][0][i] - X[1][0][i];
-	}
-    } else{
-        out[1] = long_add(n, k, X[0][1], long_sub(n, k, p, X[1][1]));
-        out[0][0] = X[0][0][0] - X[1][0][0] - 1;
-        for(var i = 1; i < kX; i++) {
-            out[0][i] = X[0][0][i] - X[1][0][i];
-	}
-    }
-
     return out;
 }
 
