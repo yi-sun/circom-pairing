@@ -236,7 +236,7 @@ template Fp12Compress(n, k, m, p, m_out){
 
 // Input is same as for Fp12MultiplyNoCarry
 // Our answer is the prime reduction of output of Fp12MultiplyNoCarry to
-//     * length 6 vectors with k registers in [0, B_a * B_b * 2^n * 12 * k^2 )
+//     * length 6 vectors with k registers in [0, B_a * B_b * 2^n * 6*(2+XI0) * k^2 )
 // p is length k
 // m_in is the expected max number of bits in the input registers (necessary for some intermediate overflow validation)
 // m_out is the expected max number of bits in the output registers

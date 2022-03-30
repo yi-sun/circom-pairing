@@ -285,7 +285,7 @@ template Fp2Invert(n, k, p){
 template SignedFp2Divide(n, k, overflow, p){
     signal input a[2][k];
     signal input b[2][k]; 
-    var m = (overflow + n - 1) \ n; // ceil(overflow/n) , i.e., 2^overflow <= 2^{n*m}
+    var m = (overflow + n) \ n; // ceil((overflow + 1)/n) , i.e., 2^{overflow+1} <= 2^{n*m}
     signal output X[2][m];
     signal output out[2][k]; 
     assert( overflow < 250 );
@@ -295,8 +295,10 @@ template SignedFp2Divide(n, k, overflow, p){
     var b_mod[2][50]; 
     for(var eps=0; eps<2; eps++){
         // 2^{overflow} <= 2^{n*ceil(overflow/n)} 
-        a_mod[eps] = get_signed_Fp_carry_witness(n, k, m, a[eps], p);
-        b_mod[eps] = get_signed_Fp_carry_witness(n, k, m, b[eps], p);
+        var temp[2][50] = get_signed_Fp_carry_witness(n, k, m, a[eps], p);
+        a_mod[eps] = temp[1];
+        temp = get_signed_Fp_carry_witness(n, k, m, b[eps], p);
+        b_mod[eps] = temp[1];
     }
 
     // precompute 1/b 
@@ -343,10 +345,11 @@ template SignedFp2Divide(n, k, overflow, p){
     // assume n+1 < overflow - n - log(min(k,m)), for registers of X
     component mod_check[2];  // overflow 9*(k+1)*k * 2^{3n+1} + 2*2^n < 2^{3n+LOGK+5} 
     for(var eps=0; eps<2; eps++){
-        mod_check[eps] = SignedCheckCarryModToZero(n, k, overflow + 1, p);
-        for(var i=0; i<k; i++)
+        mod_check[eps] = CheckCarryModP(n, k, m, overflow + 1, p);
+        for(var i=0; i<k; i++){
             mod_check[eps].in[i] <== mult.out[eps][i] - a[eps][i];
-        
+            mod_check[eps].Y[i] <== 0;
+        }
         for(var i=0; i<m; i++)
             mod_check[eps].X[i] <== X[eps][i];
     }

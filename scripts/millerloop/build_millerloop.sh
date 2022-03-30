@@ -20,8 +20,8 @@ echo $PWD
 
 echo "****COMPILING CIRCUIT****"
 start=`date +%s`
-#circom "$CIRCUIT_NAME".circom --O1 --r1cs --wasm --sym --c --wat --output "$BUILD_DIR"
-circom "$CIRCUIT_NAME".circom --O1 --r1cs --wasm --wat --output "$BUILD_DIR"
+#circom "$CIRCUIT_NAME".circom --O1 --wasm --sym --output "$BUILD_DIR"
+circom "$CIRCUIT_NAME".circom --O1 --r1cs --wasm --wat --sym --output "$BUILD_DIR"
 end=`date +%s`
 echo "DONE ($((end-start))s)"
 
@@ -30,10 +30,11 @@ start=`date +%s`
 node "$BUILD_DIR"/"$CIRCUIT_NAME"_js/generate_witness.js "$BUILD_DIR"/"$CIRCUIT_NAME"_js/"$CIRCUIT_NAME".wasm input_"$CIRCUIT_NAME".json "$BUILD_DIR"/witness.wtns
 end=`date +%s`
 echo "DONE ($((end-start))s)"
+snarkjs wej "$BUILD_DIR"/witness.wtns "$BUILD_DIR"/witness.json
 
 echo "****GENERATING ZKEY 0****"
 start=`date +%s`
-NODE_OPTIONS="--max-old-space-size=56000" npx snarkjs groth16 setup "$BUILD_DIR"/"$CIRCUIT_NAME".r1cs "$PHASE1" "$BUILD_DIR"/"$CIRCUIT_NAME"_0.zkey
+NODE_OPTIONS="--max-old-space-size=56000" npx snarkjs groth16 setup "$BUILD_DIR"/"$CIRCUIT_NAME".r1cs "$PHASE1" "$BUILD_DIR"/"$CIRCUIT_NAME"_0.zkey -v
 end=`date +%s`
 echo "DONE ($((end-start))s)"
 
@@ -45,19 +46,19 @@ echo "DONE ($((end-start))s)"
 
 echo "****VERIFYING FINAL ZKEY****"
 start=`date +%s`
-NODE_OPTIONS="--max-old-space-size=56000" npx snarkjs zkey verify -verbose "$BUILD_DIR"/"$CIRCUIT_NAME".r1cs "$PHASE1" "$BUILD_DIR"/"$CIRCUIT_NAME".zkey
+NODE_OPTIONS="--max-old-space-size=56000" npx snarkjs zkey verify -verbose "$BUILD_DIR"/"$CIRCUIT_NAME".r1cs "$PHASE1" "$BUILD_DIR"/"$CIRCUIT_NAME"_0.zkey
 end=`date +%s`
 echo "DONE ($((end-start))s)"
 
 echo "****EXPORTING VKEY****"
 start=`date +%s`
-npx snarkjs zkey export verificationkey "$BUILD_DIR"/"$CIRCUIT_NAME".zkey "$BUILD_DIR"/vkey.json
+npx snarkjs zkey export verificationkey "$BUILD_DIR"/"$CIRCUIT_NAME"_0.zkey "$BUILD_DIR"/vkey.json
 end=`date +%s`
 echo "DONE ($((end-start))s)"
 
 echo "****GENERATING PROOF FOR SAMPLE INPUT****"
 start=`date +%s`
-npx snarkjs groth16 prove "$BUILD_DIR"/"$CIRCUIT_NAME".zkey "$BUILD_DIR"/witness.wtns "$BUILD_DIR"/proof.json "$BUILD_DIR"/public.json
+npx snarkjs groth16 prove "$BUILD_DIR"/"$CIRCUIT_NAME"_0.zkey "$BUILD_DIR"/witness.wtns "$BUILD_DIR"/proof.json "$BUILD_DIR"/public.json
 end=`date +%s`
 echo "DONE ($((end-start))s)"
 
