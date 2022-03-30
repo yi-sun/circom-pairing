@@ -248,7 +248,7 @@ describe("LineFunctionEqual n = 3, k = 2", function() {
     }
 
     var test_cases: Array<[Fp, Fp, Fp12, Fp12]> = [];
-    for(var test_id = 0; test_id < 10; test_id++){
+    for(var test_id = 0; test_id < 30; test_id++){
         let rand_twelveX: BigintTwelve = [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n];
 	let rand_twelveY: BigintTwelve = [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n];	
         for( let i = 0; i < 12; i++){

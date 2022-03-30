@@ -136,7 +136,7 @@ template CheckValidFp2(n, k, p){
         //lt[eps] = BigLessThan(n, k);
         for(var i=0; i<k; i++){
             range_checks[eps][i] = Num2Bits(n);
-            range_checks[eps][i] <== in[eps][i];
+            range_checks[eps][i].in <== in[eps][i];
             //lt[eps].a[i] <== in[eps][i];
             //lt[eps].b[i] <== p[i];
         }
