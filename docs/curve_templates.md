@@ -61,18 +61,37 @@ Assumptions
 LineFunctionUnequal(n, k, q)
 ```
 Inputs
-- **P[2][2][k]**: a $$2\times 2\times k$$ array, such that $$P[i]$$ represents the $$\mathbb F_p^2$$ point $$(x_i, y_i)$$.
-- **Q[2][6][2][k]**: a $$2\times 6\times 2 \times k$$ array, representing the $$\mathbb F_{p^{12}}^2$$ point $$(X, Y)$$
+- **P[2][2][k]**: a $$2\times 2\times k$$ array, such that $$P[i]$$ represents the $$\mathbb F_q^2$$ point $$(x_i, y_i)$$.
+- **Q[2][6][2][k]**: a $$2\times 6\times 2 \times k$$ array, representing the $$\mathbb F_{q^{12}}^2$$ point $$(X, Y)$$
 
 Outputs
-- **out[6][2][k]**: a $$6\times 2\times k$$ array representing the evaluation in $$\mathbb F_{p^{12}}$$ of the line function between $$(x_0,y_0), (x_1, y_1)$$ at the point $$(X,Y)$$
+- **out[6][2][k]**: a $$6\times 2\times k$$ array representing the evaluation in $$\mathbb F_{q^{12}}$$ of the line function between $$(x_0,y_0), (x_1, y_1)$$ at the point $$(X,Y)$$
 ```
 LineFunctionEqual(n, k, q)
 ```
 Inputs
-- **P[2][k]**: a $$2\times k$$ array, representing the $$\mathbb F_p^2$$ point $$(x_0, y_0)$$.
-- **Q[2][6][2][k]**: a $$2\times 6\times 2 \times k$$ array, representing the $$\mathbb F_{p^{12}}^2$$ point $$(X, Y)$$
+- **P[2][k]**: a $$2\times k$$ array, representing the $$\mathbb F_q^2$$ point $$(x_0, y_0)$$.
+- **Q[2][6][2][k]**: a $$2\times 6\times 2 \times k$$ array, representing the $$\mathbb F_{q^{12}}^2$$ point $$(X, Y)$$
 
 Outputs
-- **out[6][2][k]**: a $$6\times 2\times k$$ array representing the evaluation in $$\mathbb F_{p^{12}}$$ of the line function between $$(x_0,y_0), (x_0, y_0)$$ at the point $$(X,Y)$$
+- **out[6][2][k]**: a $$6\times 2\times k$$ array representing the evaluation in $$\mathbb F_{q^{12}}$$ of the line function between $$(x_0,y_0), (x_0, y_0)$$ at the point $$(X,Y)$$
+```
+MillerLoop(n, k, b, x, q)
+```
+Inputs
+- **in[6][2][k]**: a $$6\times 2\times k$$ array, representing an element of $$\mathbb F_{q^{12}}$$ for the starting value $$f_0(P,Q)$$ of the Miller Loop
+- **P[2][k]**: a $$2\times k$$ array, representing the $$\mathbb F_q^2$$ point $$(x_0, y_0)$$ on the curve $$x^3+b\equiv y^2\pmod q$$.
+- **Q[2][6][2][k]**: a $$2\times 6\times 2 \times k$$ array, representing a point in $$\mathbb F_{q^{12}}^2$$
 
+Outputs
+- **out[6][2][k]**: a $$6\times 2\times k$$ array representing the final value $$f_x(P,Q)$$ of the Miller Loop in $$\mathbb F_{q^{12}}$$, where the $$f$$'s are calculated recursively with $$f_{i+j} = f_i * f_j * l_{i,j}(P,Q)$$ and $$f_0(P,Q) = in$$
+- **xP[2][k]**: a $$2\times k$$ array representing the point $$xP$$, the result of adding $$x$$ copies of $$P$$ via elliptic curve addition
+```
+BLSMillerLoop(n, k, q)
+```
+Inputs
+- **P[2][k]**: a $$2\times k$$ array, representing the $$\mathbb F_q^2$$ point $$(x_0, y_0)$$ on the BLS curve $$x^3+4\equiv y^2\pmod q$$.
+- **Q[2][6][2][k]**: a $$2\times 6\times 2 \times k$$ array, representing a point in $$\mathbb F_{q^{12}}^2$$
+
+Outputs
+- **out[6][2][k]**: a $$6\times 2\times k$$ array representing the final value $$f_x(P,Q)$$ of the Miller Loop in $$\mathbb F_{q^{12}}$$ with calculation optimized for the BLS curve, where the $$f$$'s are calculated recursively with $$f_{i+j} = f_i * f_j * l_{i,j}(P,Q)$$ and $$f_0(P,Q) = 1$$

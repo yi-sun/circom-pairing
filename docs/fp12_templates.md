@@ -35,7 +35,7 @@ Outputs
 Assumptions
 - $$2n+4 + \log_2 k< 252$$
 ```
-Fp21Invert(n, k, p)
+Fp12Invert(n, k, p)
 ```
 Inputs
 - **in[6][2][k]**: a $$6\times 2\times k$$ array representing the $$\mathbb F_{p^{12}}$$ element $$in$$.
