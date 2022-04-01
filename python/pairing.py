@@ -12,11 +12,9 @@ def linefunc(P1, P2, T):
     x2, y2 = P2
     xt, yt = T
     if x1 != x2:
-        m = (y2 - y1) / (x2 - x1)
-        return m * (xt - x1) - (yt - y1)
+        return -((y2 - y1) * (xt - x1) - (x2 - x1)*(yt - y1) )
     elif y1 == y2:
-        m = 3 * x1**2 / (2 * y1)
-        return m * (xt - x1) - (yt - y1)
+        return 3 * (x1**2) * (-xt + x1) + (2 * y1) * (yt - y1)
     else:
         return xt - x1
 

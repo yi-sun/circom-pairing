@@ -89,498 +89,111 @@ template Fp12Add(n, k, p) {
     }
 }
 
-// a is 2 x k array representing element a0 - a1 of Fp where we keep track of negatives
-// b is 6 x 4 x k array representing element (b0 - b2) + (b1 - b3) u of Fp12 keeping track of negatives
+// a is k array representing element a of Fp allowing negative registers
+// b is 6 x 2 x k array representing element b0 + b1 u of Fp12 allowing negative registers
 //      where b_i = b[][i][] is 6 x k array
-// out is a*b in Fp12 as 6 x 4 x (2k-1) array
+// out is a*b in Fp12 as 6 x 2 x (2k-1) array
 // m_out is the expected max number of bits in the output registers
-template Fp12ScalarMultiplyNoCarry(n, k, m_out){
-    signal input a[2][k];
-    signal input b[6][4][k];
-    signal output out[6][4][2*k-1];
+template SignedFp12ScalarMultiplyNoCarry(n, k, m_out){
+    signal input a[k];
+    signal input b[6][2][k];
+    signal output out[6][2][2*k-1];
 
     component ab[6][2]; 
     for(var i=0; i<6; i++)for(var j=0; j<2; j++){
-        ab[i][j] = BigMultNoCarry(n, k, m_out); // 2k-1 registers 
+        ab[i][j] = BigMultShortLong(n, k, m_out); // 2k-1 registers 
 
-        for(var eps=0; eps<2; eps++)for(var idx=0; idx<k; idx++){
-            ab[i][j].a[eps][idx] <== a[eps][idx];
-            ab[i][j].b[eps][idx] <== b[i][j+2*eps][idx]; 
+        for(var idx=0; idx<k; idx++){
+            ab[i][j].a[idx] <== a[idx];
+            ab[i][j].b[idx] <== b[i][j][idx]; 
         } 
     }
     
-    for(var i=0; i<6; i++)for(var j=0; j<2; j++)
-        for(var eps=0; eps<2; eps++)for(var idx=0; idx<2*k-1; idx++)
-            out[i][j+2*eps][idx] <== ab[i][j].out[eps][idx];
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<2*k-1; idx++)
+        out[i][j][idx] <== ab[i][j].out[idx];
 }
 
 // m_out is the expected max number of bits in the output registers
-template Fp12ScalarMultiplyNoCarryUnequal(n, ka, kb, m_out){
-    signal input a[2][ka];
-    signal input b[6][4][kb];
-    signal output out[6][4][ka+kb-1];
+template SignedFp12ScalarMultiplyNoCarryUnequal(n, ka, kb, m_out){
+    signal input a[ka];
+    signal input b[6][2][kb];
+    signal output out[6][2][ka+kb-1];
 
     component ab[6][2]; 
     for(var i=0; i<6; i++)for(var j=0; j<2; j++){
-        ab[i][j] = BigMultNoCarryUnequal(n, ka, kb, m_out); // 2k-1 registers 
+        ab[i][j] = BigMultShortLongUnequal(n, ka, kb, m_out); // 2k-1 registers 
 
-        for(var eps=0; eps<2; eps++)for(var idx=0; idx<ka; idx++)
-            ab[i][j].a[eps][idx] <== a[eps][idx];
-        for(var eps=0; eps<2; eps++)for(var idx=0; idx<kb; idx++)
-            ab[i][j].b[eps][idx] <== b[i][j+2*eps][idx]; 
+        for(var idx=0; idx<ka; idx++)
+            ab[i][j].a[idx] <== a[idx];
+        for(var idx=0; idx<kb; idx++)
+            ab[i][j].b[idx] <== b[i][j][idx]; 
     }
     
-    for(var i=0; i<6; i++)for(var j=0; j<2; j++)
-        for(var eps=0; eps<2; eps++)for(var idx=0; idx<ka+kb-1; idx++)
-            out[i][j+2*eps][idx] <== ab[i][j].out[eps][idx];
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<ka+kb-1; idx++)
+        out[i][j][idx] <== ab[i][j].out[idx];
 }
 
-
-// a = sum w^i u^j a_ij for w^6=u+1, u^2=-1. similarly for b
-// we first write a = A + B u, b = C + D u and compute 
-// ab = (AC + B(p-D)) + (AD+BC) u, and then simplify the representation
-template Fp12Multiply(n, k, p) {
-    var l = 6;
-    signal input a[l][2][k];
-    signal input b[l][2][k];
-    signal output out[l][2][k];
-
-
-    var LOGK = log_ceil(k);
-    var LOGL = log_ceil(l);
-    assert(2*n + 1 + LOGK + LOGL <254);
-
-    var a0[l][k];
-    var a1[l][k];
-    var b0[l][k];
-    var b1[l][k];
-    var neg_b0[l][50];
-    var neg_b1[l][50];
-    for (var i = 0; i < l; i ++) { 
-        for ( var j = 0; j < k; j ++) {
-            a0[i][j] = a[i][0][j];
-            a1[i][j] = a[i][1][j];
-            b0[i][j] = b[i][0][j];
-            b1[i][j] = b[i][1][j];
-        }
-    }
-    for ( var i = 0; i < l; i ++) {
-        neg_b0[i] = long_sub(n, k, p, b0[i]);
-        neg_b1[i] = long_sub(n, k, p, b1[i]);
-    }
-
-    var real_init[2*l-1][50];
-    var imag_init[2*l-1][50];
-    var imag_init_neg[2*l-1][50];
-    var real[l][2][50];
-    var imag[l][2][50];
-    // each product will be 2l-1 x 2k
-    var a0b0_var[20][50] = prod2D(n, k, l, a0, b0);
-    var a1b1_neg[20][50] = prod2D(n, k, l, a1, neg_b1);
-    var a0b1_var[20][50] = prod2D(n, k, l, a0, b1);
-    var a1b0_var[20][50] = prod2D(n, k, l, a1, b0);
-    var a0b1_neg[20][50] = prod2D(n, k, l, a0, neg_b1);
-    var a1b0_neg[20][50] = prod2D(n, k, l, a1, neg_b0);
-    for (var i = 0; i < 2*l - 1; i ++) { // compute initial rep (deg w = 10)
-        real_init[i] = long_add(n, 2*k, a0b0_var[i], a1b1_neg[i]); // 2*k+1 registers each
-        imag_init[i] = long_add(n, 2*k, a0b1_var[i], a1b0_var[i]);
-        imag_init_neg[i] = long_add(n, 2*k, a0b1_neg[i], a1b0_neg[i]);
-    }
-    var real_carry[l][50];
-    var imag_carry[l][50];
-    var real_final[l][50];
-    var imag_final[l][50];
-    var zeros[50]; // to balance register sizes
-    for (var i = 0; i < 50; i ++) {
-        zeros[i] = 0;
-    }
-    for (var i = 0; i < l; i ++) {
-        if (i == l - 1) {
-            real_carry[i] = long_add(n, 2*k+1, zeros, zeros);
-            imag_carry[i] = long_add(n, 2*k+1, zeros, zeros);
-        } else {
-            real_carry[i] = long_add(n, 2*k+1, real_init[i+l], imag_init_neg[i+l]); // now 2*k+2 registers
-            imag_carry[i] = long_add(n, 2*k+1, imag_init[i+l], real_init[i+l]);
-        }
-    }
-    for (var i = 0; i < l; i ++) {
-        real_final[i] = long_add_unequal(n, 2*k+2, 2*k+1, real_carry[i], real_init[i]); // now 2*k+3 registers
-        imag_final[i] = long_add_unequal(n, 2*k+2, 2*k+1, imag_carry[i], imag_init[i]);
-    }
-    var XYreal_temp[l][2][50];
-    var XYimag_temp[l][2][50];
-    signal XYreal[l][2][k+4];
-    signal XYimag[l][2][k+4];
-    for (var i = 0; i < l; i ++) {
-        XYreal_temp[i] = long_div2(n, k, k+3, real_final[i], p); // k+4 register quotient, k register remainder
-        XYimag_temp[i] = long_div2(n, k, k+3, imag_final[i], p);
-    }
-    for (var i = 0; i < l; i ++) {
-        for (var j = 0; j < k+4; j ++) {
-            XYreal[i][0][j] <-- XYreal_temp[i][0][j];
-            XYimag[i][0][j] <-- XYimag_temp[i][0][j];
-            if (j < k) {
-                XYreal[i][1][j] <-- XYreal_temp[i][1][j];
-                XYimag[i][1][j] <-- XYimag_temp[i][1][j];
-            } else {
-                XYreal[i][1][j] <== 0;
-                XYimag[i][1][j] <== 0;
-            }
-        }
-    }
-    for (var i = 0; i < l; i ++) {
-        for (var j = 0; j < k; j ++) {
-            out[i][0][j] <== XYreal[i][1][j];
-            out[i][1][j] <== XYimag[i][1][j];
-        }
-    }
-    /* BigLessThan does Num2Bits! 
-    component range_checks[l][2][k];
-    for(var i=0; i<l; i++){
-        for (var j = 0; j < 2; j ++) {
-            for (var m = 0; m < k; m ++) {
-                range_checks[i][j][m] = Num2Bits(n);
-                range_checks[i][j][m].in <== out[i][j][m];
-            }
-        }
-    } */
-    component lt[l][2];
-    for (var i = 0; i < l; i ++) {
-        for (var j = 0; j < 2; j ++) {
-            lt[i][j] = BigLessThan(n, k);
-            for (var m = 0; m < k; m ++) {
-                lt[i][j].a[m] <== out[i][j][m];
-                lt[i][j].b[m] <== p[m];
-            }
-            lt[i][j].out === 1;
-        }
-    }
-
-    component X_range_checks[l][2][k+4];
-    for (var i = 0; i < l; i ++) {
-        for (var j = 0; j < k+4; j ++) {
-            X_range_checks[i][0][j] = Num2Bits(n);
-            X_range_checks[i][1][j] = Num2Bits(n);
-            X_range_checks[i][0][j].in <== XYreal[i][0][j];
-            X_range_checks[i][1][j].in <== XYimag[i][0][j];
-        }
-    }
-
-    // constrain by: 
-    // Carry( lower(a0 *' b0 +' p *' a1 -' a1 *' b1) + upper(a0 *' b0 +' p *' a1 -' a1 *' b1) 
-    //       + upper(a0 *' p -' a0 *' b1 + a1 *' p -' a1 *' b0) - p *' Xreal - Yreal ) = 0 
-    // Carry( lower(a0 *' p -' a0 *' b1 + a1 *' p -' a1 *' b0) + upper(a0 *' p -' a0 *' b1 + a1 *' p -' a1 *' b0)
-    //      + upper(a0 *' b0 +' p *' a1 -' a1 *' b1) - p *' Ximag - Yimag) = 0
-    // where all operations are performed without carry 
-    // lower() refers to the coefficients with deg(w) <= 5
-    // upper() refers to the coefficients with deg(w) >= 6
-    // each register is an overflow representation in the range (-kl*2^{2n+4}, kl*2^{2n + 4} )
-    
-    component a0b0 = BigMultShortLong2D(n, k, l);
-    component a1b1 = BigMultShortLong2D(n, k, l);
-    component pa1 = BigMultShortLong2D(n, k, l);
-    component pa0 = BigMultShortLong2D(n, k, l);
-    component a1b0 = BigMultShortLong2D(n, k, l);
-    component a0b1 = BigMultShortLong2D(n, k, l);
-    component pXreal[l];
-    component pXimag[l];
-    for (var i = 0; i < l; i ++) {
-        pXreal[i] = BigMultShortLong(n, k+4, 2*n+4+LOGK+LOGL);
-        pXimag[i] = BigMultShortLong(n, k+4, 2*n+4+LOGK+LOGL);
-        for (var j = 0; j < k; j ++) {
-            a0b0.a[i][j] <== a[i][0][j];
-            a0b0.b[i][j] <== b[i][0][j];
-
-            a1b1.a[i][j] <== a[i][1][j];
-            a1b1.b[i][j] <== b[i][1][j];
-
-            pa1.a[i][j] <== p[j];
-            pa0.a[i][j] <== p[j];
-
-            pa1.b[i][j] <== a[i][1][j];
-            pa0.b[i][j] <== a[i][0][j];
-
-            a1b0.a[i][j] <== a[i][1][j];
-            a1b0.b[i][j] <== b[i][0][j];
-
-            a0b1.a[i][j] <== a[i][0][j];
-            a0b1.b[i][j] <== b[i][1][j];
-
-            pXreal[i].a[j] <== p[j];
-            pXreal[i].b[j] <== XYreal[i][0][j];
-
-            pXimag[i].a[j] <== p[j];
-            pXimag[i].b[j] <== XYimag[i][0][j];
-        }
-        for (var j = k; j < k+4; j ++) {
-            pXreal[i].a[j] <== 0;
-            pXreal[i].b[j] <== XYreal[i][0][j];
-            pXimag[i].a[j] <== 0;
-            pXimag[i].b[j] <== XYimag[i][0][j];
-        }
-    }
-
-
-    component carry_check[l][2];
-    // Carry( lower(a0 *' b0 +' p *' a1 -' a1 *' b1) + upper(a0 *' b0 +' p *' a1 -' a1 *' b1) 
-    //       + upper(a0 *' p -' a0 *' b1 + a1 *' p -' a1 *' b0) - p *' Xreal - Yreal ) = 0 
-    // Carry( lower(a0 *' b1 + a1 *' b0) + upper(a0 *' b1 + a1 *' b0)
-    //      + upper(a0 *' b0 +' p *' a1 -' a1 *' b1) - p *' Ximag - Yimag) = 0
-    for (var i = 0; i < l-1; i ++) {
-        carry_check[i][0] = CheckCarryToZero(n, 2*n+4+LOGK+LOGL, 2*k+4);
-        carry_check[i][1] = CheckCarryToZero(n, 2*n+4+LOGK+LOGL, 2*k+4);
-        for (var j = 0; j < k; j ++) {
-            carry_check[i][0].in[j] <== (a0b0.out[i][j] + pa1.out[i][j] - a1b1.out[i][j]) + (a0b0.out[i+l][j] + pa1.out[i+l][j] - a1b1.out[i+l][j]) + (pa0.out[i+l][j] - a0b1.out[i+l][j] + pa1.out[i+l][j] - a1b0.out[i+l][j]) - pXreal[i].out[j] - out[i][0][j];
-            carry_check[i][1].in[j] <== (a0b1.out[i][j] + a1b0.out[i][j]) + (a0b1.out[i+l][j] + a1b0.out[i+l][j]) + (a0b0.out[i+l][j] + pa1.out[i+l][j] - a1b1.out[i+l][j]) - pXimag[i].out[j] - out[i][1][j];
-        }
-        for (var j = k; j < 2*k-1; j ++) {
-            carry_check[i][0].in[j] <== (a0b0.out[i][j] + pa1.out[i][j] - a1b1.out[i][j]) + (a0b0.out[i+l][j] + pa1.out[i+l][j] - a1b1.out[i+l][j]) + (pa0.out[i+l][j] - a0b1.out[i+l][j] + pa1.out[i+l][j] - a1b0.out[i+l][j]) - pXreal[i].out[j];
-            carry_check[i][1].in[j] <== (a0b1.out[i][j] + a1b0.out[i][j]) + (a0b1.out[i+l][j] + a1b0.out[i+l][j]) + (a0b0.out[i+l][j] + pa1.out[i+l][j] - a1b1.out[i+l][j]) - pXimag[i].out[j];
-        }
-        for (var j = 2*k-1; j < 2*k+4; j ++) {
-            carry_check[i][0].in[j] <== - pXreal[i].out[j];
-            carry_check[i][1].in[j] <== - pXimag[i].out[j];
-        }
-    }
-
-    carry_check[l-1][0] = CheckCarryToZero(n, 2*n+4+LOGK+LOGL, 2*k+4);
-    carry_check[l-1][1] = CheckCarryToZero(n, 2*n+4+LOGK+LOGL, 2*k+4);
-    // do the last part, less carries
-    for (var j = 0; j < k; j ++) {
-        carry_check[l-1][0].in[j] <== (a0b0.out[l-1][j] + pa1.out[l-1][j] - a1b1.out[l-1][j]) - pXreal[l-1].out[j] - out[l-1][0][j];
-        carry_check[l-1][1].in[j] <== (a0b1.out[l-1][j] + a1b0.out[l-1][j]) - pXimag[l-1].out[j] - out[l-1][1][j];
-    }
-    for (var j = k; j < 2*k-1; j ++) {
-        carry_check[l-1][0].in[j] <== (a0b0.out[l-1][j] + pa1.out[l-1][j] - a1b1.out[l-1][j]) - pXreal[l-1].out[j];
-        carry_check[l-1][1].in[j] <== (a0b1.out[l-1][j] + a1b0.out[l-1][j]) - pXimag[l-1].out[j];
-    }
-    for (var j = 2*k-1; j < 2*k+4; j ++) {
-        carry_check[l-1][0].in[j] <== - pXreal[l-1].out[j];
-        carry_check[l-1][1].in[j] <== - pXimag[l-1].out[j];
-    }
-}
-
-// we first write a = (a0 - a2) + (a1 - a3) u, b = (b0 - b2) + (b1 - b3) u for ai, bi being:
-//     * length 6 vectors with k registers in [0, B_a) and [0, B_b)
-// ab = (a0 b0 + a2 b2 + a1 b3 + a3 b1 - a0 b2 - a2 b0 - a1 b1 - a3 b3) + (a0 b1 + a2 b3 + a1 b0 + a3 b2 - a0 b3 - a2 b1 - a1 b2 - a3 b0) u
+// we first write a = a0 + a1 u, b = b0 + b1 u for ai, bi being:
+//     * length 6 vectors with ka, kb registers in (-B_a, B_a) and (-B_b, B_b)
+// ab = (a0 b0 - a1 b1 ) + (a0 b1 + a1 b0) u
 // set X = a0 b0 + a2 b2 + a1 b3 + a3 b1, Z = a0 b2 + a2 b0 + a1 b1 + a3 b3
 //     Y = a0 b1 + a2 b3 + a1 b0 + a3 b2, W = a0 b3 + a2 b1 + a1 b2 + a3 b0 u
-// Applying w^6 = u + 1 and splitting X, Y, Z, W into X_0, X_1 for w^0, ..., w^5 and w^6, ..., w^11 coeffs, get:
-//     X_0 + X_1 + W_1 - Z_0 - Z_1 - Y_1 + (Y_0 + Y_1 + X_1 - W_0 - W_1 - Z_1) u
+// Assume w^6 = XI0 + u 
 // The real and imaginary parts are
-//     * length 6 vectors with 2k-1 registers in [0, B_a * B_b * 12 * k)
+//     * length 6 vectors with ka+kb-1 registers abs val < B_a * B_b * 6 * min(ka, kb) * (2+XI0)
 // m_out is the expected max number of bits in the output registers
-template Fp12MultiplyNoCarry(n, k, m_out){
+template SignedFp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
     var l = 6;
-    signal input a[l][4][k];
-    signal input b[l][4][k];
-    signal output out[l][4][2*k-1];
-
-    component a0b0 = BigMultShortLong2D(n, k, l);
-    component a0b1 = BigMultShortLong2D(n, k, l);
-    component a0b2 = BigMultShortLong2D(n, k, l);
-    component a0b3 = BigMultShortLong2D(n, k, l);
-    component a1b0 = BigMultShortLong2D(n, k, l);
-    component a1b1 = BigMultShortLong2D(n, k, l);
-    component a1b2 = BigMultShortLong2D(n, k, l);
-    component a1b3 = BigMultShortLong2D(n, k, l);
-    component a2b0 = BigMultShortLong2D(n, k, l);
-    component a2b1 = BigMultShortLong2D(n, k, l);
-    component a2b2 = BigMultShortLong2D(n, k, l);
-    component a2b3 = BigMultShortLong2D(n, k, l);
-    component a3b0 = BigMultShortLong2D(n, k, l);
-    component a3b1 = BigMultShortLong2D(n, k, l);
-    component a3b2 = BigMultShortLong2D(n, k, l);
-    component a3b3 = BigMultShortLong2D(n, k, l);
-    
-    for (var i = 0; i < l; i ++) {
-        for (var j = 0; j < k; j ++) {
-	    a0b0.a[i][j] <== a[i][0][j];
-	    a0b1.a[i][j] <== a[i][0][j];
-	    a0b2.a[i][j] <== a[i][0][j];
-	    a0b3.a[i][j] <== a[i][0][j];
-
-	    a1b0.a[i][j] <== a[i][1][j];
-	    a1b1.a[i][j] <== a[i][1][j];
-	    a1b2.a[i][j] <== a[i][1][j];
-	    a1b3.a[i][j] <== a[i][1][j];
-
-	    a2b0.a[i][j] <== a[i][2][j];
-	    a2b1.a[i][j] <== a[i][2][j];
-	    a2b2.a[i][j] <== a[i][2][j];
-	    a2b3.a[i][j] <== a[i][2][j];
-
-	    a3b0.a[i][j] <== a[i][3][j];
-	    a3b1.a[i][j] <== a[i][3][j];
-	    a3b2.a[i][j] <== a[i][3][j];
-	    a3b3.a[i][j] <== a[i][3][j];
-
-	    a0b0.b[i][j] <== b[i][0][j];
-	    a1b0.b[i][j] <== b[i][0][j];
-	    a2b0.b[i][j] <== b[i][0][j];
-	    a3b0.b[i][j] <== b[i][0][j];
-
-	    a0b1.b[i][j] <== b[i][1][j];
-	    a1b1.b[i][j] <== b[i][1][j];
-	    a2b1.b[i][j] <== b[i][1][j];
-	    a3b1.b[i][j] <== b[i][1][j];
-
-	    a0b2.b[i][j] <== b[i][2][j];
-	    a1b2.b[i][j] <== b[i][2][j];
-	    a2b2.b[i][j] <== b[i][2][j];
-	    a3b2.b[i][j] <== b[i][2][j];
-
-	    a0b3.b[i][j] <== b[i][3][j];
-	    a1b3.b[i][j] <== b[i][3][j];
-	    a2b3.b[i][j] <== b[i][3][j];
-	    a3b3.b[i][j] <== b[i][3][j];
-	}
-    }
-
-    signal X[2 * l - 1][2 * k - 1];
-    signal Y[2 * l - 1][2 * k - 1];
-    signal Z[2 * l - 1][2 * k - 1];
-    signal W[2 * l - 1][2 * k - 1];
-    for (var i = 0; i < 2 * l - 1; i++) {
-	for (var j = 0; j < 2 * k - 1; j++) {
-	    X[i][j] <== a0b0.out[i][j] + a2b2.out[i][j] + a1b3.out[i][j] + a3b1.out[i][j];
-	    Z[i][j] <== a0b2.out[i][j] + a2b0.out[i][j] + a1b1.out[i][j] + a3b3.out[i][j];
-	    Y[i][j] <== a0b1.out[i][j] + a2b3.out[i][j] + a1b0.out[i][j] + a3b2.out[i][j];
-	    W[i][j] <== a0b3.out[i][j] + a2b1.out[i][j] + a1b2.out[i][j] + a3b0.out[i][j];	   
-	}
-    }
-
-    for (var i = 0; i < l; i++) {
-        for (var j = 0; j < 2 * k - 1; j++) {
-            if (i < l - 1) {
-                out[i][0][j] <== X[i][j] + X[l + i][j] + W[l + i][j];
-                out[i][1][j] <== Y[i][j] + Y[l + i][j] + X[l + i][j];
-                out[i][2][j] <== Z[i][j] + Z[l + i][j] + Y[l + i][j];
-                out[i][3][j] <== W[i][j] + W[l + i][j] + Z[l + i][j];
-            } else {
-                out[i][0][j] <== X[i][j];
-                out[i][1][j] <== Y[i][j];
-                out[i][2][j] <== Z[i][j];
-                out[i][3][j] <== W[i][j];
-            }
-        }
-    }
-    /*
-    component range_checks[l][4][2*k-1];
-    for (var outer = 0; outer < l; outer ++) {
-        for (var i = 0; i < 4; i ++) {
-            for (var j = 0; j < 2*k-1; j ++) {
-                range_checks[outer][i][j] = Num2Bits(m_out);
-                range_checks[outer][i][j].in <== out[outer][i][j];
-            }
-        }
-    }*/
-}
-
-// The real and imaginary parts are
-//     * length 6 vectors with 2k-1 registers in [0, B_a * B_b * 12 * min(ka, kb) )
-// m_out is the expected max number of bits in the output registers
-template Fp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
-    var l = 6;
-    signal input a[l][4][ka];
-    signal input b[l][4][kb];
-    signal output out[l][4][ka + kb -1];
+    var XI0 = 1;
+    signal input a[l][2][ka];
+    signal input b[l][2][kb];
+    signal output out[l][2][ka + kb -1];
 
     component a0b0 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
     component a0b1 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
-    component a0b2 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
-    component a0b3 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
     component a1b0 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
     component a1b1 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
-    component a1b2 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
-    component a1b3 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
-    component a2b0 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
-    component a2b1 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
-    component a2b2 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
-    component a2b3 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
-    component a3b0 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
-    component a3b1 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
-    component a3b2 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
-    component a3b3 = BigMultShortLong2DUnequal(n, ka, kb, l, l);
     
     for (var i = 0; i < l; i ++) {
         for (var j = 0; j < ka; j ++) {
             a0b0.a[i][j] <== a[i][0][j];
             a0b1.a[i][j] <== a[i][0][j];
-            a0b2.a[i][j] <== a[i][0][j];
-            a0b3.a[i][j] <== a[i][0][j];
 
             a1b0.a[i][j] <== a[i][1][j];
             a1b1.a[i][j] <== a[i][1][j];
-            a1b2.a[i][j] <== a[i][1][j];
-            a1b3.a[i][j] <== a[i][1][j];
-
-            a2b0.a[i][j] <== a[i][2][j];
-            a2b1.a[i][j] <== a[i][2][j];
-            a2b2.a[i][j] <== a[i][2][j];
-            a2b3.a[i][j] <== a[i][2][j];
-
-            a3b0.a[i][j] <== a[i][3][j];
-            a3b1.a[i][j] <== a[i][3][j];
-            a3b2.a[i][j] <== a[i][3][j];
-            a3b3.a[i][j] <== a[i][3][j];
         }
         for (var j = 0; j < kb; j ++) {
             a0b0.b[i][j] <== b[i][0][j];
             a1b0.b[i][j] <== b[i][0][j];
-            a2b0.b[i][j] <== b[i][0][j];
-            a3b0.b[i][j] <== b[i][0][j];
 
             a0b1.b[i][j] <== b[i][1][j];
             a1b1.b[i][j] <== b[i][1][j];
-            a2b1.b[i][j] <== b[i][1][j];
-            a3b1.b[i][j] <== b[i][1][j];
-
-            a0b2.b[i][j] <== b[i][2][j];
-            a1b2.b[i][j] <== b[i][2][j];
-            a2b2.b[i][j] <== b[i][2][j];
-            a3b2.b[i][j] <== b[i][2][j];
-
-            a0b3.b[i][j] <== b[i][3][j];
-            a1b3.b[i][j] <== b[i][3][j];
-            a2b3.b[i][j] <== b[i][3][j];
-            a3b3.b[i][j] <== b[i][3][j];
         }
 	}
     
 
-    signal X[2 * l - 1][ka + kb - 1];
-    signal Y[2 * l - 1][ka + kb - 1];
-    signal Z[2 * l - 1][ka + kb - 1];
-    signal W[2 * l - 1][ka + kb - 1];
+    signal X[2 * l - 1][2][ka + kb - 1];
     for (var i = 0; i < 2 * l - 1; i++) {
-	for (var j = 0; j < ka + kb - 1; j++) {
-	    X[i][j] <== a0b0.out[i][j] + a2b2.out[i][j] + a1b3.out[i][j] + a3b1.out[i][j];
-	    Z[i][j] <== a0b2.out[i][j] + a2b0.out[i][j] + a1b1.out[i][j] + a3b3.out[i][j];
-	    Y[i][j] <== a0b1.out[i][j] + a2b3.out[i][j] + a1b0.out[i][j] + a3b2.out[i][j];
-	    W[i][j] <== a0b3.out[i][j] + a2b1.out[i][j] + a1b2.out[i][j] + a3b0.out[i][j];	   
-	}
-    }
-
-    for (var i = 0; i < l; i++) {
         for (var j = 0; j < ka + kb - 1; j++) {
-            if (i < l - 1) {
-                out[i][0][j] <== X[i][j] + X[l + i][j] + W[l + i][j];
-                out[i][1][j] <== Y[i][j] + Y[l + i][j] + X[l + i][j];
-                out[i][2][j] <== Z[i][j] + Z[l + i][j] + Y[l + i][j];
-                out[i][3][j] <== W[i][j] + W[l + i][j] + Z[l + i][j];
-            } else {
-                out[i][0][j] <== X[i][j];
-                out[i][1][j] <== Y[i][j];
-                out[i][2][j] <== Z[i][j];
-                out[i][3][j] <== W[i][j];
-            }
+            X[i][0][j] <== a0b0.out[i][j] - a1b1.out[i][j];
+            X[i][1][j] <== a0b1.out[i][j] + a1b0.out[i][j];
         }
     }
+
+    for (var i = 0; i < l; i++)for (var j = 0; j < ka + kb - 1; j++) {
+        if (i < l - 1) {
+            out[i][0][j] <== X[i][0][j] + X[l + i][0][j]*XI0 - X[l + i][1][j];
+            out[i][1][j] <== X[i][1][j] + X[l + i][0][j]     + X[l + i][1][j];
+        } else {
+            out[i][0][j] <== X[i][0][j];
+            out[i][1][j] <== X[i][1][j];
+        }
+    }
+    
     /*
-    component range_checks[l][4][ka+kb-1];
+    component range_checks[l][2][ka+kb-1];
     for (var outer = 0; outer < l; outer ++) {
-        for (var i = 0; i < 4; i ++) {
+        for (var i = 0; i < 2; i ++) {
             for (var j = 0; j < ka+kb-1; j ++) {
                 range_checks[outer][i][j] = Num2Bits(m_out);
                 range_checks[outer][i][j].in <== out[outer][i][j];
@@ -589,165 +202,123 @@ template Fp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
     }*/
 }
 
+template SignedFp12MultiplyNoCarry(n, k, m_out){
+    var l = 6;
+    signal input a[l][2][k];
+    signal input b[l][2][k];
+    signal output out[l][2][2*k-1];
+    
+    component mult = SignedFp12MultiplyNoCarryUnequal(n, k, k, m_out);
+    for(var i=0; i<l; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        mult.a[i][j][idx] <== a[i][j][idx];
+        mult.b[i][j][idx] <== b[i][j][idx];
+    }
+    for(var i=0; i<l; i++)for(var j=0; j<2; j++)for(var idx=0; idx<2*k-1; idx++)
+        out[i][j][idx] <== mult.out[i][j][idx]; 
+}
+
 // m_out is the expected max number of bits in the output registers
 template Fp12Compress(n, k, m, p, m_out){
     var l = 6;
-    signal input in[l][4][k+m];
-    signal output out[l][4][k];
+    signal input in[l][2][k+m];
+    signal output out[l][2][k];
 
-    component reduce[l][4];
-    for (var i = 0; i < l; i++) {
-        for (var j = 0; j < 4; j++){
-            reduce[i][j] = PrimeReduce(n, k, m, p, m_out);
-
-            for (var idx = 0; idx < k + m; idx++) 
-                reduce[i][j].in[idx] <== in[i][j][idx];
-        }
+    component reduce[l][2];
+    for (var i = 0; i < l; i++)for (var j = 0; j < 2; j++){
+        reduce[i][j] = PrimeReduce(n, k, m, p, m_out);
+        for (var idx = 0; idx < k + m; idx++) 
+            reduce[i][j].in[idx] <== in[i][j][idx];
     }
 
-    for (var i = 0; i < l; i++) 
-        for (var j = 0; j < 4; j++) 
-            for (var idx = 0; idx < k; idx++) 
-                out[i][j][idx] <== reduce[i][j].out[idx];
+    for (var i = 0; i < l; i++)for (var j = 0; j < 2; j++)for (var idx = 0; idx < k; idx++) 
+        out[i][j][idx] <== reduce[i][j].out[idx];
 }
 
 // Input is same as for Fp12MultiplyNoCarry
 // Our answer is the prime reduction of output of Fp12MultiplyNoCarry to
-//     * length 6 vectors with k registers in [0, B_a * B_b * 2^n * 12 * k^2 )
+//     * length 6 vectors with k registers in [0, B_a * B_b * 2^n * 6*(2+XI0) * k^2 )
 // p is length k
 // m_in is the expected max number of bits in the input registers (necessary for some intermediate overflow validation)
 // m_out is the expected max number of bits in the output registers
-template Fp12MultiplyNoCarryCompress(n, k, p, m_in, m_out) {
+template SignedFp12MultiplyNoCarryCompress(n, k, p, m_in, m_out) {
     var l = 6;
-    signal input a[l][4][k];
-    signal input b[l][4][k];
-    signal output out[l][4][k];
+    var XI0 = 1;
+    signal input a[l][2][k];
+    signal input b[l][2][k];
+    signal output out[l][2][k];
 
-    var LOGK = log_ceil(k);
-    var LOGL = log_ceil(l);
-    /*assert(2*n + 1 + LOGK + LOGL <254);*/
-
-    component nocarry = Fp12MultiplyNoCarry(n, k, 2*m_in + 4 + LOGK);
-    for (var i = 0; i < l; i ++)for(var j=0; j<4; j++)for(var idx=0; idx<k; idx++){ 
-         nocarry.a[i][j][idx] <== a[i][j][idx];
-         nocarry.b[i][j][idx] <== b[i][j][idx];
+    var LOGK1 = log_ceil(6*k*(2+XI0));
+    component nocarry = SignedFp12MultiplyNoCarry(n, k, 2*m_in + LOGK1);
+    for (var i = 0; i < l; i ++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){ 
+        nocarry.a[i][j][idx] <== a[i][j][idx];
+        nocarry.b[i][j][idx] <== b[i][j][idx];
     }
 
     component reduce = Fp12Compress(n, k, k-1, p, m_out);
-    for (var i = 0; i < l; i++)
-        for (var j = 0; j < 4; j++)
-            for (var idx = 0; idx < 2 * k - 1; idx++) 
-                reduce.in[i][j][idx] <== nocarry.out[i][j][idx];
+    for (var i = 0; i < l; i++)for (var j = 0; j < 2; j++)
+        for (var idx = 0; idx < 2 * k - 1; idx++) 
+            reduce.in[i][j][idx] <== nocarry.out[i][j][idx];
 
-    for (var i = 0; i < l; i++) 
-        for (var j = 0; j < 4; j++)
-            for (var idx = 0; idx < k; idx++) 
-                out[i][j][idx] <== reduce.out[i][j][idx];
+    for (var i = 0; i < l; i++)for (var j = 0; j < 2; j++)
+        for (var idx = 0; idx < k; idx++) 
+            out[i][j][idx] <== reduce.out[i][j][idx];
 }
 
 // solve for: in0 - in2 = X * p + out
 // X has Ceil( overflow / n ) registers, lying in [-2^n, 2^n)
 // assume in has registers in [0, 2^overflow)
-template Fp12CarryModP(n, k, overflow, p) {
+template SignedFp12CarryModP(n, k, overflow, p) {
     var l = 6;
-    var kX = (overflow + n - 1) \ n;
-    signal input in[l][4][k];
-    signal output X[l][2][kX];
+    var m = (overflow + n - 1) \ n;
+    signal input in[l][2][k];
+    signal output X[l][2][m];
     signal output out[l][2][k];
 
-    assert( overflow < 252 );
+    assert( overflow < 251 );
 
-    // dimension [l, 2, k]
-    var Xvar0[l][2][50];
-    // dimension [l, 2, kX]
-    var Xvar1[l][2][50];
-    for (var i = 0; i < l; i++) {
-        Xvar0[i] = get_Fp12_carry_witness(n, k, kX, p, in[i][0], in[i][2]);
-        Xvar1[i] = get_Fp12_carry_witness(n, k, kX, p, in[i][1], in[i][3]);
-
-        for (var idx = 0; idx < kX; idx++) {
-            X[i][0][idx] <-- Xvar0[i][0][idx];
-            X[i][1][idx] <-- Xvar1[i][0][idx];
-        }
-        for (var idx = 0; idx < k; idx++) {
-            out[i][0][idx] <-- Xvar0[i][1][idx];
-            out[i][1][idx] <-- Xvar1[i][1][idx];
-        }
-    }
-    
-    component carry_check[l][2]; 
+    component carry[l][2];
     for(var i=0; i<l; i++)for(var j=0; j<2; j++){
-        carry_check[i][j] = CheckCarryModP(n, k, kX, overflow, p); 
-        for(var idx=0; idx<k; idx++){
-            carry_check[i][j].in[idx] <== in[i][j][idx] - in[i][j+2][idx];
-            carry_check[i][j].Y[idx] <== out[i][j][idx];
-        }
-        for(var idx=0; idx<kX; idx++)
-            carry_check[i][j].X[idx] <== X[i][j][idx];
+        carry[i][j] = SignedFpCarryModP(n, k, overflow, p);
+        for(var idx=0; idx<k; idx++)
+            carry[i][j].in[idx] <== in[i][j][idx];
+        for(var idx=0; idx<m; idx++)
+            X[i][j][idx] <== carry[i][j].X[idx];
+        for(var idx=0; idx<k; idx++)
+            out[i][j][idx] <== carry[i][j].out[idx];
     }
-
 }
 
 
 // version of Fp12Multiply that uses the prime reduction trick
 // takes longer to compile
 // assumes p has k registers with kth register nonzero
-template Fp12Multiply2(n, k, p) {
+template Fp12Multiply(n, k, p) {
     var l = 6;
+    var XI0 = 1;
     signal input a[l][2][k];
     signal input b[l][2][k];
     
     signal output out[l][2][k];
 
-    var LOGK = log_ceil(k); 
-    // registers are in [0, 2^{3n} * 12 k )
-    component no_carry = Fp12MultiplyNoCarryCompress(n, k, p, n, 3*n + 2*LOGK + 4);
-    for (var i = 0; i < l; i++) {
-	for (var idx = 0; idx < k; idx++) {
-	    for (var j = 0; j < 2; j++) {
-		no_carry.a[i][j][idx] <== a[i][j][idx];
-		no_carry.b[i][j][idx] <== b[i][j][idx];
-	    }
-	    no_carry.a[i][2][idx] <== 0;
-	    no_carry.a[i][3][idx] <== 0;
-	    no_carry.b[i][2][idx] <== 0;
-	    no_carry.b[i][3][idx] <== 0;
-	}
+    var LOGK2 = log_ceil(6*k*k*(2+XI0)); 
+    component no_carry = SignedFp12MultiplyNoCarryCompress(n, k, p, n, 3*n + LOGK2);
+    // registers abs val < 2^{3n} * 6*(2 + XI0) * k^2 )
+    for (var i = 0; i < l; i++)for(var j = 0; j < 2; j++){
+        for (var idx = 0; idx < k; idx++) {
+            no_carry.a[i][j][idx] <== a[i][j][idx];
+            no_carry.b[i][j][idx] <== b[i][j][idx];
+        }
     }
-    // This is from old Fp12MultiplyNoCarryCompress: 
-    // difference of registers of no_carry lie in (-2^{3n} * 12k, 2^{3n} * 12k)
-    // |diff of no_carry| is bounded by 2^{n(k - 1)} * 2^{3n} * 12k
-    // p is at least 2^{n (k - 1)} and is close to 2^{nk}
-    // number of registers of X_0 in: no_carry[0] - no_carry[2] = X_0 * p + X_1
-    // is bounded by log(2^{n(k - 1)} * 2^{3n} * 12k / p) / log(2^n) < 3 or 4 depending on k.
-    // 
-	// registers of in0 and in2 have bitlength at most (kX + 1) * n, so
-	// registers of in0 - in2 - X * p - out have bitlength at most
-	//     n + kX * n + LOGK + 2
-	// we add 4 for safety for now...
-
     component carry_mod;
-    /*if (12 * k < p[k - 1]) {
-	carry_mod = Fp12CarryModP(n, k, 3, p);
-    } else {
-	carry_mod = Fp12CarryModP(n, k, 4, p);
-    }*/
-    carry_mod = Fp12CarryModP(n, k, 3*n + 2*LOGK + 4, p);
-    for (var i = 0; i < l; i++) {
-	for (var idx = 0; idx < k; idx++) {
-	    for (var j = 0; j < 4; j++) {
-		carry_mod.in[i][j][idx] <== no_carry.out[i][j][idx];
-	    }
-	}
-    }
+    carry_mod = SignedFp12CarryModP(n, k, 3*n + LOGK2, p);
+    for (var i = 0; i < l; i++)for (var j = 0; j < 2; j++)
+        for (var idx = 0; idx < k; idx++)
+		    carry_mod.in[i][j][idx] <== no_carry.out[i][j][idx];
+        
     
-    for (var i = 0; i < l; i++) {
-	for (var idx = 0; idx < k; idx++) {
-	    for (var j = 0; j < 2; j++) {
-		out[i][j][idx] <== carry_mod.out[i][j][idx];
-	    }
-	}
-    }
+    for (var i = 0; i < l; i++)for (var j = 0; j < 2; j++)
+        for (var idx = 0; idx < k; idx++)
+            out[i][j][idx] <== carry_mod.out[i][j][idx];
 }
 
 // unoptimized squaring, just takes two elements of Fp12 and multiplies them

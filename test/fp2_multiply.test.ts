@@ -46,7 +46,7 @@ function invert(number: bigint, modulo: bigint): bigint {
     return mod(x, modulo);
 }
 
-describe("Fp2multiply n = 4, k = 2, p=17", function() {
+describe("Fp2Multiply n = 4, k = 2, p=17", function() {
     this.timeout(1000 * 1000);
 
     // runs circom compilation
@@ -81,7 +81,7 @@ describe("Fp2multiply n = 4, k = 2, p=17", function() {
         var c0_array: bigint[] = bigint_to_array(4, 2, c0);
         var c1_array: bigint[] = bigint_to_array(4, 2, c1);
 
-        it('Testing a0: ' + a0 + ' a1: ' + a1 + ' b0: ' + b0 + ' b1: ' + b1 + ' c0: ' + c0 + ' c1: ' + c1, async function() {
+        it('Testing a0: ' + a0_array + ' a1: ' + a1_array+ ' b0: ' + b0_array + ' b1: ' + b1_array + ' c0: ' + c0_array + ' c1: ' + c1_array, async function() {
             let witness = await circuit.calculateWitness({"a": [a0_array, a1_array], "b": [b0_array, b1_array]});
 	    await circuit.assertOut(witness, {"out": [c0_array, c1_array]});
             await circuit.checkConstraints(witness);
