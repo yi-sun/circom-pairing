@@ -519,3 +519,302 @@ template EllipticCurveDoubleFp2(n, k, a, b, p) {
     }
     x3_eq_x1.out === 0;
 }
+
+// component main { public [P, Q] } = SignedLineFunctionUnequalNoCarryFp2(2, 2, 8);
+
+// /* INPUT = {
+//     "P": [ [[[1,0],[1,0]],[[1,0],[0,0]]], 
+//                 [[[1,0],[1,0]],[[0,0],[1,0]]] ], 
+//     "Q": [ [[[1,0],[0,0]],[[1,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]]],
+//             [[[1,0],[0,0]],[[0,0],[1,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]]] ]
+// } */
+
+// Inputs:
+//  P is 2 x 2 x 2 x k array where P0 = (x_1, y_1) and P1 = (x_2, y_2) are points in E(Fp2)
+//  Q is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12)
+// Assuming (x_1, y_1) != (x_2, y_2)
+// Output:
+//  out is 6 x 2 x (2k-1) array representing element of Fp12 equal to:
+//  (y_1 - y_2) X + (x_2 - x_1) Y + (x_1 y_2 - x_2 y_1)
+// We evaluate out without carries
+// If all registers of P, Q are in [0, 2^n),
+// Then all registers of out have abs val < 6k * 2^{2n} )
+// m_out is the expected max number of bits in the output registers
+template SignedLineFunctionUnequalNoCarryFp2(n, k, m_out){
+    signal input P[2][2][2][k];
+    signal input Q[2][6][2][k];
+    signal output out[6][2][2*k-1];
+
+    // (y_1 - y_2) X
+    var LOGK = log_ceil(k);
+    component Xmult = SignedFp12Fp2MultiplyNoCarry(n, k, 2*n + LOGK+1); // registers in [0, 4k*2^{2n} )
+    // (x_2 - x_1) Y
+    component Ymult = SignedFp12Fp2MultiplyNoCarry(n, k, 2*n + LOGK+1);
+    for(var i = 0; i < 2; i ++) {
+        for(var j=0; j<k; j++){
+            Xmult.a[i][j] <== P[0][1][i][j] - P[1][1][i][j];
+            
+            Ymult.a[i][j] <== P[1][0][i][j] - P[0][0][i][j];
+        }
+    }
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        Xmult.b[i][j][idx] <== Q[0][i][j][idx];
+
+        Ymult.b[i][j][idx] <== Q[1][i][j][idx]; 
+    } 
+    
+    component x1y2 = BigMultShortLong2D(n, k, 2); // registers in [0, 2k*2^{2n}) 
+    component x2y1 = BigMultShortLong2D(n, k, 2);
+    for(var i = 0; i < 2; i ++) {
+        for(var j=0; j<k; j++){
+            x1y2.a[i][j] <== P[0][0][i][j]; 
+            x1y2.b[i][j] <== P[1][1][i][j];
+            
+            x2y1.a[i][j] <== P[1][0][i][j]; 
+            x2y1.b[i][j] <== P[0][1][i][j];
+        }
+    }
+    
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<2*k-1; idx++){
+        if( i==0){
+            if (j == 1) {
+                out[i][j][idx] <== Xmult.out[i][j][idx] + Ymult.out[i][j][idx] + x1y2.out[j][idx] - x2y1.out[j][idx]; // register < 6k*2^{2n} 
+            }
+            else {
+                out[i][j][idx] <== Xmult.out[i][j][idx] + Ymult.out[i][j][idx] + x1y2.out[0][idx] - x1y2.out[2][idx] - x2y1.out[0][idx] + x2y1.out[2][idx];
+            }
+        }else 
+            out[i][j][idx] <== Xmult.out[i][j][idx] + Ymult.out[i][j][idx]; // register in [0, 4k*2^{2n+1} )
+    }
+    /*component range_checks[6][4][2*k-1];
+    for (var outer = 0; outer < 6; outer ++) {
+        for (var i = 0; i < 2; i ++) {
+            for (var j = 0; j < 2*k-1; j ++) {
+                range_checks[outer][i][j] = Num2Bits(m_out);
+                range_checks[outer][i][j].in <== out[outer][i][j];
+            }
+        }
+    }*/
+}
+
+// component main { public [P, Q] } = SignedLineFunctionEqualNoCarryFp2(2, 2, 8);
+
+// /* INPUT = {
+//     "P": [[[1,0],[1,0]],[[1,0],[2,0]]], 
+//     "Q": [ [[[1,0],[0,0]],[[1,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]]],
+//             [[[1,0],[0,0]],[[0,0],[1,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]]] ]
+// } */
+
+// Assuming curve is of form Y^2 = X^3 + b for now (a = 0) for better register bounds 
+// Inputs:
+//  P is 2 x 2 x k array where P = (x, y) is a point in E(Fp2) 
+//  Q is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12) 
+// Output: 
+//  out is 6 x 2 x (3k-2) array representing element of Fp12 equal to:
+//  3 x^2 (-X + x) + 2 y (Y - y)
+// We evaluate out without carries, with signs
+// If P, Q have registers in [0, 2^n) 
+// Then out has registers in [0, 6k^2*2^{3n} + 4k*2^{2n} < (6k + 4/2^n )*k*2^{3n})
+// m_out is the expected max number of bits in the output registers
+template SignedLineFunctionEqualNoCarryFp2(n, k, m_out){
+    signal input P[2][2][k]; 
+    signal input Q[2][6][2][k];
+    signal output out[6][2][3*k-2];
+    var LOGK = log_ceil(k);
+
+    component x_sq3 = BigMultShortLong2D(n, k, 2); // 2k-1 registers in [0, 6*k*2^{2n} )
+    for(var i=0; i<2; i++){
+        for(var j = 0; j < k; j ++) {
+            x_sq3.a[i][j] <== 3*P[0][i][j];
+            x_sq3.b[i][j] <== P[0][i][j];
+        }
+    } 
+    
+    // 3 x^2 (-X + x)
+    component Xmult = SignedFp12Fp2MultiplyNoCarryUnequal(n, 2*k-1, k, 3*n + 2*LOGK + 3); // 3k-2 registers < 12 * k^2 * 2^{3n})
+    for(var idx=0; idx<2*k-1; idx++){
+        Xmult.a[0][idx] <== x_sq3.out[0][idx] - x_sq3.out[2][idx];
+        Xmult.a[1][idx] <== x_sq3.out[1][idx];
+    }
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        if(i==0)
+            Xmult.b[i][j][idx] <== P[0][j][idx] - Q[0][i][j][idx];
+        else
+            Xmult.b[i][j][idx] <== -Q[0][i][j][idx];
+    }
+
+    // 2 y (Y-y)
+    component Ymult = SignedFp12Fp2MultiplyNoCarry(n, k, 2*n + LOGK + 2); // 2k-1 registers < 8k*2^{2n} 
+    for(var idx=0; idx < k; idx++){
+        Ymult.a[0][idx] <== 2*P[1][0][idx];
+        Ymult.a[1][idx] <== 2*P[1][1][idx];
+    }
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        if(i==0)
+            Ymult.b[i][j][idx] <== Q[1][i][j][idx] - P[1][j][idx];
+        else
+            Ymult.b[i][j][idx] <== Q[1][i][j][idx];
+    }
+    
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<3*k-2; idx++){
+        if(idx < 2*k-1)
+            out[i][j][idx] <== Xmult.out[i][j][idx] + Ymult.out[i][j][idx];
+        else
+            out[i][j][idx] <== Xmult.out[i][j][idx];
+    }
+    /*component range_checks[6][4][3*k-2];
+    for (var outer = 0; outer < 6; outer ++) {
+        for (var i = 0; i < 2; i ++) {
+            for (var j = 0; j < 3*k-2; j ++) {
+                range_checks[outer][i][j] = Num2Bits(m_out);
+                range_checks[outer][i][j].in <== out[outer][i][j];
+            }
+        }
+    }*/
+}
+
+// component main { public [P, Q] } = LineFunctionUnequalFp2(2, 2, [1,1]);
+
+// /* INPUT = {
+//     "P": [ [[[1,0],[1,0]],[[1,0],[0,0]]], 
+//                 [[[1,0],[1,0]],[[0,0],[1,0]]] ], 
+//     "Q": [ [[[1,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[1,0],[0,0]]],
+//             [[[1,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[1,0]]] ]
+// } */
+
+// Inputs:
+//  P is 2 x 2 x k array where P0 = (x_1, y_1) and P1 = (x_2, y_2) are points in E(Fp2)
+//  Q is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12)
+// Assuming (x_1, y_1) != (x_2, y_2)
+// Output:
+//  Q is 6 x 2 x k array representing element of Fp12 equal to:
+//  (y_1 - y_2) X + (x_2 - x_1) Y + (x_1 y_2 - x_2 y_1)
+template LineFunctionUnequalFp2(n, k, q) {
+    signal input P[2][2][2][k];
+    signal input Q[2][6][2][k];
+
+    signal output out[6][2][k];
+    var LOGK1 = log_ceil(24*k);
+    var LOGK2 = log_ceil(24*k*k);
+
+    component nocarry = SignedLineFunctionUnequalNoCarryFp2(n, k, 2 * n + LOGK1);
+    for (var i = 0; i < 2; i++)for(var j = 0; j < 2; j++) {
+	    for (var idx = 0; idx < k; idx++) {
+            nocarry.P[i][j][0][idx] <== P[i][j][0][idx];
+            nocarry.P[i][j][1][idx] <== P[i][j][1][idx];
+	    }
+    }
+
+    for (var i = 0; i < 2; i++)for(var j = 0; j < 6; j++) {
+	    for (var l = 0; l < 2; l++) {
+		for (var idx = 0; idx < k; idx++) {
+		    nocarry.Q[i][j][l][idx] <== Q[i][j][l][idx];
+		}
+	    }
+    }
+    component reduce[6][2];
+    for (var i = 0; i < 6; i++) {
+        for (var j = 0; j < 2; j++) {
+            reduce[i][j] = PrimeReduce(n, k, k - 1, q, 3 * n + LOGK2);
+        }
+
+        for (var j = 0; j < 2; j++) {
+            for (var idx = 0; idx < 2 * k - 1; idx++) {
+                reduce[i][j].in[idx] <== nocarry.out[i][j][idx];
+            }
+        }	
+    }
+
+    // max overflow register size is 3 * k * 2^{3n + log(k)}
+    component carry = SignedFp12CarryModP(n, k, 3 * n + LOGK2, q);
+    for (var i = 0; i < 6; i++) {
+        for (var j = 0; j < 2; j++) {
+            for (var idx = 0; idx < k; idx++) {
+                carry.in[i][j][idx] <== reduce[i][j].out[idx];
+            }
+        }
+    }
+    
+    for (var i = 0; i < 6; i++) {
+        for (var j = 0; j < 2; j++) {
+            for (var idx = 0; idx < k; idx++) {
+            out[i][j][idx] <== carry.out[i][j][idx];
+            }
+        }
+    }    
+}
+
+// component main { public [P, Q] } = LineFunctionEqualFp2(2, 2, [1,1]);
+
+// /* INPUT = {
+//     "P": [[[1,0],[1,0]],[[1,0],[2,0]]], 
+//     "Q": [ [[[1,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[1,0],[0,0]]],
+//             [[[1,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[1,0]]] ]
+// } */
+
+// Assuming curve is of form Y^2 = X^3 + b for now (a = 0) for better register bounds 
+// Inputs:
+//  P is 2 x 2 x k array where P = (x, y) is a point in E(Fp2) 
+//  Q is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12) 
+// Output: 
+//  out is 6 x 2 x k array representing element of Fp12 equal to:
+//  3 x^2 (-X + x) + 2 y (Y - y)
+template LineFunctionEqualFp2(n, k, q) {
+    signal input P[2][2][k];
+    signal input Q[2][6][2][k];
+
+    signal output out[6][2][k];
+
+    var LOGK2 = log_ceil(4*(6*k+1)*k);
+    component nocarry = SignedLineFunctionEqualNoCarryFp2(n, k, 3*n + LOGK2);
+    for (var i = 0; i < 2; i++) {
+        for (var j = 0; j < 2; j ++) {
+            for (var idx = 0; idx < k; idx++) {
+                nocarry.P[i][j][idx] <== P[i][j][idx];
+            }
+        }
+    }
+
+    for (var i = 0; i < 2; i++) {
+        for (var j = 0; j < 6; j++) {
+            for (var l = 0; l < 2; l++) {
+                for (var idx = 0; idx < k; idx++) {
+                    nocarry.Q[i][j][l][idx] <== Q[i][j][l][idx];
+                }
+            }
+        }
+    }
+    
+    var LOGK3 = log_ceil(4*(2*k-1)*(6*k+1)*k);
+    component reduce[6][4]; 
+    for (var i = 0; i < 6; i++) {
+        for (var j = 0; j < 2; j++) {
+            reduce[i][j] = PrimeReduce(n, k, 2 * k - 2, q, 4 * n + LOGK3);
+        }
+
+        for (var j = 0; j < 2; j++) {
+            for (var idx = 0; idx < 3 * k - 2; idx++) {
+                reduce[i][j].in[idx] <== nocarry.out[i][j][idx];
+            }
+        }	
+    }
+
+    // max overflow register size is (2k - 1) * (6k+1)* k * 2^{4n}
+    component carry = SignedFp12CarryModP(n, k, 4 * n + LOGK3, q);
+    for (var i = 0; i < 6; i++) {
+        for (var j = 0; j < 2; j++) {
+            for (var idx = 0; idx < k; idx++) {
+                carry.in[i][j][idx] <== reduce[i][j].out[idx];
+            }
+        }
+    }
+    
+    for (var i = 0; i < 6; i++) {
+        for (var j = 0; j < 2; j++) {
+            for (var idx = 0; idx < k; idx++) {
+            out[i][j][idx] <== carry.out[i][j][idx];
+            }
+        }
+    }    
+}
+

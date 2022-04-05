@@ -133,6 +133,66 @@ template SignedFp12ScalarMultiplyNoCarryUnequal(n, ka, kb, m_out){
         out[i][j][idx] <== ab[i][j].out[idx];
 }
 
+// a is 2 x k array representing element a of Fp2 allowing negative registers
+// b is 6 x 2 x k array representing element b0 + b1 u of Fp12 allowing negative registers
+//      where b_i = b[][i][] is 6 x k array
+// out is a*b in Fp12 as 6 x 2 x (2k-1) array
+// m_out is the expected max number of bits in the output registers
+template SignedFp12Fp2MultiplyNoCarry(n, k, m_out){
+    signal input a[2][k];
+    signal input b[6][2][k];
+    signal output out[6][2][2*k-1];
+
+    component ab[6][2];
+    component abi[6][2];
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++){
+        ab[i][j] = BigMultShortLong(n, k, m_out); // 2k-1 registers
+        abi[i][j] = BigMultShortLong(n, k, m_out); // 2k-1 registers 
+
+        for(var idx=0; idx<k; idx++){
+            ab[i][j].a[idx] <== a[0][idx];
+            ab[i][j].b[idx] <== b[i][j][idx]; 
+        } 
+        for(var idx=0; idx<k; idx++){
+            abi[i][j].a[idx] <== a[1][idx];
+            abi[i][j].b[idx] <== b[i][j][idx]; 
+        }
+    }
+    
+    for(var i=0; i<6; i++)for(var idx=0; idx<2*k-1; idx++) {
+        out[i][0][idx] <== ab[i][0].out[idx] - abi[i][1].out[idx];
+        out[i][1][idx] <== abi[i][0].out[idx] + ab[i][1].out[idx];
+    }
+}
+
+// m_out is the expected max number of bits in the output registers
+template SignedFp12Fp2MultiplyNoCarryUnequal(n, ka, kb, m_out){
+    signal input a[2][ka];
+    signal input b[6][2][kb];
+    signal output out[6][2][ka+kb-1];
+
+    component ab[6][2];
+    component abi[6][2];
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++){
+        ab[i][j] = BigMultShortLongUnequal(n, ka, kb, m_out); // 2k-1 registers
+        abi[i][j] = BigMultShortLongUnequal(n, ka, kb, m_out); // 2k-1 registers 
+
+        for(var idx=0; idx<ka; idx++){
+            ab[i][j].a[idx] <== a[0][idx];
+            abi[i][j].a[idx] <== a[1][idx];
+        }
+        for(var idx=0; idx<kb; idx++){
+            ab[i][j].b[idx] <== b[i][j][idx];
+            abi[i][j].b[idx] <== b[i][j][idx];
+        }
+    }
+    
+    for(var i=0; i<6; i++)for(var idx=0; idx<ka+kb-1; idx++){
+        out[i][0][idx] <== ab[i][0].out[idx] - abi[i][1].out[idx];
+        out[i][1][idx] <== abi[i][0].out[idx] + ab[i][1].out[idx];
+    }
+}
+
 // we first write a = a0 + a1 u, b = b0 + b1 u for ai, bi being:
 //     * length 6 vectors with ka, kb registers in (-B_a, B_a) and (-B_b, B_b)
 // ab = (a0 b0 - a1 b1 ) + (a0 b1 + a1 b0) u
