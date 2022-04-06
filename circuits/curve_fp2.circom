@@ -771,18 +771,22 @@ template MillerLoopFp2(n, k, b, x, q){
 
     signal negP[2][2][k]; // (x, -y) mod q
     component neg[2];
+    component is_zero[2];
     for(var j=0; j<2; j++){
         // Compute q - y = -y mod q 
         // currently EllipticCurveDoubleFp2 relies on 0 <= in < p so we cannot pass a negative number for negP
         neg[j] = BigSub(n, k); 
+        is_zero[j] = BigIsZero(k);
         for(var idx=0; idx<k; idx++){
             negP[0][j][idx] <== P[0][j][idx];
             neg[j].a[idx] <== q[idx];
             neg[j].b[idx] <== P[1][j][idx];
+            
+            is_zero[j].in[idx] <== P[1][j][idx];
         }
         neg[j].underflow === 0; // constrain P[1][j] <= p
         for(var idx=0; idx<k; idx++)
-            negP[1][j][idx] <== neg[j].out[idx];
+            negP[1][j][idx] <== (1-is_zero[j].out)*neg[j].out[idx];
     }
 
     signal R[BitLength][2][2][k]; 
