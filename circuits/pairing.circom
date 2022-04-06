@@ -22,6 +22,17 @@ template BLSTatePairing(n, k, q){
 
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         out[i][j][idx] <== finalexp.out[i][j][idx]; 
+
+    // check out[i][j] < p since we never did that previously
+    component lt[6][2];
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++){
+        lt[i][j] = BigLessThan(n, k);
+        for(var idx=0; idx<k; idx++){
+            lt[i][j].a[idx] <== out[i][j][idx];
+            lt[i][j].b[idx] <== q[idx];
+        }
+        lt[i][j].out === 1;
+    }
 }
 
 template BLSAtePairing(n, k, q){
@@ -36,14 +47,14 @@ template BLSAtePairing(n, k, q){
         miller.P[i][j][idx] <== P[i][j][idx];
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
         miller.Q[i][idx] <== Q[i][idx];
-    for(var i = 0; i <6; i ++)for(var j = 0; j < 2; j++)for(var l = 0; l < k; l++) {
+    /*for(var i = 0; i <6; i ++)for(var j = 0; j < 2; j++)for(var l = 0; l < k; l++) {
         if (i==0 && j == 0 && l == 0) {
             miller.in[i][j][l] <== 1;
         }
         else {
             miller.in[i][j][l] <== 0;
         }
-    }
+    }*/
     
     component finalexp = FinalExponentiate(n, k, q);
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
@@ -51,4 +62,15 @@ template BLSAtePairing(n, k, q){
 
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         out[i][j][idx] <== finalexp.out[i][j][idx]; 
+
+    // check out[i][j] < p since we never did that previously
+    component lt[6][2];
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++){
+        lt[i][j] = BigLessThan(n, k);
+        for(var idx=0; idx<k; idx++){
+            lt[i][j].a[idx] <== out[i][j][idx];
+            lt[i][j].b[idx] <== q[idx];
+        }
+        lt[i][j].out === 1;
+    }
 }

@@ -126,12 +126,6 @@ template PointOnCurveFp2(n, k, a, b, p){
     }
 }
 
-// component main { public [in] } = PointOnTangentFp2(2, 2, 2, [1, 1]);
-
-// /* INPUT = {
-//     "in": [[[[1,0],[1,0]],[[0,0],[2,0]]], [[[1,0],[2,0]],[[2,0],[0,1]]]]
-// } */
-
 // in[0] = (x_1, y_1), in[1] = (x_3, y_3) 
 // Checks that the line between (x_1, y_1) and (x_3, -y_3) is equal to the tangent line to the elliptic curve at the point (x_1, y_1)
 // Implements: 
@@ -310,12 +304,6 @@ template EllipticCurveAddUnequalFp2(n, k, p) { // changing q's to p's for my san
     }
 }
 
-// component main { public [a,b] } = EllipticCurveAddUnequalFp2(2, 2, [1,1]);
-
-// /* INPUT = {
-//     "a": [[[1,0],[1,0]],[[2,0],[3,0]]],
-//     "b": [[[2,0],[1,0]],[[1,0],[2,0]]]
-// } */
 // requires x_1 != x_2
 // assume p is size k array, the prime that curve lives over 
 //
@@ -427,11 +415,6 @@ template EllipticCurveAddUnequalFp2(n, k, p) { // changing q's to p's for my san
     }
 }
 
-// component main { public [in] } = EllipticCurveDoubleFp2(2, 2, 0, [1,6], [3,1]);
-
-// /* INPUT = {
-//     "in": [[[0,1],[1,0]],[[1,0],[2,0]]]
-// } */
 
 // Elliptic curve is E : y**2 = x**3 + ax + b
 // assuming a < 2^n for now, b is complex
@@ -517,14 +500,6 @@ template EllipticCurveDoubleFp2(n, k, a, b, p) {
     x3_eq_x1.out === 0;
 }
 
-// component main { public [P, Q] } = SignedLineFunctionUnequalNoCarryFp2(2, 2, 8);
-
-// /* INPUT = {
-//     "P": [ [[[1,0],[1,0]],[[1,0],[0,0]]], 
-//                 [[[2,0],[1,0]],[[0,0],[1,0]]] ], 
-//     "Q": [[1,0],[3,0]]
-// } */
-
 // Inputs:
 //  P is 2 x 2 x 2 x k array where P0 = (x_1, y_1) and P1 = (x_2, y_2) are points in E(Fp2)
 //  Q is 2 x k array representing point (X, Y) in E(Fp)
@@ -599,12 +574,6 @@ template SignedLineFunctionUnequalNoCarryFp2(n, k, m_out){
     }*/
 }
 
-// component main { public [P, Q] } = SignedLineFunctionEqualNoCarryFp2(2, 2, 8);
-
-// /* INPUT = {
-//     "P": [[[1,0],[1,0]],[[1,0],[2,0]]], 
-//     "Q": [[1,0],[3,0]]
-// } */
 
 // Assuming curve is of form Y^2 = X^3 + b for now (a = 0) for better register bounds 
 // Inputs:
@@ -703,14 +672,6 @@ template SignedLineFunctionEqualNoCarryFp2(n, k, m_out){
     }*/
 }
 
-// component main { public [P, Q] } = LineFunctionUnequalFp2(2, 2, [1,1]);
-
-// /* INPUT = {
-//     "P": [ [[[1,0],[1,0]],[[1,0],[0,0]]], 
-//                 [[[2,0],[1,0]],[[0,0],[1,0]]] ], 
-//     "Q": [[1,0],[3,0]]
-// } */
-
 // Inputs:
 //  P is 2 x 2 x k array where P0 = (x_1, y_1) and P1 = (x_2, y_2) are points in E(Fp2)
 //  Q is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12)
@@ -770,13 +731,6 @@ template LineFunctionUnequalFp2(n, k, q) {
         }
     }    
 }
-
-// component main { public [P, Q] } = LineFunctionEqualFp2(2, 2, [1,1]);
-
-// /* INPUT = {
-//     "P": [[[1,0],[1,0]],[[1,0],[2,0]]], 
-//     "Q": [[1,0],[3,0]]
-// } */
 
 // Assuming curve is of form Y^2 = X^3 + b for now (a = 0) for better register bounds 
 // Inputs:
@@ -840,14 +794,6 @@ template LineFunctionEqualFp2(n, k, q) {
     }    
 }
 
-// component main { public [P, Q] } = Fp12MultiplyWithLineUnequalFp2(2, 2, 2, 2, [1,1]);
-
-// /* INPUT = {
-//     "g": [[[1,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[1,0]]],
-//     "P": [ [[[1,0],[1,0]],[[1,0],[0,0]]], 
-//             [[[2,0],[1,0]],[[0,0],[1,0]]] ],
-//     "Q": [[1,0],[3,0]]
-// } */
 
 // Input:
 //  g is 6 x 2 x kg array representing element of Fp12, allowing overflow and negative
@@ -899,19 +845,17 @@ template Fp12MultiplyWithLineUnequalFp2(n, k, kg, overflowg, q){
 // Assuming curve is of form Y^2 = X^3 + b for now (a = 0) for better register bounds 
 // b is complex
 // Inputs:
-//  in is 6 x 2 x k array representing element in Fq12
 //  P is 2 x 2 x k array where P = (x, y) is a point in E[r](Fq2) 
 //  Q is 2 x k array representing point (X, Y) in E(Fq) 
 // Output:
 //  out = f_x(P,Q) is 6 x 2 x k, where we start with f_0(P,Q) = in and use Miller's algorithm f_{i+j} = f_i * f_j * l_{i,j}(P,Q)
-//  xP = [x]P is 2 x k array
+//  xP = [x]P is 2 x 2 x k array
 // Assume:
 //  r is prime (not a parameter in this template)
 //  x in [0, 2^250) and x < r  (we will use this template when x has few significant bits in base 2)
 //  q has k registers in [0, 2^n)
 //  P != O so the order of P in E(Fq) is r, so [i]P != [j]P for i != j in Z/r 
 template MillerLoopFp2(n, k, b, x, q){
-    signal input in[6][2][k];
     signal input P[2][2][k]; 
     signal input Q[2][k];
 
@@ -924,7 +868,6 @@ template MillerLoopFp2(n, k, b, x, q){
     var LOGK3 = log_ceil(36*(2+XI0)*(2+XI0) * k*k*(2*k-1));
     assert( 4*n + LOGK3 < 251 );
     
-
     var Bits[250]; // length is k * n
     var BitLength;
     var SigBits=0;
@@ -936,7 +879,13 @@ template MillerLoopFp2(n, k, b, x, q){
         }
     }
 
-    signal Pintermed[BitLength][2][2][k]; 
+    signal negP[2][2][k]; // (x, -y)
+    for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        negP[0][j][idx] <== P[0][j][idx];
+        negP[1][j][idx] <== -P[1][j][idx];
+    }
+
+    signal R[BitLength][2][2][k]; 
     signal f[BitLength][6][2][k];
 
     component Pdouble[BitLength];
@@ -954,12 +903,15 @@ template MillerLoopFp2(n, k, b, x, q){
         if( i == BitLength - 1 ){
             // f = 1 
             for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-                f[i][l][j][idx] <== in[l][j][idx];
+                if(l==0 && j==0 && idx==0)
+                    f[i][l][j][idx] <== 1;
+                else    
+                    f[i][l][j][idx] <== 0;
             }
             for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
-                Pintermed[i][j][l][idx] <== P[j][l][idx];
+                R[i][j][l][idx] <== negP[j][l][idx];
         }else{
-            // compute fdouble[i] = f[i+1]^2 * l_{Pintermed[i+1], Pintermed[i+1]}(Q) 
+            // compute fdouble[i] = f[i+1]^2 * l_{R[i+1], R[i+1]}(Q) 
             square[i] = SignedFp12MultiplyNoCarry(n, k, 2*n + 4 + LOGK); // 6 x 2 x 2k-1 registers in [0, 6 * k * (2+XI0) * 2^{2n} )
             for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
                 square[i].a[l][j][idx] <== f[i+1][l][j][idx];
@@ -968,7 +920,7 @@ template MillerLoopFp2(n, k, b, x, q){
 
             line[i] = LineFunctionEqualFp2(n, k, q); // 6 x 2 x k registers in [0, 2^n) 
             for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
-                line[i].P[j][l][idx] <== Pintermed[i+1][j][l][idx];            
+                line[i].P[j][l][idx] <== R[i+1][j][l][idx];            
             for(var eps=0; eps<2; eps++)
                 for(var idx=0; idx<k; idx++)
                     line[i].Q[eps][idx] <== Q[eps][idx];
@@ -990,28 +942,28 @@ template MillerLoopFp2(n, k, b, x, q){
 
             Pdouble[i] = EllipticCurveDoubleFp2(n, k, 0, b, q);  
             for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
-                Pdouble[i].in[j][l][idx] <== Pintermed[i+1][j][l][idx]; 
+                Pdouble[i].in[j][l][idx] <== R[i+1][j][l][idx]; 
             
             if(Bits[i] == 0){
                 for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
                     f[i][l][j][idx] <== fdouble[i].out[l][j][idx]; 
                 for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
-                    Pintermed[i][j][l][idx] <== Pdouble[i].out[j][l][idx];
+                    R[i][j][l][idx] <== Pdouble[i].out[j][l][idx];
             }else{
-                // fadd[curid] = fdouble * in * l_{Pdouble[i], P}(Q) 
-                fadd_pre[curid] = Fp12Multiply(n, k, q); 
+                /*fadd_pre[curid] = Fp12Multiply(n, k, q); 
                 for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
                     fadd_pre[curid].a[l][j][idx] <== fdouble[i].out[l][j][idx];
                     fadd_pre[curid].b[l][j][idx] <== in[l][j][idx]; 
-                }
+                }*/
 
+                // fadd[curid] = fdouble * l_{Pdouble[i], -P}(Q) 
                 fadd[curid] = Fp12MultiplyWithLineUnequalFp2(n, k, k, n, q); 
                 for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-                    fadd[curid].g[l][j][idx] <== fadd_pre[curid].out[l][j][idx];
+                    fadd[curid].g[l][j][idx] <== fdouble[i].out[l][j][idx];
                 
                 for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++){
                     fadd[curid].P[0][j][l][idx] <== Pdouble[i].out[j][l][idx];            
-                    fadd[curid].P[1][j][l][idx] <== P[j][l][idx];            
+                    fadd[curid].P[1][j][l][idx] <== negP[j][l][idx];            
                 }
                 for(var eps=0; eps<2; eps++)for(var idx=0; idx<k; idx++)
                     fadd[curid].Q[eps][idx] <== Q[eps][idx];
@@ -1019,15 +971,15 @@ template MillerLoopFp2(n, k, b, x, q){
                 for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
                     f[i][l][j][idx] <== fadd[curid].out[l][j][idx]; 
 
-                // Padd[curid] = Pdouble[i] + P 
+                // Padd[curid] = Pdouble[i] + (-P) 
                 Padd[curid] = EllipticCurveAddUnequalFp2(n, k, q); 
                 for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++){
                     Padd[curid].a[j][l][idx] <== Pdouble[i].out[j][l][idx];
-                    Padd[curid].b[j][l][idx] <== P[j][l][idx];
+                    Padd[curid].b[j][l][idx] <== negP[j][l][idx];
                 }
 
                 for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
-                    Pintermed[i][j][l][idx] <== Padd[curid].out[j][l][idx];
+                    R[i][j][l][idx] <== Padd[curid].out[j][l][idx];
                 
                 curid++;
             }
@@ -1036,6 +988,6 @@ template MillerLoopFp2(n, k, b, x, q){
     for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         out[l][j][idx] <== f[0][l][j][idx];
     for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
-        xP[j][l][idx] <== Pintermed[0][j][l][idx]; 
+        xP[j][l][idx] <== R[0][j][l][idx]; 
     
 }
