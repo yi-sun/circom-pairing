@@ -725,7 +725,7 @@ template BigModInv(n, k) {
 template CheckCarryToZero(n, m, k) {
     assert(k >= 2);
     
-    var EPSILON = 3;
+    var EPSILON = 1;
     
     signal input in[k];
     
