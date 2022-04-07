@@ -64,6 +64,25 @@ template FpSubtract(n, k, p){
     }
 }
 
+// Input: in <= p
+// Output: -in (mod p) = p - in if in != 0, else 0 
+template FpNegate(n, k, p){
+    signal input in[k];
+    signal output out[k];
+
+    component neg = BigSub(n, k); 
+    component is_zero = BigIsZero(k);
+    for(var idx=0; idx<k; idx++){
+        neg.a[idx] <== p[idx];
+        neg.b[idx] <== in[idx];
+        
+        is_zero.in[idx] <== in[idx];
+    }
+    neg.underflow === 0; // constrain in <= p
+    for(var idx=0; idx<k; idx++)
+        out[idx] <== (1-is_zero.out)*neg.out[idx];
+}
+
 template FpMultiply(n, k, p) {
     assert(n <= 252);
     signal input a[k];

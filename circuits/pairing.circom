@@ -42,9 +42,21 @@ template BLSAtePairing(n, k, q){
 
     var x = get_BLS12_381_parameter();
 
+    signal negP[2][2][k]; // (x, -y) mod q
+    // currently EllipticCurveDoubleFp2 relies on 0 <= in < p so we cannot pass a negative number for negP
+    component neg[2];
+    for(var j=0; j<2; j++){
+        neg[j] = FpNegate(n, k, q); 
+        for(var idx=0; idx<k; idx++)
+            neg[j].in[idx] <== P[1][j][idx];
+        for(var idx=0; idx<k; idx++){
+            negP[0][j][idx] <== P[0][j][idx];
+            negP[1][j][idx] <== neg[j].out[idx];
+        }
+    }
     component miller = MillerLoopFp2(n, k, [4,4], x, q);
     for(var i=0; i<2; i++)for(var j=0; j <2; j++)for(var idx=0; idx<k; idx++)
-        miller.P[i][j][idx] <== P[i][j][idx];
+        miller.P[i][j][idx] <== negP[i][j][idx];
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
         miller.Q[i][idx] <== Q[i][idx];
     /*for(var i = 0; i <6; i ++)for(var j = 0; j < 2; j++)for(var l = 0; l < k; l++) {
@@ -74,3 +86,5 @@ template BLSAtePairing(n, k, q){
         lt[i][j].out === 1;
     }
 }
+
+

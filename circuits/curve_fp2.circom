@@ -769,26 +769,6 @@ template MillerLoopFp2(n, k, b, x, q){
         }
     }
 
-    signal negP[2][2][k]; // (x, -y) mod q
-    component neg[2];
-    component is_zero[2];
-    for(var j=0; j<2; j++){
-        // Compute q - y = -y mod q 
-        // currently EllipticCurveDoubleFp2 relies on 0 <= in < p so we cannot pass a negative number for negP
-        neg[j] = BigSub(n, k); 
-        is_zero[j] = BigIsZero(k);
-        for(var idx=0; idx<k; idx++){
-            negP[0][j][idx] <== P[0][j][idx];
-            neg[j].a[idx] <== q[idx];
-            neg[j].b[idx] <== P[1][j][idx];
-            
-            is_zero[j].in[idx] <== P[1][j][idx];
-        }
-        neg[j].underflow === 0; // constrain P[1][j] <= p
-        for(var idx=0; idx<k; idx++)
-            negP[1][j][idx] <== (1-is_zero[j].out)*neg[j].out[idx];
-    }
-
     signal R[BitLength][2][2][k]; 
     signal f[BitLength][6][2][k];
 
@@ -813,7 +793,7 @@ template MillerLoopFp2(n, k, b, x, q){
                     f[i][l][j][idx] <== 0;
             }
             for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
-                R[i][j][l][idx] <== negP[j][l][idx];
+                R[i][j][l][idx] <== P[j][l][idx];
         }else{
             // compute fdouble[i] = f[i+1]^2 * l_{R[i+1], R[i+1]}(Q) 
             square[i] = SignedFp12MultiplyNoCarry(n, k, 2*n + 4 + LOGK); // 6 x 2 x 2k-1 registers in [0, 6 * k * (2+XI0) * 2^{2n} )
@@ -867,7 +847,7 @@ template MillerLoopFp2(n, k, b, x, q){
                 
                 for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++){
                     fadd[curid].P[0][j][l][idx] <== Pdouble[i].out[j][l][idx];            
-                    fadd[curid].P[1][j][l][idx] <== negP[j][l][idx];            
+                    fadd[curid].P[1][j][l][idx] <== P[j][l][idx];            
                 }
                 for(var eps=0; eps<2; eps++)for(var idx=0; idx<k; idx++)
                     fadd[curid].Q[eps][idx] <== Q[eps][idx];
@@ -879,7 +859,7 @@ template MillerLoopFp2(n, k, b, x, q){
                 Padd[curid] = EllipticCurveAddUnequalFp2(n, k, q); 
                 for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++){
                     Padd[curid].a[j][l][idx] <== Pdouble[i].out[j][l][idx];
-                    Padd[curid].b[j][l][idx] <== negP[j][l][idx];
+                    Padd[curid].b[j][l][idx] <== P[j][l][idx];
                 }
 
                 for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
@@ -895,3 +875,5 @@ template MillerLoopFp2(n, k, b, x, q){
         xP[j][l][idx] <== R[0][j][l][idx]; 
     
 }
+
+
