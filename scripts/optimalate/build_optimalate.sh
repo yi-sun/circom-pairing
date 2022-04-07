@@ -1,8 +1,8 @@
 #!/bin/bash
 
 PHASE1=../../circuits/pot25_final.ptau
-BUILD_DIR=../../build/tatepairing
-CIRCUIT_NAME=tatepairing
+BUILD_DIR=../../build/optimalate
+CIRCUIT_NAME=optimalate
 
 if [ -f "$PHASE1" ]; then
     echo "Found Phase 1 ptau file"
@@ -21,7 +21,7 @@ echo $PWD
 echo "****COMPILING CIRCUIT****"
 start=`date +%s`
 #circom "$CIRCUIT_NAME".circom --O0 --c --output "$BUILD_DIR"
-circom "$CIRCUIT_NAME".circom --O1 --r1cs --sym --c --output "$BUILD_DIR"
+circom "$CIRCUIT_NAME".circom --O1 --r1cs --sym --c --wasm --output "$BUILD_DIR"
 end=`date +%s`
 echo "DONE ($((end-start))s)"
 
