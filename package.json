@@ -11,6 +11,8 @@
         "build:millerloopfp2": "cd ./scripts/millerloopfp2 && ./build_millerloopfp2.sh",
         "build:finalexp": "cd ./scripts/finalexp && ./build_finalexp.sh",
         "build:tatepairing": "cd ./scripts/tatepairing && ./build_tatepairing.sh",
+        "build:optimalate": "cd ./scripts/optimalate && ./build_optimalate.sh",
+        "build:signature": "cd ./scripts/signature && ./build_signature.sh",
         "test": "NODE_OPTIONS='--max-old-space-size=560000' mocha -r ts-node/register 'test/**/*.ts'"
     },
     "repository": "git@github.com:yi-sun/circom-pairing.git",

@@ -473,7 +473,7 @@ template SignedLineFunctionUnequalNoCarryFp2(n, k, m_out){
 //  (3x^3 - 2y^2) + w^2 (-3 x^2 X) + w^3 (2 y Y)
 // We evaluate out without carries, with signs
 // If P, Q have registers in [0, 2^n) 
-// Then out has registers in [0, 6k^2*2^{3n} + 4k*2^{2n} < (6k + 4/2^n )*k*2^{3n})
+// Then out has registers in [0, 12k^2*2^{3n} + 8k*2^{2n} < (12k + 8/2^n )*k*2^{3n})
 // m_out is the expected max number of bits in the output registers
 template SignedLineFunctionEqualNoCarryFp2(n, k, m_out){
     signal input P[2][2][k]; 
@@ -731,6 +731,7 @@ template Fp12MultiplyWithLineUnequalFp2(n, k, kg, overflowg, q){
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         out[i][j][idx] <== carry.out[i][j][idx];
 }
+
 // Assuming curve is of form Y^2 = X^3 + b for now (a = 0) for better register bounds 
 // b is complex
 // Inputs:

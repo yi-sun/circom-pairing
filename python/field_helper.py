@@ -20,20 +20,32 @@ def numberToArray(num, n, k):
         num //= 2**n
     return registers
 
+def hamming_weight(x):
+    num = abs(x)
+    ones = 0;
+    while num:
+        if num & 1:
+            ones = ones + 1
+        num //= 2
+    return ones
+
 def printEllipticPoint(P, n, k):
     print(numberToArray(num=P[0].n, n=n, k=k), numberToArray(num=P[1].n, n=n, k=k))
 
+def printFQ(x, n, k):
+    print("[", end="")
+    A = numberToArray(x.n, n, k)
+    for idx in range(len(A)):
+        print(f'"{A[idx]}"', end="")
+        if idx != len(A)-1:
+            print(",")
+    print("]", end="")
+    
 def printFQ2(X, n, k):
     in22 = X.coeffs
     print("[")
     for i in range(len(in22)):
-        print("[", end="")
-        A = numberToArray(in22[i].n, n, k)
-        for idx in range(len(A)):
-            print(f'"{A[idx]}"', end="")
-            if idx != len(A)-1:
-                print(",")
-        print("]", end="")
+        printFQ(in22[i], n, k)
         if i != len(in22)-1:
             print(",")
     print("]")
