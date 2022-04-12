@@ -125,6 +125,36 @@ template SignedFp2MultiplyNoCarryCompress(n, k, p, m_in, m_out){
         out[i][j] <== compress.out[i][j];
 }
 
+
+template SignedFp2MultiplyNoCarryCompressThree(n, k, p, m_in, m_out){
+    signal input a[2][k];
+    signal input b[2][k];
+    signal input c[2][k];
+    signal output out[4][k];
+    
+    var LOGK = log_ceil(k);
+    component ab = SignedFp2MultiplyNoCarry(n, k, 2*m_in + LOGK + 1);
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
+        ab.a[i][idx] <== a[i][idx];
+        ab.b[i][idx] <== b[i][idx]; 
+    }
+    
+    component abc = SignedFp2MultiplyNoCarryUnequal(n, 2*k-1, k, 3*m_in + 2*LOGK + 2);
+    for(var i=0; i<2; i++){
+        for(var idx=0; idx<2*k-1; idx++)
+            abc.a[i][idx] <== ab.out[i][idx];
+        for(var idx=0; idx<k; idx++)
+            abc.b[i][idx] <== c[i][idx];
+    }
+    
+    component compress = Fp2Compress(n, k, 2*k-2, p, 3*m_in + n + 3*LOGK + 3);
+    for(var i=0; i<2; i++)for(var j=0; j<3*k-2; j++)
+        compress.in[i][j] <== abc.out[i][j]; 
+ 
+    for(var i=0; i<2; i++)for(var j=0; j<k; j++)
+        out[i][j] <== compress.out[i][j];
+}
+
 // check if in[0] + in[0]*u is a valid point of Fp2 with in[0],in[1] both with k registers in [0,2^n)
 // to save constraints, DO NOT CONSTRAIN in[i] < p
 template CheckValidFp2(n, k, p){
@@ -198,6 +228,29 @@ template Fp2Multiply(n, k, p){
 }
 
 
+template Fp2MultiplyThree(n, k, p){
+    signal input a[2][k];
+    signal input b[2][k];
+    signal input c[2][k];
+    signal output out[2][k];
+
+    var LOGK3 = log_ceil(4*k*k*(2*k-1));
+    assert(4*n + LOGK3 < 251);
+
+    component compress = SignedFp2MultiplyNoCarryCompressThree(n, k, p, n, 4*n + LOGK3); 
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
+        compress.a[i][idx] <== a[i][idx];
+        compress.b[i][idx] <== b[i][idx];
+        compress.c[i][idx] <== c[i][idx];
+    }
+    
+    component carry_mod = SignedFp2CarryModP(n, k, 4*n + LOGK3, p); 
+    for(var i=0; i<2; i++)for(var j=0; j<k; j++)
+        carry_mod.in[i][j] <== compress.out[i][j]; 
+    
+    for(var i=0; i<2; i++)for(var j=0; j<k; j++)
+        out[i][j] <== carry_mod.out[i][j]; 
+}
 
 
 // input: in[0] + in[1] u
@@ -279,25 +332,22 @@ template Fp2Invert(n, k, p){
 // a, b are two elements of Fp2 where we use the 2 x k format 
 // solve for out * b - a = p * X 
 // assume X has at most m registers, lying in [-2^{n+1}, 2^{n+1} )   NOTE n+1 not n DIFFERENT FROM Fp2CarryModP
-// assume a has registers in (-2^overflow, 2^overflow), b has registers with abs val < 2^{overflow-2n-log(k^2)-1} 
-// assume 2n+1 + log( min(k, ceil(overflow/n) )) < overflow 
 // out has registers in [0, 2^n) 
-template SignedFp2Divide(n, k, overflow, p){
+template SignedFp2Divide(n, k, overflowa, overflowb, p){
     signal input a[2][k];
     signal input b[2][k]; 
-    var m = (overflow + n) \ n; // ceil((overflow + 1)/n) , i.e., 2^{overflow+1} <= 2^{n*m}
-    signal output X[2][m];
     signal output out[2][k]; 
-    assert( overflow < 250 );
      
+    var ma = overflowa \ n; 
+    var mb = overflowb \ n;
     // first precompute a, b mod p as shorts 
     var a_mod[2][50]; 
     var b_mod[2][50]; 
     for(var eps=0; eps<2; eps++){
         // 2^{overflow} <= 2^{n*ceil(overflow/n)} 
-        var temp[2][50] = get_signed_Fp_carry_witness(n, k, m, a[eps], p);
+        var temp[2][50] = get_signed_Fp_carry_witness(n, k, ma, a[eps], p);
         a_mod[eps] = temp[1];
-        temp = get_signed_Fp_carry_witness(n, k, m, b[eps], p);
+        temp = get_signed_Fp_carry_witness(n, k, mb, b[eps], p);
         b_mod[eps] = temp[1];
     }
 
@@ -313,23 +363,25 @@ template SignedFp2Divide(n, k, overflow, p){
     for(var eps=0; eps<2; eps++)for(var i=0; i<k; i++)
         check.in[eps][i] <== out[eps][i];
     
-    // constraint is a out * b = a + p * X 
+    // constraint is out * b = a + p * X 
     // precompute out * b = p * X' + Y' and a = p * X'' + Y''
     //            should have Y' = Y'' so X = X' - X''
     
     var LOGK2 = log_ceil(2*k*k);
-    // out * b, registers overflow in 2*k*k * 2^{2n + (overflow - 2n - LOGK2)} <= 2^{overflow}  
-    component mult = SignedFp2MultiplyNoCarryCompress(n, k, p, max(n, overflow - 2*n - LOGK2), overflow); 
+    // out * b, registers overflow in 2*k*k * 2^{2n + overflowb}
+    component mult = SignedFp2MultiplyNoCarryCompress(n, k, p, max(n, overflowb), 2*n + overflowb + LOGK2); 
     for(var eps=0; eps<2; eps++)for(var i=0; i<k; i++){
         mult.a[eps][i] <== out[eps][i]; 
         mult.b[eps][i] <== b[eps][i]; 
     }
     
+    var m = max( mb + k, ma );
     // get mult = out * b = p*X' + Y'
-    var XY[2][2][50] = get_signed_Fp2_carry_witness(n, k, m, mult.out, p); // total value is < 2^{n*k+overflow} <= 2^{n*(k+m)} so m extra registers is enough
+    var XY[2][2][50] = get_signed_Fp2_carry_witness(n, k, m, mult.out, p); // total value is < 2^{nk} * 2^{n*k + overflowb - n + 1}
     // get a = p*X' + Y'
     var XY1[2][2][50] = get_signed_Fp2_carry_witness(n, k, m, a, p); // same as above, m extra registers enough
 
+    signal X[2][m];
     component X_range_checks[2][m];
     for(var eps=0; eps<2; eps++){    
         for(var i=0; i<m; i++){
@@ -340,10 +392,10 @@ template SignedFp2Divide(n, k, overflow, p){
         }
     }
     
+    var overflow = max(2*n + overflowb + LOGK2, overflowa);
     // finally constrain out * b - a = p * X 
     // out * b - a has overflow in (-2^{overflow+1}, 2^{overflow +1}) 
-    // assume n+1 < overflow - n - log(min(k,m)), for registers of X
-    component mod_check[2];  // overflow 9*(k+1)*k * 2^{3n+1} + 2*2^n < 2^{3n+LOGK+5} 
+    component mod_check[2];  
     for(var eps=0; eps<2; eps++){
         mod_check[eps] = CheckCarryModP(n, k, m, overflow + 1, p);
         for(var i=0; i<k; i++){
@@ -399,4 +451,21 @@ template Fp2FrobeniusMap(n, k, power, p){
     }
 }
 
+// in = in0 + in1 * u, elt of Fp2
+// sgn0(in) = sgn0(in0) if in0 != 0, and = sgn0(in1) otherwise
+template Fp2Sgn0(n, k, p){
+    signal input in[2][k];
+    signal output out;
 
+    component sgn[2];
+    for(var i=0; i<2; i++){
+        sgn[i] = FpSgn0(n, k, p);
+        for(var idx=0; idx<k; idx++)
+            sgn[i].in[idx] <== in[i][idx];
+    }
+    component isZero = BigIsZero(k);
+    for(var idx=0; idx<k; idx++)
+        isZero.in[idx] <== in[1][idx];
+
+    out <== sgn[1].out + isZero.out * (sgn[0].out - sgn[1].out);
+}
