@@ -91,11 +91,11 @@ function get_signed_Fp_carry_witness(n, k, m, a, p){
     var out[2][50];
     var a_short[51] = signed_long_to_short(n, k, a); 
 
-    // commenting out to improve speed
+    /* // commenting out to improve speed
     // let me make sure everything is in <= k+m registers
     for(var j=k+m; j<50; j++)
         assert( a_short[j] == 0 );
-    
+    */
 
     if(a_short[50] == 0){
         out = long_div2(n, k, m, a_short, p);    

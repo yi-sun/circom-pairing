@@ -198,6 +198,25 @@ template SignedFp2CarryModP(n, k, overflow, p){
     }
 }
 
+// input is 2 x (k+m) with registers in (-2^overflow, 2^overflow)
+//  in[0] + in[1] u
+// calls Fp2Compress and SignedFp2CarryModP
+template SignedFp2CompressCarry(n, k, m, overflow, p){
+    signal input in[2][k+m]; 
+    signal output out[2][k];
+    
+    var LOGM = log_ceil(m+1);
+    component compress = Fp2Compress(n, k, m, p, overflow + n + LOGM); 
+    for(var i=0; i<2; i++)for(var idx=0; idx<k+m; idx++)
+        compress.in[i][idx] <== in[i][idx];
+    
+    component carry = SignedFp2CarryModP(n, k, overflow + n + LOGM, p);
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
+        carry.in[i][idx] <== compress.out[i][idx];
+
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
+        out[i][idx] <== carry.out[i][idx];
+}
 
 // outputs a*b in Fp2 
 // (a0 + a1 u)*(b0 + b1 u) = (a0*b0 - a1*b1) + (a0*b1 + a1*b0)u 
@@ -468,4 +487,21 @@ template Fp2Sgn0(n, k, p){
         isZero.in[idx] <== in[1][idx];
 
     out <== sgn[1].out + isZero.out * (sgn[0].out - sgn[1].out);
+}
+
+// assumes in[i] < p for i=0,1
+template Fp2IsZero(k){
+    signal input in[2][k];
+    signal output out;
+
+    component isZeros[2][k];
+    var total = 2*k;
+    for(var j=0; j<2; j++)for(var i = 0; i < k; i++) {
+        isZeros[j][i] = IsZero();
+        isZeros[j][i].in <== in[j][i];
+        total -= isZeros[j][i].out;
+    }
+    component checkZero = IsZero();
+    checkZero.in <== total;
+    out <== checkZero.out;
 }

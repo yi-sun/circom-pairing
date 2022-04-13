@@ -26,7 +26,7 @@ Constants are a = 240 u, b = 1012 + 1012 u where u = sqrt(-1)
 // This is osswu2_help(t) in Python reference code
 // See Section 4.2 of Wahby-Boneh: https://eprint.iacr.org/2019/403.pdf
 // circom implementation is slightly different since sqrt and inversion are cheap
-template OptSimpleSWU(n, k){
+template OptSimpleSWU2(n, k){
     signal input in[2][k];
     signal output out[2][2][k]; 
     signal output isInfinity;
@@ -226,3 +226,136 @@ template OptSimpleSWU(n, k){
     
 }
 
+/*
+3-Isogeny from E2' to E2
+References:
+    Appendix E.3 of https://cfrg.github.io/draft-irtf-cfrg-hash-to-curve/draft-irtf-cfrg-hash-to-curve.html#name-3-isogeny-map-for-bls12-381
+    Section 4.3 of Wahby-Boneh: https://eprint.iacr.org/2019/403.pdf
+    iso3(P) in Python reference code: https://github.com/algorand/bls_sigs_ref/blob/master/python-impl/opt_swu_g2.py
+*/ 
+
+// Input:
+//  in = (x', y') point on E2' 
+//  inIsInfinity = 1 if input is point at infinity on E2' (in which case x', y' are arbitrary)
+// Output:
+//  out = (x, y) is point on E2 after applying 3-isogeny to in 
+//  isInfinity = 1 if one of exceptional cases occurs and output should be point at infinity
+// Exceptions:
+//  inIsInfinity = 1
+//  input is a pole of the isogeny, i.e., x_den or y_den = 0 
+template Iso3Map(n, k){
+    signal input in[2][2][k];
+    signal input inIsInfinity;
+    signal output out[2][2][k];
+    signal output isInfinity;
+    
+    var p[50] = get_BLS12_381_prime(n, k);
+    
+    // load coefficients of the isogeny (precomputed)
+    var coeffs[4][4][2][50] = get_iso3_coeffs(n, k);
+
+    // x = x_num / x_den
+    // y = y' * y_num / y_den
+    // x_num = sum_{i=0}^3 coeffs[0][i] * x'^i
+    // x_den = x'^2 + coeffs[1][1] * x' + coeffs[1][0] 
+    // y_num = sum_{i=0}^3 coeffs[2][i] * x'^i
+    // y_den = x'^3 + sum_{i=0}^2 coeffs[3][i] * x'^i
+  
+    var LOGK = log_ceil(k); 
+    component xp2_nocarry = SignedFp2MultiplyNoCarry(n, k, 2*n + LOGK + 1); 
+    component xp2 = SignedFp2CompressCarry(n, k, k-1, 2*n+LOGK+1, p);
+    component xp3_nocarry = SignedFp2MultiplyNoCarryUnequal(n, 2*k-1, k, 3*n + 2*LOGK + 2); 
+    component xp3 = SignedFp2CompressCarry(n, k, 2*k-2, 3*n+2*LOGK+2, p);
+
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
+        xp2_nocarry.a[i][idx] <== in[0][i][idx];
+        xp2_nocarry.b[i][idx] <== in[0][i][idx];
+        xp3_nocarry.b[i][idx] <== in[0][i][idx];
+    }
+    for(var i=0; i<2; i++)for(var idx=0; idx<2*k-1; idx++){
+        xp3_nocarry.a[i][idx] <== xp2_nocarry.out[i][idx];
+        xp2.in[i][idx] <== xp2_nocarry.out[i][idx];
+    }
+    for(var i=0; i<2; i++)for(var idx=0; idx<3*k-2; idx++)
+        xp3.in[i][idx] <== xp3_nocarry.out[i][idx]; 
+
+    signal xp_pow[3][2][k]; 
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
+        xp_pow[0][i][idx] <== in[0][i][idx];
+        xp_pow[1][i][idx] <== xp2.out[i][idx];
+        xp_pow[2][i][idx] <== xp3.out[i][idx];
+    }
+     
+    component coeffs_xp[4][3]; 
+    var deg[4] = [3, 1, 3, 2];
+    for(var i=0; i<4; i++)for(var j=0; j<deg[i]; j++){
+        coeffs_xp[i][j] = SignedFp2MultiplyNoCarry(n, k, 2*n + LOGK + 1);
+        for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++){
+            coeffs_xp[i][j].a[l][idx] <== coeffs[i][j+1][l][idx];
+            coeffs_xp[i][j].b[l][idx] <== xp_pow[j][l][idx];
+        }
+    }
+    var x_frac[4][2][50];  
+    for(var i=0; i<4; i++){
+        for(var l=0; l<2; l++)for(var idx=0; idx<2*k-1; idx++){
+            if(idx<k)
+                x_frac[i][l][idx] = coeffs[i][0][l][idx];
+            else
+                x_frac[i][l][idx] = 0;
+        }
+        for(var j=0; j<deg[i]; j++)for(var l=0; l<2; l++)for(var idx=0; idx<2*k-1; idx++)
+            x_frac[i][l][idx] += coeffs_xp[i][j].out[l][idx];
+    } 
+    for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++){
+        x_frac[1][l][idx] += xp2.out[l][idx];
+        x_frac[3][l][idx] += xp3.out[l][idx];
+    }
+    
+    // carry the denominators since we need to check whether they are 0
+    component den[2];
+    component den_is_zero[2];
+    for(var i=0; i<2; i++){
+        den[i] = SignedFp2CompressCarry(n, k, k-1, 2*n + LOGK + 3, p); 
+        for(var l=0; l<2; l++)for(var idx=0; idx<2*k-1; idx++)
+            den[i].in[l][idx] <== x_frac[2*i+1][l][idx];
+
+        den_is_zero[i] = Fp2IsZero(k);
+        for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++)
+            den_is_zero[i].in[l][idx] <== den[i].out[l][idx];
+    }
+
+    component exception = IsZero();
+    exception.in <== inIsInfinity + den_is_zero[0].out + den_is_zero[1].out; 
+    isInfinity <== 1 - exception.out; 
+
+    component num[2];
+    for(var i=0; i<2; i++){
+        num[i] = Fp2Compress(n, k, k-1, p, 3*n + 2*LOGK + 3); 
+        for(var l=0; l<2; l++)for(var idx=0; idx<2*k-1; idx++)
+            num[i].in[l][idx] <== x_frac[2*i][l][idx];
+    }
+
+    component x[2];
+    // num / den if den != 0, else num / 1
+    for(var i=0; i<2; i++){
+        x[i] = SignedFp2Divide(n, k, 3*n + 2*LOGK + 3, n, p);
+        for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++){
+            x[i].a[l][idx] <== num[i].out[l][idx];
+            if(l==0 && idx==0)
+                x[i].b[l][idx] <== isInfinity * (1 - den[i].out[l][idx]) + den[i].out[l][idx];
+            else
+                x[i].b[l][idx] <== -isInfinity * den[i].out[l][idx] + den[i].out[l][idx];
+        } 
+    }
+
+    component y = Fp2Multiply(n, k, p);
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
+        y.a[i][idx] <== in[1][i][idx];
+        y.b[i][idx] <== x[1].out[i][idx];
+    } 
+
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
+        out[0][i][idx] <== x[0].out[i][idx];
+        out[1][i][idx] <== y.out[i][idx];
+    }
+}
