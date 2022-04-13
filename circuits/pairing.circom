@@ -23,6 +23,7 @@ template BLSTatePairing(n, k, q){
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         out[i][j][idx] <== finalexp.out[i][j][idx]; 
 
+    /*
     // check out[i][j] < p since we never did that previously
     component lt[6][2];
     for(var i=0; i<6; i++)for(var j=0; j<2; j++){
@@ -32,7 +33,7 @@ template BLSTatePairing(n, k, q){
             lt[i][j].b[idx] <== q[idx];
         }
         lt[i][j].out === 1;
-    }
+    }*/
 }
 
 template BLSAtePairing(n, k, q){
@@ -75,6 +76,7 @@ template BLSAtePairing(n, k, q){
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         out[i][j][idx] <== finalexp.out[i][j][idx]; 
 
+    /*
     // check out[i][j] < p since we never did that previously
     component lt[6][2];
     for(var i=0; i<6; i++)for(var j=0; j<2; j++){
@@ -84,7 +86,7 @@ template BLSAtePairing(n, k, q){
             lt[i][j].b[idx] <== q[idx];
         }
         lt[i][j].out === 1;
-    }
+    }*/
 }
 
 // Input: g1, pubkey in G_1 

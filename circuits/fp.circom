@@ -152,17 +152,17 @@ template SignedFpCarryModP(n, k, overflow, p){
 
     var Xvar[2][50] = get_signed_Fp_carry_witness(n, k, m, in, p); 
     component X_range_checks[m];
-    component range_checks[k]; 
-    //component lt = BigLessThan(n, k);  // Note: BigLessThan also range checks
+    //component range_checks[k]; 
+    component lt = BigLessThan(n, k);  // Note: BigLessThan also range checks
 
     for(var i=0; i<k; i++){
         out[i] <-- Xvar[1][i];
-        range_checks[i] = Num2Bits(n); 
-        range_checks[i].in <== out[i];
-        //lt.a[i] <== out[i];
-        //lt.b[i] <== p[i];
+        //range_checks[i] = Num2Bits(n); 
+        //range_checks[i].in <== out[i];
+        lt.a[i] <== out[i];
+        lt.b[i] <== p[i];
     }
-    //lt.out === 1;
+    lt.out === 1;
     
     for(var i=0; i<m; i++){
         X[i] <-- Xvar[0][i];
