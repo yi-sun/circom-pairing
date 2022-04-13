@@ -89,21 +89,23 @@ template FpMultiply(n, k, p) {
     signal input b[k];
     signal output out[k];
 
-    component big_mult = BigMult(n, k);
+    var LOGK = log_ceil(k);
+
+    component nocarry = BigMultShortLong(n, k);
     for (var i = 0; i < k; i++) {
         big_mult.a[i] <== a[i];
         big_mult.b[i] <== b[i];
     }
-    component big_mod = BigMod(n, k);
-    for (var i = 0; i < 2 * k; i++) {
-        big_mod.a[i] <== big_mult.out[i];
-    }
-    for (var i = 0; i < k; i++) {
-        big_mod.b[i] <== p[i];
-    }
-    for (var i = 0; i < k; i++) {
+    component red = PrimeReduce(n, k, k-1, p, 2*n + LOGK);
+    for(var i=0; i<2*k-1; i++)
+        red.in[i] <== big_mult.out[i];
+
+    component big_mod = SignedFpCarryModP(n, k, 3*n + 2*LOGK, p);
+    for (var i = 0; i < k; i++)
+        big_mod.in[i] <== red.out[i];
+
+    for (var i = 0; i < k; i++)
         out[i] <== big_mod.mod[i];
-    }
 }
 
 // constrain in = p * X + Y 
