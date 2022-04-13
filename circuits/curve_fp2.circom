@@ -58,12 +58,6 @@ template PointOnLineFp2(n, k, p) {
 // Implements:
 // x^3 + ax + b - y^2 = 0 mod p
 // Assume: a, b in [0, 2^n). b is complex 
-
-// component main { public [in] } = PointOnCurveFp2(2, 2, 0, [3, 2], [1,1]);
-
-// /* INPUT = {
-//     "in": [[[2,0],[3,0]],[[2,0],[3,0]]]
-// } */
 template PointOnCurveFp2(n, k, a, b, p){
     signal input in[2][2][k]; 
 
@@ -126,6 +120,70 @@ template PointOnCurveFp2(n, k, a, b, p){
         constraint[1].in[i] <== cu_red[1].out[i] - y_sq_red[1].out[i];
     }
 }
+
+// in = x
+// Implements:
+// out = x^3 + ax + b mod p
+// Assume: a, b are in Fp2, coefficients in [0, 2^n)
+template EllipticCurveFunction(n, k, a, b, p){
+    signal input in[2][k]; 
+    signal output out[2][k];
+
+    var LOGK = log_ceil(k);
+    var LOGK3 = log_ceil( (2*k-1)*(4*k*k+1) );
+    assert(4*n + LOGK3 < 251);
+
+    // compute x^3, y^2 
+    component x_sq = SignedFp2MultiplyNoCarryUnequal(n, k, k, 2*n+1+LOGK); // 2k-1 registers in [0, 2*k*2^{2n}) 
+    for (var i = 0; i < 2; i ++) {
+        for (var j = 0; j < k ; j ++) {
+            x_sq.a[i][j] <== in[i][j];
+            x_sq.b[i][j] <== in[i][j];
+        }
+    }
+    component x_cu = SignedFp2MultiplyNoCarryUnequal(n, 2*k-1, k, 3*n+2*LOGK+2); // 3k-2 registers in [0, 4*k^2 * 2^{3n}) 
+    for (var i = 0; i < 2; i ++) {
+        for (var j = 0; j < 2*k-1; j ++) {
+            x_cu.a[i][j] <== x_sq.out[i][j];
+        }
+        for (var j = 0; j < k; j ++) {
+            x_cu.b[i][j] <== in[i][j];
+        }
+    }
+
+    // x_cu + a x + b has 3k-2 registers < (4*k^2+1)2^{3n} 
+    component cu_red[2];
+    for (var j = 0; j < 2; j ++) {
+        cu_red[j] = PrimeReduce(n, k, 2*k-2, p, 4*n + 3*LOGK + 4);
+        for(var i=0; i<3*k-2; i++){
+            if(i == 0) {
+                if(j == 0)
+                    cu_red[j].in[i] <== x_cu.out[j][i] + a[0] * in[0][i] - a[1] * in[1][i] + b[j];
+                else
+                    cu_red[j].in[i] <== x_cu.out[j][i] + a[0] * in[1][i] + a[1] * in[0][i] + b[j]; 
+            }
+            else{
+                if(i < k){
+                    if(j == 0)
+                        cu_red[j].in[i] <== x_cu.out[j][i] + a[0] * in[0][i] - a[1] * in[1][i];
+                    else
+                        cu_red[j].in[i] <== x_cu.out[j][i] + a[0] * in[1][i] + a[1] * in[0][i]; 
+                }
+                else
+                    cu_red[j].in[i] <== x_cu.out[j][i];
+            }
+        }
+    }
+    // cu_red has k registers < (2k-1)*(4*k^2+1)2^{4n} < 2^{4n + 3LOGK + 4}
+
+    component carry = SignedFp2CarryModP(n, k, 4*n + LOGK3, p);
+    for(var j=0; j<2; j++)for(var i=0; i<k; i++)
+        carry.in[j][i] <== cu_red[j].out[i];
+    
+    for(var j=0; j<2; j++)for(var i=0; i<k; i++)
+        out[j][i] <== carry.out[j][i];
+}
+
 
 // in[0] = (x_1, y_1), in[1] = (x_3, y_3) 
 // Checks that the line between (x_1, y_1) and (x_3, -y_3) is equal to the tangent line to the elliptic curve at the point (x_1, y_1)

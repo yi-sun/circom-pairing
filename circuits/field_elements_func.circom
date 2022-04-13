@@ -1,5 +1,13 @@
 pragma circom 2.0.3;
 
+function get_fp_sgn0(n, k, a, p){
+    var p1[50] = p; 
+    p1[0]--;
+    var p_half[2][50] = long_div2(n, 1, k-1, p1, [2]);
+
+    return long_gt(n, k, a, p_half[0]); 
+}
+
 // n bits per register
 // num has k registers
 // p has k registers
@@ -83,11 +91,11 @@ function get_signed_Fp_carry_witness(n, k, m, a, p){
     var out[2][50];
     var a_short[51] = signed_long_to_short(n, k, a); 
 
+    // commenting out to improve speed
     // let me make sure everything is in <= k+m registers
-    /* commenting out to improve speed
     for(var j=k+m; j<50; j++)
         assert( a_short[j] == 0 );
-    */
+    
 
     if(a_short[50] == 0){
         out = long_div2(n, k, m, a_short, p);    
@@ -129,7 +137,7 @@ function get_signed_Fp_carry_witness(n, k, m, a, p){
 // Implements: 
 //      calls get_signed_Fp_carry_witness twice
 // a[2][k] registers can overflow
-//  assume actual value of each a[i] < 2^{k+m} 
+//  assume actual value of each a[i] < (2^n)^{k+m} 
 // p[k] registers in [0, 2^n)
 // out[2][2][k] solving
 //      a[0] = p * out[0][0] + out[0][1] with out[0][1] in [0,p) 
@@ -143,6 +151,14 @@ function get_signed_Fp2_carry_witness(n, k, m, a, p){
         out[i] = get_signed_Fp_carry_witness(n, k, m, a[i], p);
 
     return out;
+}
+
+
+function get_fp2_sgn0(n, k, a, p){
+    var z = long_is_zero(k, a[1]);
+    var sgn0 = get_fp_sgn0(n, k, a[0], p);
+    var sgn1 = get_fp_sgn0(n, k, a[1], p);
+    return z * sgn0 + (1-z)*sgn1;
 }
 
 // helper function to precompute the product of two elements a, b in Fp2
@@ -179,6 +195,52 @@ function find_Fp2_diff(n, k, a, b, p){
     out[0] = long_sub_mod(n,k,a[0],b[0],p); 
     out[1] = long_sub_mod(n,k,a[1],b[1],p);
     return out;
+}
+
+
+// n bits per register
+// a has 2 x k registers, elt of Fp2
+// p has k registers
+// e has 2k registers
+// k * n <= 400
+// p is a prime
+// computes a^e in Fp2
+function find_Fp2_exp(n, k, a, p, e){
+    var eBits[800]; // length is (2k-1) * n
+    var bitLength; 
+    for (var i = 0; i < 2*k; i++) {
+        for (var j = 0; j < n; j++) {
+            eBits[j + n * i] = (e[i] >> j) & 1;
+            if(eBits[j + n * i] == 1)
+                bitLength = j + n * i + 1;
+        }
+    }
+
+    var out[2][50]; // length is k
+    for(var i = 0; i < 50; i++) {
+        out[0][i] = 0;
+        out[1][i] = 0;
+    }
+    out[0][0] = 1;
+
+    // repeated squaring
+    for(var i = bitLength-1; i >= 0; i--) {
+        // multiply by a if bit is 0
+        if (eBits[i] == 1)
+            out = find_Fp2_product(n, k, out, a, p);
+        // square, unless we're at the end
+        if (i > 0)
+            out = find_Fp2_product(n, k, out, out, p);
+    }
+    return out;
+}
+
+function is_equal_Fp2(n, k, a, b){
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
+        if(a[i][idx] != b[i][idx])
+            return 0;
+    }
+    return 1;
 }
 
 // a[2][k] elt in Fp2 

@@ -44,6 +44,14 @@ function long_gt(n, k, a, b) {
     return 0;
 }
 
+function long_is_zero(k, a){
+    for(var idx=0; idx<k; idx++){
+        if(a[idx] != 0)
+            return 0;
+    }
+    return 1;
+}
+
 // n bits per register
 // a has k registers
 // b has k registers

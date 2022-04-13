@@ -100,7 +100,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
     for(var i=0; i<2; i++)for(var j=0; j<2*k-1; j++)
         g1numRed.in[i][j] <== g1num[i][j];
     // compute g1numRed / 4g2
-    component g1_1 = SignedFp2Divide(n, k, 3*n + LOGK2 , p); 
+    component g1_1 = SignedFp2Divide(n, k, 3*n + LOGK2, n+2, p); 
     for(var j=0; j<k; j++){
         for(var i=0; i<2; i++) 
             g1_1.a[i][j] <== g1numRed.out[i][j]; 
@@ -120,7 +120,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
         twog4g5.a[eps][i] <== 2*in[2][eps][i];
         twog4g5.b[eps][i] <== in[3][eps][i];
     }
-    component g1_0 = SignedFp2Divide(n, k, 3*n+2+2*LOGK, p);
+    component g1_0 = SignedFp2Divide(n, k, 3*n+2+2*LOGK, n, p);
     for(var j=0; j<k; j++){
         for(var i=0; i<2; i++)
             g1_0.a[i][j] <== twog4g5.out[i][j]; 

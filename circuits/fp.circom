@@ -214,3 +214,21 @@ template SignedCheckCarryModToZero(n, k, overflow, p){
     }
 }
 
+// in has k registers, elt of Fp
+// Sgn0(in) = 1 if in > (p-1)/2, 0 otherwise
+template FpSgn0(n, k, p){
+    signal input in[k];
+    signal output out;
+
+    var p1[50] = p; 
+    p1[0]--;
+    var p_half[2][50] = long_div2(n, 1, k-1, p1, [2]);
+    
+    component lt = BigLessThan(n, k);
+    for(var i=0; i<k; i++){
+        lt.a[i] <== p_half[0][i];
+        lt.b[i] <== in[i];
+    }
+    out <== lt.out;
+}
+
