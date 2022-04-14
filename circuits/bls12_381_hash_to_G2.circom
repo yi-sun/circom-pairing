@@ -29,7 +29,7 @@ Constants are a = 240 u, b = 1012 + 1012 u where u = sqrt(-1)
 template OptSimpleSWU2(n, k){
     signal input in[2][k];
     signal output out[2][2][k]; 
-    signal output isInfinity;
+    //signal output isInfinity; optimized simple SWU should never return point at infinity, exceptional case still returns a normal point 
     
     var p[50] = get_BLS12_381_prime(n, k);
     
@@ -37,6 +37,7 @@ template OptSimpleSWU2(n, k){
     var b[2] = [1012, 1012];
     
     // distinguished non-square in Fp2 for SWU map: xi = -2 - u 
+    // this is Z in the suite 8.8.2 of https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-14#section-10
     var xi[2] = [-2, -1];
 
     var LOGK = log_ceil(k);
@@ -70,7 +71,16 @@ template OptSimpleSWU2(n, k){
         X0_den.in[0][idx] <== -a[0] * num_den_common[0][idx] + a[1] * num_den_common[1][idx];
         X0_den.in[1][idx] <== -a[0] * num_den_common[1][idx] - a[1] * num_den_common[0][idx];
     }
-    
+
+    // if X0_den = 0, replace with X1_den = a * xi; this way X1(t) = X0_num / X1_den = b / (xi * a)
+    // X1_den = a * xi = 240 - 480 i 
+    assert( n == 55 && k == 7 );
+    var X1_den[2][k];
+    if( n == 55 && k == 7 ){
+        X1_den = [[240,0,0,0,0,0,0],
+                [35747322042230987,36025922209447795,1084959616957103,7925923977987733,16551456537884751,23443114579904617,1829881462546425]];
+    }
+
     // Exception if X0_den = 0: 
     var den_zero_total = 2;
     component denIsZero[2];
@@ -82,7 +92,7 @@ template OptSimpleSWU2(n, k){
     }
     component exception = IsZero();
     exception.in <== den_zero_total;
-    isInfinity <== exception.out; 
+    //isInfinity <== exception.out; 
     
     num_den_common[0][0]++;
     component X0_num = SignedFp2CarryModP(n, k, 3*n + 2*LOGK + 2 + 11, p);
@@ -94,11 +104,7 @@ template OptSimpleSWU2(n, k){
     component X0 = SignedFp2Divide(n, k, n, n, p);
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
         X0.a[i][idx] <== X0_num.out[i][idx];
-        // denominator is X0_den if X0_den != 0, otherwise is 1 
-        if(i==0 && idx==0)
-            X0.b[i][idx] <== X0_den.out[i][idx] + isInfinity * (1 - X0_den.out[i][idx]);
-        else
-            X0.b[i][idx] <== X0_den.out[i][idx] - isInfinity * X0_den.out[i][idx];
+        X0.b[i][idx] <== X0_den.out[i][idx] + isInfinity * (X1_den[i][idx] - X0_den.out[i][idx]);
     }
     
     // g(x) = x^3 + a x + b 
@@ -235,7 +241,7 @@ References:
 */ 
 
 // Input:
-//  in = (x', y') point on E2' 
+//  in = (x', y') point on E2' assumed to not be point at infinity
 //  inIsInfinity = 1 if input is point at infinity on E2' (in which case x', y' are arbitrary)
 // Output:
 //  out = (x, y) is point on E2 after applying 3-isogeny to in 
@@ -245,7 +251,7 @@ References:
 //  input is a pole of the isogeny, i.e., x_den or y_den = 0 
 template Iso3Map(n, k){
     signal input in[2][2][k];
-    signal input inIsInfinity;
+    //signal input inIsInfinity;
     signal output out[2][2][k];
     signal output isInfinity;
     
@@ -324,9 +330,9 @@ template Iso3Map(n, k){
             den_is_zero[i].in[l][idx] <== den[i].out[l][idx];
     }
 
-    component exception = IsZero();
-    exception.in <== inIsInfinity + den_is_zero[0].out + den_is_zero[1].out; 
-    isInfinity <== 1 - exception.out; 
+    //component exception = IsZero();
+    //exception.in <== inIsInfinity + den_is_zero[0].out + den_is_zero[1].out; 
+    isInfinity <== den_is_zero[0].out + den_is_zero[1].out - den_is_zero[0].out * den_is_zero[1].out; // OR gate: if either denominator is 0, output point at infinity 
 
     component num[2];
     for(var i=0; i<2; i++){

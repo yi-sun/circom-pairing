@@ -306,14 +306,14 @@ describe("gTimesLineUnequal n = 3, k = 2", function() {
         }
 
         let point_array: [Array< [bigint[], bigint[]] >, Array< [bigint[], bigint[]] >] = [pointX, pointY];
-        let g_array: Array< [bigint[], bigint[], bigint[], bigint[]] > = new Array(6);
+        let g_array: Array< [bigint[], bigint[]] > = new Array(6);
         var {c0: g0, c1: g1} = g;
         var {c0: g00, c1: g01, c2: g02} = g0;
         var {c0: g10, c1: g11, c2: g12} = g1;
         let g_array_Fp2: Array< Fp2 > = [g00, g10, g01, g11, g02, g12]; 
         for( var i = 0; i < 6; i++ ){
             var {c0: a0, c1: a1} = g_array_Fp2[i];
-            g_array[i] = [ bigint_to_array(3, 2, a0.value), bigint_to_array(3, 2, a1.value), bigint_to_array(3, 2, 0n), bigint_to_array(3, 2, 0n) ];
+            g_array[i] = [ bigint_to_array(3, 2, a0.value), bigint_to_array(3, 2, a1.value) ];
         }
 
 
@@ -331,7 +331,7 @@ describe("gTimesLineUnequal n = 3, k = 2", function() {
     }
 
     var test_cases: Array<[Fp, Fp, Fp, Fp, Fp12, Fp12, Fp12]> = [];
-    for(var test_id = 0; test_id < 10; test_id++){
+    for(var test_id = 0; test_id < 100; test_id++){
         let rand_twelveX: BigintTwelve = [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n];
         let rand_twelveY: BigintTwelve = [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n];	
         let rand_twelveg: BigintTwelve = [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n];	

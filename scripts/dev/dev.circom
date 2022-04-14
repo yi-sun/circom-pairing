@@ -1,6 +1,6 @@
 pragma circom 2.0.3;
 
-include "../../circuits/fp12.circom";
+include "../../circuits/bls12_381_hash_to_G2.circom";
 
-component main = Fp12MultiplyNoCarry(55, 7);
+component main = ClearCofactorG2(55, 7);
 

@@ -74,12 +74,12 @@ def parse_signal_arrays(sigs, debug=False):
     return ret
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--witness_file', type=str, default='../build/tatepairing/witness.json')
-parser.add_argument('--sym_file', type=str, default='../build/tatepairing/tatepairing.sym')
+parser.add_argument('--witness_file', type=str, default='../build/dev/witness.json')
+parser.add_argument('--sym_file', type=str, default='../build/dev/dev.sym')
 
 parser.add_argument('--debug', action='store_true', default=False)
 parser.add_argument('--reparse', action='store_true', default=False)
-parser.add_argument('--sig_list_file', type=str, default='../build/tatepairing/tatepairing.sig')
+parser.add_argument('--sig_list_file', type=str, default='../build/dev/dev.sig')
 
 parser.add_argument('--width', type=int, default=100)
 parser.add_argument('--depth', type=int, default=3)
