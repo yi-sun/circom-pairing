@@ -49,21 +49,24 @@ const startNewProcess = (hash) => {
   }
   currentProcessesRunning.add(hash);
   prover.stdout.on("data", (data) => {
-    outputData[hash] = data.toString();
-    console.log(`stderr: ${hash} :  ${data}`);
-    console.log("outputData", outputData);
+    var res = data.toString();
+    if (res.substring(0,13) !== 'Failed assert') {
+        outputData[hash] = res;
+        // delete the relevant files in inputs folder
+        fs.unlinkSync(inputFileName);
+        fs.unlinkSync(witnessFileName);
+        fs.unlinkSync(publicName);
+        fs.unlinkSync(proofName);
+    } else {
+        outputData[hash] = '{\"result\": \"BLS signature verification failed.\"}';
+    }
     currentProcessesRunning.delete(hash);
     processQueue();
     prover.kill();
-    // delete the relevant files in inputs folder
-    fs.unlinkSync(inputFileName);
-    fs.unlinkSync(witnessFileName);
-    fs.unlinkSync(publicName);
-    fs.unlinkSync(proofName);
   });
 
   prover.stderr.on("data", (data) => {
-    console.error(`stdout: ${data}`);
+    console.error(`stderr: ${data}`);
   });
 
   prover.on("close", (code) => {
@@ -127,6 +130,7 @@ app.post("/result", (req, res) => {
 
   if (result) {
     try {
+      console.log(result);
       JSON.parse(result);
       res.send(result);
     } catch (e) {
