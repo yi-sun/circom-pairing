@@ -362,68 +362,6 @@ template EllipticCurveAddUnequalFp2(n, k, p) {
     }
 }
 
-// Fp2 curve y^2 = x^3 + b2 with b2 complex (a = 0)
-// Assume curve has no points of order 2, i.e., 0 = x^3 + b has no solutions
-// Fact: ^ this is the case for BLS12-381 twisted
-// WARNING: if isInfinity = 1, the actual values in `out` can be pathological; best practice is to replace with a dummy point known to be on your curve of choice
-template EllipticCurveAddFp2(n, k, b2, p){
-    signal input a[2][2][k];
-    signal input aIsInfinity;
-    signal input b[2][2][k];
-    signal input bIsInfinity;
-    
-    signal output out[2][2][k];
-    signal output isInfinity;
-
-    component x_equal = Fp2IsEqual(k);
-    component y_equal = Fp2IsEqual(k);
-
-    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
-        x_equal.a[i][idx] <== a[0][i][idx];
-        x_equal.b[i][idx] <== b[0][i][idx];
-
-        y_equal.a[i][idx] <== a[1][i][idx];
-        y_equal.b[i][idx] <== b[1][i][idx];
-    }
-    // if a.x = b.x then a = +-b 
-    // if a = b then a + b = 2*a so we need to do point doubling  
-    // if a = -a then out is infinity
-    signal add_is_double <== x_equal.out * y_equal.out; // AND gate
-    
-    // if a.x = b.x, need to replace b.x by a different number just so AddUnequal doesn't break
-    // I will do this in a dumb way: replace b[0][0][0] by (b[0][0][0] == 0)
-    component iz = IsZero(); 
-    iz.in <== b[0][0][0]; 
-    
-    component add = EllipticCurveAddUnequalFp2(n, k, p);
-    // Fact: BLS12-381 twisted curve E2 has no points of order 2, i.e., 0 = X^3 + 4(1+u) has no solutions
-    component doub = EllipticCurveDoubleFp2(n, k, 0, b2, p);
-    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-        add.a[i][j][idx] <== a[i][j][idx];
-        if(i==0 && j==0 && idx==0)
-            add.b[i][j][idx] <== b[i][j][idx] + x_equal.out * (iz.out - b[i][j][idx]); 
-        else
-            add.b[i][j][idx] <== b[i][j][idx]; 
-        
-        doub.in[i][j][idx] <== a[i][j][idx];
-    }
-    
-    // out = O iff ( a = O AND b = O ) OR ( x_equal AND NOT y_equal ) 
-    signal ab0 <== aIsInfinity * bIsInfinity; 
-    signal anegb <== x_equal.out - x_equal.out * y_equal.out); 
-    isInfinity <== ab0 + anegb - ab0 * anegb; // OR gate
-
-    signal tmp[3][2][2][k]; 
-    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-        tmp[0][i][j][idx] <== add.out[i][j][idx] + add_is_double * (doub.out[i][j][idx] - add.out[i][j][idx]); 
-        // if a = O, then a + b = b 
-        tmp[1][i][j][idx] <== tmp[0][i][j][idx] + aIsInfinity * (b[i][j][idx] - tmp[0][i][j][idx]);
-        // if b = O, then a + b = a
-        tmp[2][i][j][idx] <== tmp[1][i][j][idx] + bIsInfinity * (a[i][j][idx] - tmp[1][i][j][idx]);
-        out[i][j][idx] <== tmp[2][i][j][idx] + isInfinity * (dummy_point[i][j][idx] - tmp[2][i][j][idx]);
-    }
-}
-
 // Elliptic curve is E : y**2 = x**3 + ax + b
 // assuming a < 2^n for now, b is complex
 // Note that for BLS12-381 twisted, a = 0, b = 4+4u
@@ -507,6 +445,153 @@ template EllipticCurveDoubleFp2(n, k, a, b, p) {
     }
     x3_eq_x1.out === 0;
 }
+
+// Fp2 curve y^2 = x^3 + b2 with b2 complex (a = 0)
+// Assume curve has no Fp2 points of order 2, i.e., 0 = x^3 + b has no solutions
+// Fact: ^ this is the case for BLS12-381 twisted
+// If isInfinity = 1, replace `out` with `a` so if `a` was on curve, so is output
+template EllipticCurveAddFp2(n, k, b2, p){
+    signal input a[2][2][k];
+    signal input aIsInfinity;
+    signal input b[2][2][k];
+    signal input bIsInfinity;
+    
+    signal output out[2][2][k];
+    signal output isInfinity;
+
+    component x_equal = Fp2IsEqual(k);
+    component y_equal = Fp2IsEqual(k);
+
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
+        x_equal.a[i][idx] <== a[0][i][idx];
+        x_equal.b[i][idx] <== b[0][i][idx];
+
+        y_equal.a[i][idx] <== a[1][i][idx];
+        y_equal.b[i][idx] <== b[1][i][idx];
+    }
+    // if a.x = b.x then a = +-b 
+    // if a = b then a + b = 2*a so we need to do point doubling  
+    // if a = -a then out is infinity
+    signal add_is_double <== x_equal.out * y_equal.out; // AND gate
+    
+    // if a.x = b.x, need to replace b.x by a different number just so AddUnequal doesn't break
+    // I will do this in a dumb way: replace b[0][0][0] by (b[0][0][0] == 0)
+    component iz = IsZero(); 
+    iz.in <== b[0][0][0]; 
+    
+    component add = EllipticCurveAddUnequalFp2(n, k, p);
+    // Fact: BLS12-381 twisted curve E2 has no points of order 2, i.e., 0 = X^3 + 4(1+u) has no solutions
+    component doub = EllipticCurveDoubleFp2(n, k, 0, b2, p);
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        add.a[i][j][idx] <== a[i][j][idx];
+        if(i==0 && j==0 && idx==0)
+            add.b[i][j][idx] <== b[i][j][idx] + x_equal.out * (iz.out - b[i][j][idx]); 
+        else
+            add.b[i][j][idx] <== b[i][j][idx]; 
+        
+        doub.in[i][j][idx] <== a[i][j][idx];
+    }
+    
+    // out = O iff ( a = O AND b = O ) OR ( x_equal AND NOT y_equal ) 
+    signal ab0 <== aIsInfinity * bIsInfinity; 
+    signal anegb <== x_equal.out - x_equal.out * y_equal.out); 
+    isInfinity <== ab0 + anegb - ab0 * anegb; // OR gate
+
+    signal tmp[3][2][2][k]; 
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        tmp[0][i][j][idx] <== add.out[i][j][idx] + add_is_double * (doub.out[i][j][idx] - add.out[i][j][idx]); 
+        // if a = O, then a + b = b 
+        tmp[1][i][j][idx] <== tmp[0][i][j][idx] + aIsInfinity * (b[i][j][idx] - tmp[0][i][j][idx]);
+        // if b = O, then a + b = a
+        tmp[2][i][j][idx] <== tmp[1][i][j][idx] + bIsInfinity * (a[i][j][idx] - tmp[1][i][j][idx]);
+        out[i][j][idx] <== tmp[2][i][j][idx] + isInfinity * (a[i][j][idx] - tmp[2][i][j][idx]);
+    }
+}
+
+
+// Curve E2 : y^2 = x^3 + b
+// Inputs:
+//  in is 2 x 2 x k array where P = (x, y) is a point in E2(Fp2) 
+//  inIsInfinity = 1 if P = O, else = 0
+// Output:
+//  out = [x]P is 2 x 2 x k array representing a point in E2(Fp2)
+//  isInfinity = 1 if [x]P = O, else = 0
+// Assume:
+//  x in [0, 2^250) 
+//  `in` is point in E2 even if inIsInfinity = 1 just so nothing goes wrong
+//  E2(Fp2) has no points of order 2
+template EllipticCurveScalarMultiplyFp2(n, k, b, x, p){
+    signal input in[2][2][k];
+    signal input inIsInfinity;
+
+    signal output out[2][2][k];
+    signal output isInfinity;
+
+    var LOGK = log_ceil(k);
+        
+    var Bits[250]; 
+    var BitLength;
+    var SigBits=0;
+    for (var i = 0; i < 250; i++) {
+        Bits[i] = (x >> i) & 1;
+        if(Bits[i] == 1){
+            SigBits++;
+            BitLength = i + 1;
+        }
+    }
+
+    signal R[BitLength][2][2][k]; 
+    signal R_isO[BitLength]; 
+    component Pdouble[BitLength];
+    component Padd[SigBits];
+    var curid=0;
+
+    // if in = O then [x]O = O so there's no point to any of this; put in dummy point
+    signal P[2][2][k];
+    for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
+        P[j][l][idx] <== in[j][l][idx];
+    
+    for(var i=BitLength - 1; i>=0; i--){
+        if( i == BitLength - 1 ){
+            for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++){
+                R[i][j][l][idx] <== P[j][l][idx];
+                R_isO[i] <== 0; 
+            }
+        }else{
+            // Fact: E2(Fp2) has no points of order 2, so the only way 2*R[i+1] = O is if R[i+1] = O 
+            Pdouble[i] = EllipticCurveDoubleFp2(n, k, 0, b, q);  
+            for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
+                Pdouble[i].in[j][l][idx] <== R[i+1][j][l][idx]; 
+            
+            if(Bits[i] == 0){
+                for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
+                    R[i][j][l][idx] <== Pdouble[i].out[j][l][idx];
+                R_isO[i] <== R_isO[i+1]; 
+            }else{
+                // Padd[curid] = Pdouble[i] + P 
+                Padd[curid] = EllipticCurveAddFp2(n, k, b, q); 
+                for(var j=0; j<2; j++)for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++){
+                    Padd[curid].a[j][l][idx] <== Pdouble[i].out[j][l][idx]; 
+                    Padd[curid].b[j][l][idx] <== P[j][l][idx];
+                    Padd[curid].aIsInfinity <== R_isO[i+1];
+                    Padd[curid].bIsInfinity <== 0;
+                }
+
+                R_isO[i] <== Padd[curid].isInfinity; 
+                for(var j=0; j<2; j++)for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++){
+                    R[i][j][l][idx] <== Padd[curid].out[j][l][idx];
+                }
+                curid++;
+            }
+        }
+    }
+    // output = O if input = O or R[0] = O 
+    isInfinity <== inIsInfinity + R_isO[0] - inIsInfinity * R_isO[0]; 
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        out[i][j][idx] <== R[0][i][j][idx] + isInfinity * (in[j][l][idx] - R[0][i][j][idx]);
+}
+
+
 
 // Inputs:
 //  P is 2 x 2 x 2 x k array where P0 = (x_1, y_1) and P1 = (x_2, y_2) are points in E(Fp2)
