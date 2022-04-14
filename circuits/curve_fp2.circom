@@ -266,7 +266,7 @@ template PointOnTangentFp2(n, k, a, p){
 // these equations are equivalent to:
 //  (x_1 + x_2 + x_3)*(x_2 - x_1)^2 = (y_2 - y_1)^2 mod p
 //  (y_1 + y_3)*(x_2 - x_1) = (y_2 - y_1)*(x_1 - x_3) mod p
-template EllipticCurveAddUnequalFp2(n, k, p) { // changing q's to p's for my sanity
+template EllipticCurveAddUnequalFp2(n, k, p) { 
     signal input a[2][2][k];
     signal input b[2][2][k];
 
@@ -362,6 +362,67 @@ template EllipticCurveAddUnequalFp2(n, k, p) { // changing q's to p's for my san
     }
 }
 
+// Fp2 curve y^2 = x^3 + b2 with b2 complex (a = 0)
+// Assume curve has no points of order 2, i.e., 0 = x^3 + b has no solutions
+// Fact: ^ this is the case for BLS12-381 twisted
+// WARNING: if isInfinity = 1, the actual values in `out` can be pathological; best practice is to replace with a dummy point known to be on your curve of choice
+template EllipticCurveAddFp2(n, k, b2, p){
+    signal input a[2][2][k];
+    signal input aIsInfinity;
+    signal input b[2][2][k];
+    signal input bIsInfinity;
+    
+    signal output out[2][2][k];
+    signal output isInfinity;
+
+    component x_equal = Fp2IsEqual(k);
+    component y_equal = Fp2IsEqual(k);
+
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
+        x_equal.a[i][idx] <== a[0][i][idx];
+        x_equal.b[i][idx] <== b[0][i][idx];
+
+        y_equal.a[i][idx] <== a[1][i][idx];
+        y_equal.b[i][idx] <== b[1][i][idx];
+    }
+    // if a.x = b.x then a = +-b 
+    // if a = b then a + b = 2*a so we need to do point doubling  
+    // if a = -a then out is infinity
+    signal add_is_double <== x_equal.out * y_equal.out; // AND gate
+    
+    // if a.x = b.x, need to replace b.x by a different number just so AddUnequal doesn't break
+    // I will do this in a dumb way: replace b[0][0][0] by (b[0][0][0] == 0)
+    component iz = IsZero(); 
+    iz.in <== b[0][0][0]; 
+    
+    component add = EllipticCurveAddUnequalFp2(n, k, p);
+    // Fact: BLS12-381 twisted curve E2 has no points of order 2, i.e., 0 = X^3 + 4(1+u) has no solutions
+    component doub = EllipticCurveDoubleFp2(n, k, 0, b2, p);
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        add.a[i][j][idx] <== a[i][j][idx];
+        if(i==0 && j==0 && idx==0)
+            add.b[i][j][idx] <== b[i][j][idx] + x_equal.out * (iz.out - b[i][j][idx]); 
+        else
+            add.b[i][j][idx] <== b[i][j][idx]; 
+        
+        doub.in[i][j][idx] <== a[i][j][idx];
+    }
+    
+    // out = O iff ( a = O AND b = O ) OR ( x_equal AND NOT y_equal ) 
+    signal ab0 <== aIsInfinity * bIsInfinity; 
+    signal anegb <== x_equal.out - x_equal.out * y_equal.out); 
+    isInfinity <== ab0 + anegb - ab0 * anegb; // OR gate
+
+    signal tmp[3][2][2][k]; 
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        tmp[0][i][j][idx] <== add.out[i][j][idx] + add_is_double * (doub.out[i][j][idx] - add.out[i][j][idx]); 
+        // if a = O, then a + b = b 
+        tmp[1][i][j][idx] <== tmp[0][i][j][idx] + aIsInfinity * (b[i][j][idx] - tmp[0][i][j][idx]);
+        // if b = O, then a + b = a
+        tmp[2][i][j][idx] <== tmp[1][i][j][idx] + bIsInfinity * (a[i][j][idx] - tmp[1][i][j][idx]);
+        out[i][j][idx] <== tmp[2][i][j][idx] + isInfinity * (dummy_point[i][j][idx] - tmp[2][i][j][idx]);
+    }
+}
 
 // Elliptic curve is E : y**2 = x**3 + ax + b
 // assuming a < 2^n for now, b is complex
@@ -817,7 +878,7 @@ template MillerLoopFp2(n, k, b, x, q){
     var LOGK3 = log_ceil(36*(2+XI0)*(2+XI0) * k*k*(2*k-1));
     assert( 4*n + LOGK3 < 251 );
     
-    var Bits[250]; // length is k * n
+    var Bits[250]; 
     var BitLength;
     var SigBits=0;
     for (var i = 0; i < 250; i++) {
