@@ -1,5 +1,5 @@
 {
-  "name": "zk-node-server",
+  "name": "zk-node-server-c",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -13,10 +13,8 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.17.1",
-    "ffjavascript": "^0.2.38",
     "object-hash": "^2.2.0",
     "path": "^0.12.7",
-    "snarkjs": "^0.4.6",
     "start": "^5.1.0"
   }
 }

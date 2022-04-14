@@ -1,5 +1,4 @@
 const express = require("express");
-// const snarkjs = require("snarkjs");
 const hash = require("object-hash");
 const fs = require("fs");
 const { spawn } = require("child_process");
@@ -145,20 +144,6 @@ app.post("/result", (req, res) => {
     res.status(404).send("ERROR");
   }
 });
-
-// app.post("/generate_proof_slow", async function (req, res) {
-//   const input = req.body["id"];
-
-//   const { proof, publicSignals } = await snarkjs.groth16.fullProve(
-//     input,
-//     "./circuit.wasm",
-//     "./circuit.zkey"
-//   );
-
-//   const genCalldata = await genSolidityCalldata(publicSignals, proof);
-
-//   res.json(genCalldata);
-// });
 
 const port = process.env.PORT || 3000;
 
