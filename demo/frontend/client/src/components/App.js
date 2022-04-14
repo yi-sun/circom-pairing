@@ -1,7 +1,7 @@
 import React from "react";
 import { Router } from "@reach/router";
 import NotFound from "./pages/NotFound.js";
-import Skeleton from "./pages/Skeleton.js";
+import Home from "./pages/Home.js";
 
 import "../utilities.css";
 
@@ -13,7 +13,7 @@ const App = () => {
   return (
     <>
       <Router>
-        <Skeleton path="/" />
+        <Home path="/" />
         <NotFound default />
       </Router>
     </>

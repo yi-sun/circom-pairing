@@ -38,6 +38,8 @@ const startNewProcess = (hash) => {
   if (!!outputData[hash]) return;
   const inputFileName = `inputs/${hash}.json`;
   const witnessFileName = `inputs/${hash}.wtns`;
+  const publicName = `public_${hash}.json`;
+  const proofName = `proof_${hash}.json`;
   // spawn a child process to run the proof generation
   const prover = spawn("sh", ["exec.sh", hash], {
     timeout: 60 * 60 * 1000,
@@ -57,6 +59,8 @@ const startNewProcess = (hash) => {
     // delete the relevant files in inputs folder
     fs.unlinkSync(inputFileName);
     fs.unlinkSync(witnessFileName);
+    fs.unlinkSync(publicName);
+    fs.unlinkSync(proofName);
   });
 
   prover.stderr.on("data", (data) => {
@@ -67,8 +71,6 @@ const startNewProcess = (hash) => {
     currentProcessesRunning.delete(hash);
     processQueue();
     console.log(`child process exited with code ${code}`);
-//    fs.unlinkSync(inputFileName);
-//    fs.unlinkSync(witnessFileName);
   });
   return true;
 };
