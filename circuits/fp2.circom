@@ -505,3 +505,22 @@ template Fp2IsZero(k){
     checkZero.in <== total;
     out <== checkZero.out;
 }
+
+// assumes a[i],b[i] < p for i=0,1
+template Fp2IsEqual(k){
+    signal input a[2][k];
+    signal input b[2][k];
+    signal output out;
+
+    component isEquals[2][k];
+    var total = 2*k;
+    for(var j=0; j<2; j++)for (var i = 0; i < k; i ++) {
+        isEquals[j][i] = IsEqual();
+        isEquals[j][i].in[0] <== a[j][i];
+        isEquals[j][i].in[1] <== b[j][i];
+        total -= isEquals[j][i].out;
+    }
+    component checkZero = IsZero();
+    checkZero.in <== total;
+    out <== checkZero.out;
+}

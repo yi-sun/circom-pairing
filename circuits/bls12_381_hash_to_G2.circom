@@ -133,7 +133,7 @@ template OptSimpleSWU2(n, k){
     Implementation is special to p^2 = 9 mod 16
     References:
         p. 9 of https://eprint.iacr.org/2019/403.pdf
-        F.2.1.1 for general version for any field: https://cfrg.github.io/draft-irtf-cfrg-hash-to-curve/draft-irtf-cfrg-hash-to-curve.html#straightline-sswu
+        F.2.1.1 for general version for any field: https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-14#appendix-F.2.1.1
 
     I do not use the trick for combining division and sqrt from Section 5 of 
     Bernstein, Duif, Lange, Schwabe, and Yang, "High-speed high-security signatures",
@@ -229,7 +229,7 @@ template OptSimpleSWU2(n, k){
 /*
 3-Isogeny from E2' to E2
 References:
-    Appendix E.3 of https://cfrg.github.io/draft-irtf-cfrg-hash-to-curve/draft-irtf-cfrg-hash-to-curve.html#name-3-isogeny-map-for-bls12-381
+    Appendix E.3 of https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-14#appendix-E.3
     Section 4.3 of Wahby-Boneh: https://eprint.iacr.org/2019/403.pdf
     iso3(P) in Python reference code: https://github.com/algorand/bls_sigs_ref/blob/master/python-impl/opt_swu_g2.py
 */ 
@@ -359,3 +359,211 @@ template Iso3Map(n, k){
         out[1][i][idx] <== y.out[i][idx];
     }
 }
+
+/* 
+Cofactor Clearing for BLS12-381 G2
+Implementation below follows Appendix G.3 of https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-14#appendix-G.3 
+References:
+    The endomorphism psi of Budroni-Pintore: https://eprint.iacr.org/2017/419.pdf
+    BLS For the Rest of Us: https://hackmd.io/@benjaminion/bls12-381#Cofactor-clearing
+*/
+
+// Input: in, a point on the curve E2 : y^2 = x^3 + 4(1+u)
+//  coordinates of in are in "proper" representation
+// Output: out = psi(in), a point on the same curve.
+template EndomorphismPsi(n, k, p){
+    signal input in[2][2][k];
+    signal output out[2][2][k];
+    
+    var c[2][2][k];
+    // Constants:
+    // c0 = 1 / (1 + I)^((p - 1) / 3)           # in GF(p^2)
+    // c1 = 1 / (1 + I)^((p - 1) / 2)           # in GF(p^2)
+
+    assert( n == 55 && k == 7 );
+    if( n == 55 && k == 7 ){
+        c = [[[0, 0, 0, 0, 0, 0, 0],
+             [35184372088875693,
+              22472499736345367,
+              5698637743850064,
+              21300661132716363,
+              21929049149954008,
+              23430044241153146,
+              1829881462546425]],
+            [[31097504852074146,
+              21847832108733923,
+              11215546103677201,
+              1564033941097252,
+              9796175148277139,
+              23041766052141807,
+              1359550313685033],
+             [4649817190157321,
+              14178090100713872,
+              25898210532243870,
+              6361890036890480,
+              6755281389607612,
+              401348527762810,
+              470331148861392]]]; 
+    }
+    component frob[2];
+    component qx[2];
+    for(var i=0; i<2; i++){
+        frob[i] = Fp2FrobeniusMap(n, k, 1, p);
+        for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+            frob[i].in[j][idx] <== in[i][j][idx];
+        qx[i] = Fp2Multiply(n, k, p);
+        for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+            qx[i].a[j][idx] <== c[i][j][idx]; 
+            qx[i].b[j][idx] <== frob[i].out[j][idx];
+        } 
+    }
+
+    for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        out[0][j][idx] <== qx[0].out[j][idx];
+        out[1][j][idx] <== qx[1].out[j][idx];
+    }
+}
+
+// Input: in, a point on the curve E2 : y^2 = x^3 + 4(1+u)
+//  coordinates of in are in "proper" representation
+// Output: out = psi(psi(in)), a point on the same curve.
+template EndomorphismPsi2(n, k, p){
+    signal input in[2][2][k];
+    signal output out[2][2][k];
+
+    var c[k];
+    // c = 1 / 2^((p - 1) / 3)          # in GF(p)
+    
+    assert( n == 55 && k == 7 );
+    if( n == 55 && k == 7 ){
+        c = [35184372088875692,
+            22472499736345367,
+            5698637743850064,
+            21300661132716363,
+            21929049149954008,
+            23430044241153146,
+            1829881462546425];
+    }
+
+    component qx[2];
+    component qy[2];
+    for(var i=0; i<2; i++){
+        qx[i] = FpMultiply(n, k, p);
+        for(var idx=0; idx<k; idx++){
+            qx[i].a[idx] <== c[idx];
+            qx[i].b[idx] <== in[0][i][idx];
+        }
+        
+        qy[i] = BigSub(n, k);
+        for(var idx=0; idx<k; idx++){
+            qy[i].a[idx] <== p[idx];
+            qy[i].b[idx] <== in[1][i][idx];
+        }
+    }
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
+        out[0][i][idx] <== qx[i].out[idx];
+        out[1][i][idx] <== qy[i].out[idx];
+    }
+}
+
+
+// in = P, a point on curve E2
+// out = [x^2 - x - 1]P + [x-1]*psi(P) + psi2(2*P) 
+// where x = -15132376222941642752 is the parameter for BLS12-381
+template ClearCofactorG2(n, k){
+    signal input in[2][2][k];
+    signal input inIsInfinity;
+
+    signal output out[2][2][k];
+    signal output isInfinity;
+    
+    var p[50] = get_BLS12_381_prime(n, k);
+    var x_abs = get_BLS12_381_parameter(); // this is abs(x). remember x is negative!
+    var b[2] = [4,4];
+    var dummy_point[2][2][50] = get_generator_G2(n, k);
+    
+    // Output: [|x|^2 + |x| - 1]*P + [-|x|-1]*psi(P) + psi2(2*P) 
+    //       = |x| * (|x|*P + P - psi(P)) - P -psi(P) + psi2(2*P)
+    
+    // replace `in` with dummy_point if inIsInfinity = 1 to ensure P is on the curve 
+    signal P[2][2][k];
+    component xP = EllipticCurveScalarMultiplyFp2(n, k, b, x_abs, p); 
+    component psiP = EndomorphismPsi(n, k, p);
+    component neg_Py = Fp2Negate(n, k, p);
+    component neg_psiPy = Fp2Negate(n, k, p);
+    component doubP = EllipticCurveDoubleFp2(n, k, 0, b, p);
+     
+    xP.inIsInfinity <== inIsInfinity; 
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        P[i][j][idx] <== in[i][j][idx] + inIsInfinity * (dummy_point[i][j][idx] - in[i][j][idx]);
+        xP.in[i][j][idx] <== P[i][j][idx];
+        psiP.in[i][j][idx] <== P[i][j][idx];
+        doubP.in[i][j][idx] <== P[i][j][idx];
+    }
+    for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        neg_Py.in[j][idx] <== P[1][j][idx];
+        neg_psiPy.in[j][idx] <== psiP.out[1][j][idx];
+    }
+
+    component psi22P = EndomorphismPsi2(n, k, p);
+    component add[5];
+    for(var i=0; i<5; i++)
+        add[i] = EllipticCurveAddFp2(n, k, b, p); 
+    
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        psi22P.in[i][j][idx] <== doubP.out[i][j][idx];
+        add[0].a[i][j][idx] <== xP.out[i][j][idx];
+        add[0].b[i][j][idx] <== P[i][j][idx]; 
+    }
+    add[0].aIsInfinity <== xP.isInfinity; 
+    add[0].bIsInfinity <== inIsInfinity;
+
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        add[1].a[i][j][idx] <== add[0].out[i][j][idx];
+        if(i==0)
+            add[1].b[i][j][idx] <== psiP.out[i][j][idx];
+        else
+            add[1].b[i][j][idx] <== neg_psiPy.out[j][idx];
+    }
+    add[1].aIsInfinity <== add[0].isInfinity;
+    add[1].bIsInfinity <== inIsInfinity;
+    
+    component xadd1 = EllipticCurveScalarMultiplyFp2(n, k, b, x_abs, p); 
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        xadd1.in[i][j][idx] <== add[1].out[i][j][idx];
+    xadd1.inIsInfinity <== add[1].isInfinity; 
+
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        add[2].a[i][j][idx] <== xadd1.out[i][j][idx];
+        if(i==0)
+            add[2].b[i][j][idx] <== P[i][j][idx];
+        else
+            add[2].b[i][j][idx] <== neg_Py.out[j][idx];
+    }
+    add[2].aIsInfinity <== xadd1.isInfinity;
+    add[2].bIsInfinity <== inIsInfinity;
+    
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        add[3].a[i][j][idx] <== add[2].out[i][j][idx];
+        if(i==0)
+            add[3].b[i][j][idx] <== psiP.out[i][j][idx];
+        else
+            add[3].b[i][j][idx] <== neg_psiPy.out[j][idx];
+    }
+    add[3].aIsInfinity <== add[2].isInfinity;
+    add[3].bIsInfinity <== inIsInfinity;
+
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        add[4].a[i][j][idx] <== add[3].out[i][j][idx];
+        add[4].b[i][j][idx] <== psi22P.out[i][j][idx];
+    }
+    add[4].aIsInfinity <== add[3].isInfinity;
+    add[4].bIsInfinity <== inIsInfinity;
+
+    // isInfinity = add[4].isInfinity or inIsInfinity (if starting point was O, output must be O)
+    isInfinity <== add[4].isInfinity + inIsInfinity - inIsInfinity * add[4].isInfinity; 
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        out[i][j][idx] <== add[4].out[i][j][idx] + isInfinity * (dummy_point[i][j][idx] - add[4].out[i][j][idx]); 
+}
+
+

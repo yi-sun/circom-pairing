@@ -472,7 +472,8 @@ template EllipticCurveAddFp2(n, k, b2, p){
     // if a.x = b.x then a = +-b 
     // if a = b then a + b = 2*a so we need to do point doubling  
     // if a = -a then out is infinity
-    signal add_is_double <== x_equal.out * y_equal.out; // AND gate
+    signal add_is_double;
+    add_is_double <== x_equal.out * y_equal.out; // AND gate
     
     // if a.x = b.x, need to replace b.x by a different number just so AddUnequal doesn't break
     // I will do this in a dumb way: replace b[0][0][0] by (b[0][0][0] == 0)
@@ -493,8 +494,10 @@ template EllipticCurveAddFp2(n, k, b2, p){
     }
     
     // out = O iff ( a = O AND b = O ) OR ( x_equal AND NOT y_equal ) 
-    signal ab0 <== aIsInfinity * bIsInfinity; 
-    signal anegb <== x_equal.out - x_equal.out * y_equal.out); 
+    signal ab0;
+    ab0 <== aIsInfinity * bIsInfinity; 
+    signal anegb;
+    anegb <== x_equal.out - x_equal.out * y_equal.out; 
     isInfinity <== ab0 + anegb - ab0 * anegb; // OR gate
 
     signal tmp[3][2][2][k]; 
@@ -555,11 +558,11 @@ template EllipticCurveScalarMultiplyFp2(n, k, b, x, p){
         if( i == BitLength - 1 ){
             for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++){
                 R[i][j][l][idx] <== P[j][l][idx];
-                R_isO[i] <== 0; 
             }
+            R_isO[i] <== 0; 
         }else{
             // Fact: E2(Fp2) has no points of order 2, so the only way 2*R[i+1] = O is if R[i+1] = O 
-            Pdouble[i] = EllipticCurveDoubleFp2(n, k, 0, b, q);  
+            Pdouble[i] = EllipticCurveDoubleFp2(n, k, 0, b, p);  
             for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
                 Pdouble[i].in[j][l][idx] <== R[i+1][j][l][idx]; 
             
@@ -569,13 +572,13 @@ template EllipticCurveScalarMultiplyFp2(n, k, b, x, p){
                 R_isO[i] <== R_isO[i+1]; 
             }else{
                 // Padd[curid] = Pdouble[i] + P 
-                Padd[curid] = EllipticCurveAddFp2(n, k, b, q); 
+                Padd[curid] = EllipticCurveAddFp2(n, k, b, p); 
                 for(var j=0; j<2; j++)for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++){
                     Padd[curid].a[j][l][idx] <== Pdouble[i].out[j][l][idx]; 
                     Padd[curid].b[j][l][idx] <== P[j][l][idx];
-                    Padd[curid].aIsInfinity <== R_isO[i+1];
-                    Padd[curid].bIsInfinity <== 0;
                 }
+                Padd[curid].aIsInfinity <== R_isO[i+1];
+                Padd[curid].bIsInfinity <== 0;
 
                 R_isO[i] <== Padd[curid].isInfinity; 
                 for(var j=0; j<2; j++)for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++){
@@ -588,7 +591,7 @@ template EllipticCurveScalarMultiplyFp2(n, k, b, x, p){
     // output = O if input = O or R[0] = O 
     isInfinity <== inIsInfinity + R_isO[0] - inIsInfinity * R_isO[0]; 
     for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-        out[i][j][idx] <== R[0][i][j][idx] + isInfinity * (in[j][l][idx] - R[0][i][j][idx]);
+        out[i][j][idx] <== R[0][i][j][idx] + isInfinity * (in[i][j][idx] - R[0][i][j][idx]);
 }
 
 
