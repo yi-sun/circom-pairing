@@ -4,3 +4,5 @@ pot*.ptau
 
 *.swp
 *~
+**/node_modules/
+**/.DS_STORE

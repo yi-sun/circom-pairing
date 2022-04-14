@@ -1,0 +1,90 @@
+/**
+* Welcome to your ✨𝔲𝔱𝔦𝔩𝔦𝔱𝔶 𝔰𝔱𝔶𝔩𝔢𝔰✨!
+* This file includes utility classes that are super simple
+* and can be used to add general styles; variable definitions
+* for colors; and styles to html, body, and other high level
+* DOMs.
+* 
+* All utility classes start with a `u-` and all do
+* one basic CSS thing (for example, making the font-weight
+* 600 for bolding) or are super generic.
+* 
+* This is 𝙉𝙊𝙏 the place to define classes for components or
+* do rigorous styling. You shoud not need to change this file
+* much after initial creation.
+*/
+
+/* TODO: REPLACE WITH YOUR OWN FONT! */
+@import url("https://fonts.googleapis.com/css?family=Roboto&display=swap");
+
+:root {
+  --primary: #396dff;
+  --primary--dim: #6987db;
+  --darkgrey: #d4d4d4;
+  --medgrey: #e0e0e0;
+  --grey: #f7f7f7;
+  --white: #fff;
+
+  --xs: 4px;
+  --s: 8px;
+  --m: 16px;
+  --l: 24px;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Roboto", sans-serif;
+  font-weight: 300;
+}
+
+form {
+  flex-grow: 1;
+}
+
+.u-flex {
+  display: flex;
+}
+
+.u-flexColumn {
+  display: flex;
+  flex-direction: column;
+}
+
+.u-flex-justifyCenter {
+  justify-content: center;
+}
+
+.u-flex-alignCenter {
+  align-items: center;
+}
+
+.u-inlineBlock {
+  display: inline-block;
+}
+
+.u-bold {
+  font-weight: 600;
+}
+
+.u-textCenter {
+  text-align: center;
+}
+
+.u-relative {
+  position: relative;
+}
+
+.u-pointer {
+  cursor: pointer;
+}
+
+.u-link {
+  color: var(--primary);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.u-link:hover {
+  color: var(--primary--dim);
+}
