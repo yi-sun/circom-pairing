@@ -1,6 +1,14 @@
+const bls = require("@noble/bls12-381");
 import {
-  Fp, Fp2, Fp6, Fp12, CURVE, mod
-} from './math';
+  Fp,
+  Fp2,
+  Fp12,
+  CURVE,
+  PointG1,
+  utils,
+  PointG2,
+} from "@noble/bls12-381";
+const hashToField = utils.hashToField;
 
 type BigintTuple = [bigint, bigint];
 type FpTuple = [Fp, Fp];
@@ -12,76 +20,100 @@ type BigintTwelve = [
 ];
 
 function bigint_to_array(n: number, k: number, x: bigint) {
-    let mod: bigint = 1n;
-    for (var idx = 0; idx < n; idx++) {
-        mod = mod * 2n;
-    }
+  let mod: bigint = 1n;
+  for (var idx = 0; idx < n; idx++) {
+    mod = mod * 2n;
+  }
 
-    let ret: bigint[] = [];
-    var x_temp: bigint = x;
-    for (var idx = 0; idx < k; idx++) {
-        ret.push(x_temp % mod);
-        x_temp = x_temp / mod;
-    }
-    return ret;
+  let ret: string[] = [];
+  var x_temp: bigint = x;
+  for (var idx = 0; idx < k; idx++) {
+    ret.push((x_temp % mod).toString());
+    x_temp = x_temp / mod;
+  }
+  return ret;
 }
 
-let p: bigint = 19n;
-Fp.ORDER = p;
-Fp2.ORDER = p;
+let p: bigint = Fp.ORDER;
 
-function printFp2(x: Fp2){
-    let {c0, c1} = x;
-    return [c0.value, c1.value];
+function printFp2(x: Fp2) {
+  let [c0, c1] = x.values;
+  return [c0, c1];
 }
 
-function printFp12(x: Fp12){
-    let {c0, c1} = x;
-    let {c0: c00, c1: c01, c2: c02} = c0;
-    let {c0: c10, c1: c11, c2: c12} = c1;
-    return [ printFp2(c00), printFp2(c10), printFp2(c01), printFp2(c11), printFp2(c02), printFp2(c12) ];
+function Fp2_to_array(n: number, k: number, x: Fp2) {
+  let [c0, c1] = x.values;
+  return [bigint_to_array(n, k, c0), bigint_to_array(n, k, c1)];
 }
 
-/*
-while(1){
-    let rand_twelve: BigintTwelve = [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n];
-    for( let i = 0; i < 12; i++){
-        rand_twelve[i] = BigInt( Math.floor(Math.random() * 19) );
-    }
-    let elt: Fp12 = Fp12.fromBigTwelve( rand_twelve ); 
-    if(! elt.pow( p**12n - 1n ).equals(Fp12.ONE) ){
-        console.log(p**12n - 1n);
-        console.log(rand_twelve);
-        console.log(printFp12( elt ));
-        console.log(printFp12( elt.pow( p**12n - 1n ) ) );
-        break;
-    }
-    /* let ord:bigint = 1n;
-    let temp: Fp12 = elt;
-    while(! temp.equals(Fp12.ONE) ){
-        ord+=1n;
-        temp = temp.multiply(elt);
-    }
-    console.log('order: ' + ord); 
-    if(ord % (p**4n - p*p + 1n) == 0n){ */
-/*
-    let cyc: Fp12 = elt.pow( (p ** 6n - 1n) * (p*p + 1n) ); // this is now in cyclotomic subgroup 
-    if( !cyc.equals(Fp12.ONE) ){ // check it's in cyclotomic subgroup
-        console.log( elt.pow( p**12n - 1n ).equals(Fp12.ONE) );
-        console.log( cyc.pow( p**4n - p*p + 1n ).equals(Fp12.ONE) );
-        console.log( printFp12(cyc) );
-        break;
-    } 
-
+function printFp12(x: Fp12) {
+  let [c0, c1] = x.c;
+  let [c00, c01, c02] = c0.c;
+  let [c10, c11, c12] = c1.c;
+  return [
+    printFp2(c00),
+    printFp2(c10),
+    printFp2(c01),
+    printFp2(c11),
+    printFp2(c02),
+    printFp2(c12),
+  ];
 }
-*/
 
-// let {c0, c1} = 
-// console.log(Fp2.fromBigTuple([1n, 1n]).pow( (p*p-1n)/2n ).equals( Fp2.ONE ) );
-// console.log(Fp2.fromBigTuple([1n, 1n]).pow( (p*p-1n)/3n ).equals( Fp2.ONE ) );
-// console.log(c0.value + ', ' + c1.value);
+// UTF8 to ui8a
+function stringToBytes(str: string) {
+  const bytes = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) {
+    bytes[i] = str.charCodeAt(i);
+  }
+  return bytes;
+}
 
-// let tcase : bigint[] = [ 10n, 7n, 14n, 7n, 18n, 18n, 15n, 18n, 16n, 9n, 15n, 9n ];
-// for(var i=0; i<12; i++ ){
-//     console.log( bigint_to_array(3, 2, tcase[i]) );
-// }
+function hexToBytes(hex: string): Uint8Array {
+  if (typeof hex !== "string") {
+    throw new TypeError("hexToBytes: expected string, got " + typeof hex);
+  }
+  if (hex.length % 2)
+    throw new Error("hexToBytes: received invalid unpadded hex");
+  const array = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < array.length; i++) {
+    const j = i * 2;
+    const hexByte = hex.slice(j, j + 2);
+    if (hexByte.length !== 2) throw new Error("Invalid byte sequence");
+    const byte = Number.parseInt(hexByte, 16);
+    if (Number.isNaN(byte) || byte < 0)
+      throw new Error("Invalid byte sequence");
+    array[i] = byte;
+  }
+  return array;
+}
+
+function ensureBytes(hex: string | Uint8Array): Uint8Array {
+  // Uint8Array.from() instead of hash.slice() because node.js Buffer
+  // is instance of Uint8Array, and its slice() creates **mutable** copy
+  return hex instanceof Uint8Array ? Uint8Array.from(hex) : hexToBytes(hex);
+}
+
+async function test(message: string) {
+  let msg = stringToBytes(message);
+  console.log(msg);
+
+  let u = await hashToField(msg, 2);
+  let u_array = [
+    Fp2_to_array(55, 7, new Fp2(u[0])),
+    Fp2_to_array(55, 7, new Fp2(u[1])),
+  ];
+  //console.log("u : ");
+  //console.log(u);
+  console.log("u_array : ");
+  console.log(JSON.stringify(u_array));
+
+  let P = await PointG2.hashToCurve(msg);
+  let x = P.x.multiply(P.z.invert());
+  let y = P.y.multiply(P.z.invert());
+  let out_array = [Fp2_to_array(55, 7, x), Fp2_to_array(55, 7, y)];
+  console.log("MapToG2 out:");
+  console.log(JSON.stringify(out_array));
+}
+
+test("abc");
