@@ -139,17 +139,17 @@ app.post("/result", (req, res) => {
       res.send(result);
     } catch (e) {
       console.log("error", e);
-      res.status(404).send("ERROR");
+      res.status(404).send("{\"result\": \"ERROR\"}");
     }
   } else if (currentProcessesRunning.has(id) || inQueue(id)) {
     console.log("waiting for result");
     console.log("currentProcessesRunning", currentProcessesRunning);
-    res.status(400).send("Process still running");
+    res.status(400).send("{\"result\": \"Process still running\"}");
   } else {
     console.log("ERROR! result not found", id, queue);
     // print outputdata keys
     console.log("outputData", outputData);
-    res.status(404).send("ERROR");
+    res.status(404).send("{\"result\": \"ERROR\"}");
   }
 });
 
