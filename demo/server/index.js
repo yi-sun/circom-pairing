@@ -50,7 +50,7 @@ const startNewProcess = (hash) => {
   currentProcessesRunning.add(hash);
   prover.stdout.on("data", (data) => {
     var res = data.toString();
-    if (res.substring(0,13) !== 'Failed assert') {
+    if (res.substring(0,8) === "{\"pi_a\":") {
         outputData[hash] = res;
         // delete the relevant files in inputs folder
         fs.unlinkSync(inputFileName);
@@ -67,6 +67,10 @@ const startNewProcess = (hash) => {
 
   prover.stderr.on("data", (data) => {
     console.error(`stderr: ${data}`);
+    outputData[hash] = '{\"result\": \"BLS signature verification failed.\"}';
+    currentProcessesRunning.delete(hash);
+    processQueue();
+    prover.kill();
   });
 
   prover.on("close", (code) => {
