@@ -319,6 +319,152 @@ template EllipticCurveDouble(n, k, a, b, p) {
     x3_eq_x1.out === 0;
 }
 
+
+// Fp curve y^2 = x^3 + a1*x + b1 
+// Assume curve has no Fp points of order 2, i.e., x^3 + a1*x + b1 has no Fp roots
+// Fact: ^ this is the case for BLS12-381 
+// If isInfinity = 1, replace `out` with `a` so if `a` was on curve, so is output
+template EllipticCurveAdd(n, k, a1, b1, p){
+    signal input a[2][k];
+    signal input aIsInfinity;
+    signal input b[2][k];
+    signal input bIsInfinity;
+    
+    signal output out[2][k];
+    signal output isInfinity;
+
+    component x_equal = IsArrayEqual(k);
+    component y_equal = IsArrayEqual(k);
+
+    for(var idx=0; idx<k; idx++){
+        x_equal.in[0][idx] <== a[0][idx];
+        x_equal.in[1][idx] <== b[0][idx];
+
+        y_equal.in[0][idx] <== a[1][idx];
+        y_equal.in[1][idx] <== b[1][idx];
+    }
+    // if a.x = b.x then a = +-b 
+    // if a = b then a + b = 2*a so we need to do point doubling  
+    // if a = -a then out is infinity
+    signal add_is_double;
+    add_is_double <== x_equal.out * y_equal.out; // AND gate
+    
+    // if a.x = b.x, need to replace b.x by a different number just so AddUnequal doesn't break
+    // I will do this in a dumb way: replace b[0][0] by (b[0][0] == 0)
+    component iz = IsZero(); 
+    iz.in <== b[0][0]; 
+    
+    component add = EllipticCurveAddUnequal(n, k, p);
+    component doub = EllipticCurveDouble(n, k, a1, b1, p);
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
+        add.a[i][idx] <== a[i][idx];
+        if(i==0 && idx==0)
+            add.b[i][idx] <== b[i][idx] + x_equal.out * (iz.out - b[i][idx]); 
+        else
+            add.b[i][idx] <== b[i][idx]; 
+        
+        doub.in[i][idx] <== a[i][idx];
+    }
+    
+    // out = O iff ( a = O AND b = O ) OR ( x_equal AND NOT y_equal ) 
+    signal ab0;
+    ab0 <== aIsInfinity * bIsInfinity; 
+    signal anegb;
+    anegb <== x_equal.out - x_equal.out * y_equal.out; 
+    isInfinity <== ab0 + anegb - ab0 * anegb; // OR gate
+
+    signal tmp[3][2][k]; 
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
+        tmp[0][i][idx] <== add.out[i][idx] + add_is_double * (doub.out[i][idx] - add.out[i][idx]); 
+        // if a = O, then a + b = b 
+        tmp[1][i][idx] <== tmp[0][i][idx] + aIsInfinity * (b[i][idx] - tmp[0][i][idx]);
+        // if b = O, then a + b = a
+        tmp[2][i][idx] <== tmp[1][i][idx] + bIsInfinity * (a[i][idx] - tmp[1][i][idx]);
+        out[i][idx] <== tmp[2][i][idx] + isInfinity * (a[i][idx] - tmp[2][i][idx]);
+    }
+}
+
+// Curve E : y^2 = x^3 + b
+// Inputs:
+//  in is 2 x k array where P = (x, y) is a point in E(Fp) 
+//  inIsInfinity = 1 if P = O, else = 0
+// Output:
+//  out = [x]P is 2 x k array representing a point in E(Fp)
+//  isInfinity = 1 if [x]P = O, else = 0
+// Assume:
+//  x in [0, 2^250) 
+//  `in` is point in E even if inIsInfinity = 1 just so nothing goes wrong
+//  E(Fp) has no points of order 2
+template EllipticCurveScalarMultiply(n, k, b, x, p){
+    signal input in[2][k];
+    signal input inIsInfinity;
+
+    signal output out[2][k];
+    signal output isInfinity;
+
+    var LOGK = log_ceil(k);
+        
+    var Bits[250]; 
+    var BitLength;
+    var SigBits=0;
+    for (var i = 0; i < 250; i++) {
+        Bits[i] = (x >> i) & 1;
+        if(Bits[i] == 1){
+            SigBits++;
+            BitLength = i + 1;
+        }
+    }
+
+    signal R[BitLength][2][k]; 
+    signal R_isO[BitLength]; 
+    component Pdouble[BitLength];
+    component Padd[SigBits];
+    var curid=0;
+
+    // if in = O then [x]O = O so there's no point to any of this
+    signal P[2][k];
+    for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        P[j][idx] <== in[j][idx];
+    
+    for(var i=BitLength - 1; i>=0; i--){
+        if( i == BitLength - 1 ){
+            for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+                R[i][j][idx] <== P[j][idx];
+            R_isO[i] <== 0; 
+        }else{
+            // E(Fp) has no points of order 2, so the only way 2*R[i+1] = O is if R[i+1] = O 
+            Pdouble[i] = EllipticCurveDouble(n, k, 0, b, p);  
+            for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+                Pdouble[i].in[j][idx] <== R[i+1][j][idx]; 
+            
+            if(Bits[i] == 0){
+                for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+                    R[i][j][idx] <== Pdouble[i].out[j][idx];
+                R_isO[i] <== R_isO[i+1]; 
+            }else{
+                // Padd[curid] = Pdouble[i] + P 
+                Padd[curid] = EllipticCurveAdd(n, k, 0, b, p); 
+                for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+                    Padd[curid].a[j][idx] <== Pdouble[i].out[j][idx]; 
+                    Padd[curid].b[j][idx] <== P[j][idx];
+                }
+                Padd[curid].aIsInfinity <== R_isO[i+1];
+                Padd[curid].bIsInfinity <== 0;
+
+                R_isO[i] <== Padd[curid].isInfinity; 
+                for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+                    R[i][j][idx] <== Padd[curid].out[j][idx];
+                
+                curid++;
+            }
+        }
+    }
+    // output = O if input = O or R[0] = O 
+    isInfinity <== inIsInfinity + R_isO[0] - inIsInfinity * R_isO[0];
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
+        out[i][idx] <== R[0][i][idx] + isInfinity * (in[i][idx] - R[0][i][idx]);
+}
+
 // Inputs:
 //  P is 2 x 2 x k array where P0 = (x_1, y_1) and P1 = (x_2, y_2) are points in E(Fp)
 //  Q is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12)

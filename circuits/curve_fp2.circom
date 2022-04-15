@@ -57,7 +57,7 @@ template PointOnLineFp2(n, k, p) {
 // in = (x, y)
 // Implements:
 // x^3 + ax + b - y^2 = 0 mod p
-// Assume: a, b in [0, 2^n). b is complex 
+// Assume: a, b in [0, 2^n). a, b are complex 
 template PointOnCurveFp2(n, k, a, b, p){
     signal input in[2][2][k]; 
 
@@ -92,11 +92,18 @@ template PointOnCurveFp2(n, k, a, b, p){
         cu_red[j] = PrimeReduce(n, k, 2*k-2, p, 4*n + 3*LOGK + 4);
         for(var i=0; i<3*k-2; i++){
             if(i == 0) {
-                cu_red[j].in[i] <== x_cu.out[j][i] + a * in[0][j][i] + b[j];
+                if(j == 0)
+                    cu_red[j].in[i] <== x_cu.out[j][i] + a[0] * in[0][0][i] - a[1] * in[0][1][i] + b[j];
+                else
+                    cu_red[j].in[i] <== x_cu.out[j][i] + a[0] * in[0][1][i] + a[1] * in[0][0][i] + b[j]; 
             }
             else{
-                if(i < k)
-                    cu_red[j].in[i] <== x_cu.out[j][i] + a * in[0][j][i]; 
+                if(i < k){
+                    if(j == 0)
+                        cu_red[j].in[i] <== x_cu.out[j][i] + a[0] * in[0][0][i] - a[1] * in[0][1][i];
+                    else
+                        cu_red[j].in[i] <== x_cu.out[j][i] + a[0] * in[0][1][i] + a[1] * in[0][0][i]; 
+                }
                 else
                     cu_red[j].in[i] <== x_cu.out[j][i];
             }
@@ -191,6 +198,7 @@ template EllipticCurveFunction(n, k, a, b, p){
 // (y_1 + y_3) = lambda * (x_1 - x_3)
 // where lambda = (3 x_1^2 + a)/(2 y_1) 
 // Actual constraint is 2y_1 (y_1 + y_3) = (3 x_1^2 + a ) ( x_1 - x_3 )
+// a is complex 
 template PointOnTangentFp2(n, k, a, p){
     signal input in[2][2][2][k];
     
@@ -207,8 +215,8 @@ template PointOnTangentFp2(n, k, a, p){
     component right = SignedFp2MultiplyNoCarryUnequal(n, 2*k-1, k, 3*n + 2*LOGK + 3); // 3k-2 registers < 2*3*k^2*2^{3n} 
     for(var i=0; i<2*k-1; i++){
         if(i == 0) {
-            right.a[0][i] <== 3 * x_sq.out[0][i] + a; // registers in [0, 3*k*2^{2n} + 2^n )  
-            right.a[1][i] <== 3 * x_sq.out[1][i];
+            right.a[0][i] <== 3 * x_sq.out[0][i] + a[0]; // registers in [0, 3*k*2^{2n} + 2^n )  
+            right.a[1][i] <== 3 * x_sq.out[1][i] + a[1];
         }
         else {
             right.a[0][i] <== 3 * x_sq.out[0][i];
@@ -386,9 +394,9 @@ template EllipticCurveDoubleFp2(n, k, a, b, p) {
 
     var long_a[2][k];
     var long_3[2][k];
-    long_a[0][0] = a;
+    long_a[0][0] = a[0];
     long_3[0][0] = 3;
-    long_a[1][0] = 0;
+    long_a[1][0] = a[1];
     long_3[1][0] = 0;
     for (var i = 1; i < k; i++) {
         long_a[0][i] = 0;
@@ -446,11 +454,11 @@ template EllipticCurveDoubleFp2(n, k, a, b, p) {
     x3_eq_x1.out === 0;
 }
 
-// Fp2 curve y^2 = x^3 + b2 with b2 complex (a = 0)
-// Assume curve has no Fp2 points of order 2, i.e., 0 = x^3 + b has no solutions
-// Fact: ^ this is the case for BLS12-381 twisted
+// Fp2 curve y^2 = x^3 + a2*x + b2 with b2 complex
+// Assume curve has no Fp2 points of order 2, i.e., x^3 + a2*x + b2 has no Fp2 roots
+// Fact: ^ this is the case for BLS12-381 twisted E2 and its 3-isogeny E2'
 // If isInfinity = 1, replace `out` with `a` so if `a` was on curve, so is output
-template EllipticCurveAddFp2(n, k, b2, p){
+template EllipticCurveAddFp2(n, k, a2, b2, p){
     signal input a[2][2][k];
     signal input aIsInfinity;
     signal input b[2][2][k];
@@ -481,8 +489,7 @@ template EllipticCurveAddFp2(n, k, b2, p){
     iz.in <== b[0][0][0]; 
     
     component add = EllipticCurveAddUnequalFp2(n, k, p);
-    // Fact: BLS12-381 twisted curve E2 has no points of order 2, i.e., 0 = X^3 + 4(1+u) has no solutions
-    component doub = EllipticCurveDoubleFp2(n, k, 0, b2, p);
+    component doub = EllipticCurveDoubleFp2(n, k, a2, b2, p);
     for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
         add.a[i][j][idx] <== a[i][j][idx];
         if(i==0 && j==0 && idx==0)
@@ -549,7 +556,7 @@ template EllipticCurveScalarMultiplyFp2(n, k, b, x, p){
     component Padd[SigBits];
     var curid=0;
 
-    // if in = O then [x]O = O so there's no point to any of this; put in dummy point
+    // if in = O then [x]O = O so there's no point to any of this
     signal P[2][2][k];
     for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
         P[j][l][idx] <== in[j][l][idx];
@@ -561,8 +568,8 @@ template EllipticCurveScalarMultiplyFp2(n, k, b, x, p){
             }
             R_isO[i] <== 0; 
         }else{
-            // Fact: E2(Fp2) has no points of order 2, so the only way 2*R[i+1] = O is if R[i+1] = O 
-            Pdouble[i] = EllipticCurveDoubleFp2(n, k, 0, b, p);  
+            // E2(Fp2) has no points of order 2, so the only way 2*R[i+1] = O is if R[i+1] = O 
+            Pdouble[i] = EllipticCurveDoubleFp2(n, k, [0,0], b, p);  
             for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
                 Pdouble[i].in[j][l][idx] <== R[i+1][j][l][idx]; 
             
@@ -572,7 +579,7 @@ template EllipticCurveScalarMultiplyFp2(n, k, b, x, p){
                 R_isO[i] <== R_isO[i+1]; 
             }else{
                 // Padd[curid] = Pdouble[i] + P 
-                Padd[curid] = EllipticCurveAddFp2(n, k, b, p); 
+                Padd[curid] = EllipticCurveAddFp2(n, k, [0,0], b, p); 
                 for(var j=0; j<2; j++)for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++){
                     Padd[curid].a[j][l][idx] <== Pdouble[i].out[j][l][idx]; 
                     Padd[curid].b[j][l][idx] <== P[j][l][idx];
@@ -1031,7 +1038,7 @@ template MillerLoopFp2(n, k, b, x, q){
             for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
                 fdouble[i].in[l][j][idx] <== compress[i].out[l][j][idx]; 
             
-            Pdouble[i] = EllipticCurveDoubleFp2(n, k, 0, b, q);  
+            Pdouble[i] = EllipticCurveDoubleFp2(n, k, [0,0], b, q);  
             for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
                 Pdouble[i].in[j][l][idx] <== R[i+1][j][l][idx]; 
             
@@ -1159,7 +1166,7 @@ template MillerLoopFp2Two(n, k, b, x, q){
                 for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
                     line[i][idP].Q[j][idx] <== Q[idP][j][idx];
 
-                Pdouble[i][idP] = EllipticCurveDoubleFp2(n, k, 0, b, q);  
+                Pdouble[i][idP] = EllipticCurveDoubleFp2(n, k, [0,0], b, q);  
                 for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
                     Pdouble[i][idP].in[j][l][idx] <== R[i+1][idP][j][l][idx]; 
             }

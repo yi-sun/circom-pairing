@@ -82,16 +82,9 @@ template OptSimpleSWU2(n, k){
     }
 
     // Exception if X0_den = 0: 
-    var den_zero_total = 2;
-    component denIsZero[2];
-    for(var i=0; i<2; i++){
-        denIsZero[i] = BigIsZero(k);
-        for(var idx=0; idx<k; idx++)
-            denIsZero[i].in[idx] <== X0_den.out[i][idx];
-        den_zero_total -= denIsZero[i].out;
-    }
-    component exception = IsZero();
-    exception.in <== den_zero_total;
+    component exception = Fp2IsZero(k);
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
+        exception.in[i][idx] <== X0_den.out[i][idx];
     //isInfinity <== exception.out; 
     
     num_den_common[0][0]++;
@@ -104,7 +97,7 @@ template OptSimpleSWU2(n, k){
     component X0 = SignedFp2Divide(n, k, n, n, p);
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
         X0.a[i][idx] <== X0_num.out[i][idx];
-        X0.b[i][idx] <== X0_den.out[i][idx] + isInfinity * (X1_den[i][idx] - X0_den.out[i][idx]);
+        X0.b[i][idx] <== X0_den.out[i][idx] + exception.out * (X1_den[i][idx] - X0_den.out[i][idx]);
     }
     
     // g(x) = x^3 + a x + b 
@@ -438,6 +431,7 @@ template EndomorphismPsi2(n, k, p){
     signal output out[2][2][k];
 
     var c[k];
+    // Third root of unity:
     // c = 1 / 2^((p - 1) / 3)          # in GF(p)
     
     assert( n == 55 && k == 7 );
@@ -485,6 +479,7 @@ template ClearCofactorG2(n, k){
     
     var p[50] = get_BLS12_381_prime(n, k);
     var x_abs = get_BLS12_381_parameter(); // this is abs(x). remember x is negative!
+    var a[2] = [0,0];
     var b[2] = [4,4];
     var dummy_point[2][2][50] = get_generator_G2(n, k);
     
@@ -497,7 +492,7 @@ template ClearCofactorG2(n, k){
     component psiP = EndomorphismPsi(n, k, p);
     component neg_Py = Fp2Negate(n, k, p);
     component neg_psiPy = Fp2Negate(n, k, p);
-    component doubP = EllipticCurveDoubleFp2(n, k, 0, b, p);
+    component doubP = EllipticCurveDoubleFp2(n, k, a, b, p);
      
     xP.inIsInfinity <== inIsInfinity; 
     for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
@@ -514,7 +509,7 @@ template ClearCofactorG2(n, k){
     component psi22P = EndomorphismPsi2(n, k, p);
     component add[5];
     for(var i=0; i<5; i++)
-        add[i] = EllipticCurveAddFp2(n, k, b, p); 
+        add[i] = EllipticCurveAddFp2(n, k, a, b, p); 
     
     for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
         psi22P.in[i][j][idx] <== doubP.out[i][j][idx];
@@ -572,4 +567,157 @@ template ClearCofactorG2(n, k){
         out[i][j][idx] <== add[4].out[i][j][idx] + isInfinity * (dummy_point[i][j][idx] - add[4].out[i][j][idx]); 
 }
 
+// `in` is 2 x 2 x k representing two field elements in Fp2 
+// `out` is 2 x 2 x k representing a point in subgroup G2 of E2(Fp2) twisted curve for BLS12-381
+// isInfinity = 1 if `out` is point at infinity
+// Implements steps 2-6 of hash_to_curve as specified in https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-14#section-3 
+// In practice `in` = hash_to_field(msg, 2) for an arbitrary-length byte string, in which case `out` = hash_to_curve(msg) 
+template MapToG2(n, k){
+    signal input in[2][2][k];
+    signal output out[2][2][k];
+    signal output isInfinity;
 
+    var p[50] = get_BLS12_381_prime(n, k);
+
+    component Qp[2];
+    for(var i=0; i<2; i++){
+        Qp[i] = OptSimpleSWU2(n, k);
+        for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+            Qp[i].in[j][idx] <== in[i][j][idx];
+    }
+    // There is a small optimization we can do: Iso3Map is a group homomorphism, so we can add first and then apply isogeny. This uses EllipticCurveAdd on E2' 
+    component Rp = EllipticCurveAddFp2(n, k, [0, 240], [1012, 1012], p); 
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        Rp.a[i][j][idx] <== Qp[0].out[i][j][idx];
+        Rp.b[i][j][idx] <== Qp[1].out[i][j][idx];
+    }
+    Rp.aIsInfinity <== 0;
+    Rp.bIsInfinity <== 0;
+    
+    component R = Iso3Map(n, k);
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        R.in[i][j][idx] <== Rp.out[i][j][idx];
+    
+    component P = ClearCofactorG2(n, k);
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        P.in[i][j][idx] <== R.out[i][j][idx]; 
+    P.inIsInfinity <== R.isInfinity + Rp.isInfinity - R.isInfinity * Rp.isInfinity; 
+
+    isInfinity <== P.isInfinity;
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        out[i][j][idx] <== P.out[i][j][idx]; 
+}
+
+/*
+Subgroup checks for G1, G2: 
+use the latest methods by Scott: https://eprint.iacr.org/2021/1130.pdf
+Other references:
+    Bowe: https://eprint.iacr.org/2019/814.pdf
+    El Housni: https://hackmd.io/@yelhousni/bls12_subgroup_check
+*/
+
+// `in` = P is 2 x 2 x k, pair of Fp2 elements 
+// check P is on curve twist E2(Fp2)
+// check psi(P) = [x]P where x is parameter for BLS12-381
+template SubgroupCheckG2(n, k){
+    signal input in[2][2][k];
+    
+    var p[50] = get_BLS12_381_prime(n, k);
+    var x_abs = get_BLS12_381_parameter();
+
+    component is_on_curve = PointOnCurveFp2(n, k, [0,0], [4,4], p);
+
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        is_on_curve.in[i][j][idx] <== in[i][j][idx]; 
+
+    component psiP = EndomorphismPsi(n, k, p); 
+    component negP = Fp2Negate(n, k, p);
+    component xP = EllipticCurveScalarMultiplyFp2(n, k, [4, 4], x_abs, p); 
+
+    for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        negP.in[j][idx] <== in[1][j][idx];
+            
+    xP.inIsInfinity <== 0;
+    for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        psiP.in[0][j][idx] <== in[0][j][idx];
+        psiP.in[1][j][idx] <== in[1][j][idx];
+        xP.in[0][j][idx] <== in[0][j][idx];
+        xP.in[1][j][idx] <== negP.out[j][idx]; 
+    }
+    
+    // [x]P != O since psi(P) != O 
+    xP.isInfinity === 0;
+
+    // psi(P) == [x]P
+    component is_eq[2];
+    for(var i=0; i<2; i++){
+        is_eq[i] = Fp2IsEqual(k);
+        for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+            is_eq[i].a[j][idx] <== psiP.out[i][j][idx];
+            is_eq[i].b[j][idx] <== xP.out[i][j][idx];
+        }
+    }
+    is_eq[0].out === 1;
+    is_eq[1].out === 1;
+}
+
+// `in` = P is 2 x k, pair of Fp elements
+// check P is on curve E(Fp)
+// check phi(P) == [-x^2] P where phi(x,y) = (omega * x, y) where omega is a cube root of unity in Fp
+template SubgroupCheckG1(n, k){
+    signal input in[2][k];
+
+    var p[50] = get_BLS12_381_prime(n, k);
+    var x_abs = get_BLS12_381_parameter();
+    var b = 4;
+
+    var omega[k];
+    // Third root of unity:
+    // omega = 2^((p - 1) / 3)          # in GF(p)
+    assert( n == 55 && k == 7 );
+    if( n == 55 && k == 7 ){
+        omega = [562949953355774,
+                 13553422473102428,
+                 31415118892071007,
+                 22654059864235337,
+                 30651204406894710,
+                 13070338751470,
+                 0];
+    }
+
+    component phiPx = FpMultiply(n, k, p);
+    for(var idx=0; idx<k; idx++){
+        phiPx.a[idx] <== omega[idx];
+        phiPx.b[idx] <== in[0][idx];
+    }
+    component phiPy_neg = BigSub(n, k);
+    for(var idx=0; idx<k; idx++){
+        phiPy_neg.a[idx] <== p[idx];
+        phiPy_neg.b[idx] <== in[1][idx];
+    }
+    
+    // x has hamming weight 6 while x^2 has hamming weight 17 so better to do double-and-add on x twice
+    component xP = EllipticCurveScalarMultiply(n, k, b, x_abs, p); 
+    component x2P = EllipticCurveScalarMultiply(n, k, b, x_abs, p);
+    xP.inIsInfinity <== 0;
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
+        xP.in[i][idx] <== in[i][idx];
+
+    x2P.inIsInfinity <== xP.isInfinity;
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
+        x2P.in[i][idx] <== xP.out[i][idx];
+
+    // [x^2]P should not be O since phi(P) != O 
+    x2P.isInfinity === 0;
+
+    // check -phi(P) == [x^2]P
+    component is_eq = Fp2IsEqual(k); // using Fp2IsEqual to check two Fp points are equal
+    for(var idx=0; idx<k; idx++){
+        is_eq.a[0][idx] <== phiPx.out[idx];
+        is_eq.a[1][idx] <== phiPy_neg.out[idx];
+
+        is_eq.b[0][idx] <== x2P.out[0][idx];
+        is_eq.b[1][idx] <== x2P.out[1][idx];
+    }
+    is_eq.out === 1;
+}
