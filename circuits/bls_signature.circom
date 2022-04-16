@@ -68,7 +68,6 @@ template CoreVerifyPubkeyG1NoCheck(n, k){
 //   - hash represents two field elements in Fp2, in practice hash = hash_to_field(msg,2).
 //   - signature, as element of E2(Fq2) 
 // Assume signature is not point at infinity 
-// ASSUME that all len k input arrays are correctly formatted integers < q 
 template CoreVerifyPubkeyG1(n, k){
     signal input pubkey[2][k];
     signal input signature[2][2][k];
@@ -76,6 +75,26 @@ template CoreVerifyPubkeyG1(n, k){
      
     var q[50] = get_BLS12_381_prime(n, k);
 
+    component lt[10];
+    // check all len k input arrays are correctly formatted bigints < q (BigLessThan calls Num2Bits)
+    for(var i=0; i<10; i++){
+        lt[i] = BigLessThan(n, k);
+        for(var idx=0; idx<k; idx++)
+            lt[i].b[idx] <== q[idx];
+    }
+    for(var idx=0; idx<k; idx++){
+        lt[0].a[idx] <== pubkey[0][idx];
+        lt[1].a[idx] <== pubkey[1][idx];
+        lt[2].a[idx] <== signature[0][0][idx];
+        lt[3].a[idx] <== signature[0][1][idx];
+        lt[4].a[idx] <== signature[1][0][idx];
+        lt[5].a[idx] <== signature[1][1][idx];
+        lt[6].a[idx] <== hash[0][0][idx];
+        lt[7].a[idx] <== hash[0][1][idx];
+        lt[8].a[idx] <== hash[1][0][idx];
+        lt[9].a[idx] <== hash[1][1][idx];
+    } 
+    
     component pubkey_valid = SubgroupCheckG1(n, k);
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
         pubkey_valid.in[i][idx] <== pubkey[i][idx];
