@@ -200,7 +200,7 @@ template OptSimpleSWU2(n, k){
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
         Y[i][idx] = is_square * sqrt_witness[0][i][idx] + (1-is_square) * sqrt_witness[1][i][idx];
     // Y = out[1] = +- sqrt_witness; sign determined by sgn0(Y) = sgn0(t) 
-    log(sgn_in.out);
+    
     if(get_fp2_sgn0(k, Y) != sgn_in.out){
         Y[0] = long_sub(n, k, p, Y[0]);
         Y[1] = long_sub(n, k, p, Y[1]);
@@ -581,48 +581,33 @@ template MapToG2(n, k){
     var p[50] = get_BLS12_381_prime(n, k);
 
     component Qp[2];
-    component Rp[2];
     for(var i=0; i<2; i++){
         Qp[i] = OptSimpleSWU2(n, k);
         for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
             Qp[i].in[j][idx] <== in[i][j][idx];
-        Rp[i] = Iso3Map(n, k);
-        for(var j=0; j<2; j++)for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++)
-            Rp[i].in[j][l][idx] <== Qp[i].out[j][l][idx];
-        for(var j=0; j<2; j++)for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++)
-            log(Rp[i].out[j][l][idx]);
-    }
-    component R = EllipticCurveAddUnequalFp2(n, k, p);
-    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-        R.a[i][j][idx] <== Rp[0].out[i][j][idx];
-        R.b[i][j][idx] <== Rp[1].out[i][j][idx];
     }
 
-    /*
     // There is a small optimization we can do: Iso3Map is a group homomorphism, so we can add first and then apply isogeny. This uses EllipticCurveAdd on E2' 
     component Rp = EllipticCurveAddFp2(n, k, [0, 240], [1012, 1012], p); 
     for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
         Rp.a[i][j][idx] <== Qp[0].out[i][j][idx];
         Rp.b[i][j][idx] <== Qp[1].out[i][j][idx];
     }
-    //Rp.aIsInfinity <== 0;
-    //Rp.bIsInfinity <== 0;
+    Rp.aIsInfinity <== 0;
+    Rp.bIsInfinity <== 0;
     
     component R = Iso3Map(n, k);
     for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         R.in[i][j][idx] <== Rp.out[i][j][idx];
-    */
-    /*
+    
     component P = ClearCofactorG2(n, k);
     for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         P.in[i][j][idx] <== R.out[i][j][idx]; 
     P.inIsInfinity <== R.isInfinity + Rp.isInfinity - R.isInfinity * Rp.isInfinity; 
-    */
-    isInfinity <== 0; // P.isInfinity;
-    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-        out[i][j][idx] <== R.out[i][j][idx]; // P.out[i][j][idx]; 
-        log(R.out[i][j][idx]);
-    }
+    
+    isInfinity <== P.isInfinity;
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        out[i][j][idx] <== P.out[i][j][idx]; 
 }
 
 /*
