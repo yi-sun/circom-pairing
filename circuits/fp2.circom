@@ -471,22 +471,25 @@ template Fp2FrobeniusMap(n, k, power, p){
 }
 
 // in = in0 + in1 * u, elt of Fp2
-// sgn0(in) = sgn0(in0) if in0 != 0, and = sgn0(in1) otherwise
-template Fp2Sgn0(n, k, p){
+// https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-4.1
+// NOTE: different from Wahby-Boneh paper https://eprint.iacr.org/2019/403.pdf and python reference code: https://github.com/algorand/bls_sigs_ref/blob/master/python-impl/opt_swu_g2.py
+template Fp2Sgn0(k){
     signal input in[2][k];
     signal output out;
 
     component sgn[2];
     for(var i=0; i<2; i++){
-        sgn[i] = FpSgn0(n, k, p);
+        sgn[i] = FpSgn0(k);
         for(var idx=0; idx<k; idx++)
             sgn[i].in[idx] <== in[i][idx];
     }
     component isZero = BigIsZero(k);
     for(var idx=0; idx<k; idx++)
-        isZero.in[idx] <== in[1][idx];
-
-    out <== sgn[1].out + isZero.out * (sgn[0].out - sgn[1].out);
+        isZero.in[idx] <== in[0][idx];
+    
+    signal sgn1; // (in0 == 0) && (sgn[1])
+    sgn1 <== isZero.out * sgn[1].out; 
+    out <== sgn[0].out + sgn1 - sgn[0].out * sgn1; // sgn[0] || ( (in0 == 0 && sgn[1]) )
 }
 
 // assumes in[i] < p for i=0,1

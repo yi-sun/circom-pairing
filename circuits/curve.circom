@@ -465,6 +465,81 @@ template EllipticCurveScalarMultiply(n, k, b, x, p){
         out[i][idx] <== R[0][i][idx] + isInfinity * (in[i][idx] - R[0][i][idx]);
 }
 
+// Curve E : y^2 = x^3 + b
+// Inputs:
+//  in = P is 2 x k array where P = (x, y) is a point in E(Fp) 
+// Output:
+//  out = [x]P is 2 x k array representing a point in E(Fp)
+// Assume:
+//  x in [0, 2^250) 
+//  E(Fp) has no points of order 2
+//  P has order > x so never hit point at infinity, and can always use add unequal: constraint assertion fails if add unequal fails 
+template EllipticCurveScalarMultiplyUnequal(n, k, b, x, p){
+    signal input in[2][k];
+    signal input inIsInfinity;
+
+    signal output out[2][k];
+    signal output isInfinity;
+
+    var LOGK = log_ceil(k);
+        
+    var Bits[250]; 
+    var BitLength;
+    var SigBits=0;
+    for (var i = 0; i < 250; i++) {
+        Bits[i] = (x >> i) & 1;
+        if(Bits[i] == 1){
+            SigBits++;
+            BitLength = i + 1;
+        }
+    }
+
+    signal R[BitLength][2][k]; 
+    component Pdouble[BitLength];
+    component Padd[SigBits];
+    component add_exception[SigBits];
+    var curid=0;
+
+    for(var i=BitLength - 1; i>=0; i--){
+        if( i == BitLength - 1 ){
+            for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+                R[i][j][idx] <== in[j][idx];
+        }else{
+            // E(Fp) has no points of order 2, so the only way 2*R[i+1] = O is if R[i+1] = O 
+            Pdouble[i] = EllipticCurveDouble(n, k, 0, b, p);  
+            for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+                Pdouble[i].in[j][idx] <== R[i+1][j][idx]; 
+            
+            if(Bits[i] == 0){
+                for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+                    R[i][j][idx] <== Pdouble[i].out[j][idx];
+            }else{
+                // Constrain that Pdouble[i].x != P.x 
+                add_exception[curid] = IsArrayEqual(k);
+                for(var idx=0; idx<k; idx++){
+                    add_exception[curid].in[0][idx] <== Pdouble[i].out[0][idx];
+                    add_exception[curid].in[1][idx] <== in[0][idx];
+                }
+                add_exception[curid] === 0;
+
+                // Padd[curid] = Pdouble[i] + P 
+                Padd[curid] = EllipticCurveAddUnequal(n, k, p); 
+                for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+                    Padd[curid].a[j][idx] <== Pdouble[i].out[j][idx]; 
+                    Padd[curid].b[j][idx] <== in[j][idx];
+                }
+                for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+                    R[i][j][idx] <== Padd[curid].out[j][idx];
+                
+                curid++;
+            }
+        }
+    }
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
+        out[i][idx] <== R[0][i][idx];
+}
+
+
 // Inputs:
 //  P is 2 x 2 x k array where P0 = (x_1, y_1) and P1 = (x_2, y_2) are points in E(Fp)
 //  Q is 2 x 6 x 2 x k array representing point (X, Y) in E(Fp12)

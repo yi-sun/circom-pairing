@@ -5,6 +5,7 @@
     "main": "index.js",
     "scripts": {
         "build:dev": "cd ./scripts/dev && ./build_dev.sh",
+        "build:addfp2": "cd ./scripts/addfp2 && ./build_addfp2.sh",
         "build:fp12multiply": "cd ./scripts/fp12multiply&& ./build_fp12multiply.sh",
         "build:linefunctionequal": "cd ./scripts/linefunctionequal && ./build_linefunctionequal.sh",
         "build:millerloop": "cd ./scripts/millerloop && ./build_millerloop.sh",

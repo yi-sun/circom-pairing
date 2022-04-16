@@ -217,20 +217,20 @@ template SignedCheckCarryModToZero(n, k, overflow, p){
 }
 
 // in has k registers, elt of Fp
-// Sgn0(in) = 1 if in > (p-1)/2, 0 otherwise
-template FpSgn0(n, k, p){
+// https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-4.1
+// return in % 2
+// NOTE: different from Wahby-Boneh paper https://eprint.iacr.org/2019/403.pdf and python reference code: https://github.com/algorand/bls_sigs_ref/blob/master/python-impl/opt_swu_g2.py
+template FpSgn0(k){
     signal input in[k];
     signal output out;
 
-    var p1[50] = p; 
-    p1[0]--;
-    var p_half[2][50] = long_div2(n, 1, k-1, p1, [2]);
-    
-    component lt = BigLessThan(n, k);
-    for(var i=0; i<k; i++){
-        lt.a[i] <== p_half[0][i];
-        lt.b[i] <== in[i];
-    }
-    out <== lt.out;
+    // note we only need in[0] ! 
+    var r = in[0] % 2;
+    var q = (in[0] - r) / 2; 
+    out <-- r;
+    signal div;
+    div <-- q; 
+    out * (1 - out) === 0;
+    in[0] === 2 * div + out;
 }
 

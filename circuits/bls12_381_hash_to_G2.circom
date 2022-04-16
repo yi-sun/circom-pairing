@@ -192,7 +192,7 @@ template OptSimpleSWU2(n, k){
         out[0][i][idx] <== isSquare * (X0.out[i][idx] - X1.out[i][idx]) + X1.out[i][idx];  
 
     // sgn0(t) 
-    component sgn_in = Fp2Sgn0(n, k, p);
+    component sgn_in = Fp2Sgn0(k);
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
         sgn_in.in[i][idx] <== in[i][idx];
 
@@ -200,7 +200,8 @@ template OptSimpleSWU2(n, k){
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
         Y[i][idx] = is_square * sqrt_witness[0][i][idx] + (1-is_square) * sqrt_witness[1][i][idx];
     // Y = out[1] = +- sqrt_witness; sign determined by sgn0(Y) = sgn0(t) 
-    if(get_fp2_sgn0(n, k, Y, p) != sgn_in.out){
+    log(sgn_in.out);
+    if(get_fp2_sgn0(k, Y) != sgn_in.out){
         Y[0] = long_sub(n, k, p, Y[0]);
         Y[1] = long_sub(n, k, p, Y[1]);
     } 
@@ -217,7 +218,7 @@ template OptSimpleSWU2(n, k){
     }
 
     // sgn0(Y) == sgn0(t)
-    component sgn_Y = Fp2Sgn0(n, k, p);
+    component sgn_Y = Fp2Sgn0(k);
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
         sgn_Y.in[i][idx] <== out[1][i][idx];
 
@@ -580,32 +581,48 @@ template MapToG2(n, k){
     var p[50] = get_BLS12_381_prime(n, k);
 
     component Qp[2];
+    component Rp[2];
     for(var i=0; i<2; i++){
         Qp[i] = OptSimpleSWU2(n, k);
         for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
             Qp[i].in[j][idx] <== in[i][j][idx];
+        Rp[i] = Iso3Map(n, k);
+        for(var j=0; j<2; j++)for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++)
+            Rp[i].in[j][l][idx] <== Qp[i].out[j][l][idx];
+        for(var j=0; j<2; j++)for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++)
+            log(Rp[i].out[j][l][idx]);
     }
+    component R = EllipticCurveAddUnequalFp2(n, k, p);
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        R.a[i][j][idx] <== Rp[0].out[i][j][idx];
+        R.b[i][j][idx] <== Rp[1].out[i][j][idx];
+    }
+
+    /*
     // There is a small optimization we can do: Iso3Map is a group homomorphism, so we can add first and then apply isogeny. This uses EllipticCurveAdd on E2' 
     component Rp = EllipticCurveAddFp2(n, k, [0, 240], [1012, 1012], p); 
     for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
         Rp.a[i][j][idx] <== Qp[0].out[i][j][idx];
         Rp.b[i][j][idx] <== Qp[1].out[i][j][idx];
     }
-    Rp.aIsInfinity <== 0;
-    Rp.bIsInfinity <== 0;
+    //Rp.aIsInfinity <== 0;
+    //Rp.bIsInfinity <== 0;
     
     component R = Iso3Map(n, k);
     for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         R.in[i][j][idx] <== Rp.out[i][j][idx];
-    
+    */
+    /*
     component P = ClearCofactorG2(n, k);
     for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         P.in[i][j][idx] <== R.out[i][j][idx]; 
     P.inIsInfinity <== R.isInfinity + Rp.isInfinity - R.isInfinity * Rp.isInfinity; 
-
-    isInfinity <== P.isInfinity;
-    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-        out[i][j][idx] <== P.out[i][j][idx]; 
+    */
+    isInfinity <== 0; // P.isInfinity;
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        out[i][j][idx] <== R.out[i][j][idx]; // P.out[i][j][idx]; 
+        log(R.out[i][j][idx]);
+    }
 }
 
 /*
@@ -632,12 +649,11 @@ template SubgroupCheckG2(n, k){
 
     component psiP = EndomorphismPsi(n, k, p); 
     component negP = Fp2Negate(n, k, p);
-    component xP = EllipticCurveScalarMultiplyFp2(n, k, [4, 4], x_abs, p); 
+    component xP = EllipticCurveScalarMultiplyUnequalFp2(n, k, [4, 4], x_abs, p); 
 
     for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         negP.in[j][idx] <== in[1][j][idx];
             
-    xP.inIsInfinity <== 0;
     for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
         psiP.in[0][j][idx] <== in[0][j][idx];
         psiP.in[1][j][idx] <== in[1][j][idx];
@@ -645,9 +661,6 @@ template SubgroupCheckG2(n, k){
         xP.in[1][j][idx] <== negP.out[j][idx]; 
     }
     
-    // [x]P != O since psi(P) != O 
-    xP.isInfinity === 0;
-
     // psi(P) == [x]P
     component is_eq[2];
     for(var i=0; i<2; i++){
@@ -697,18 +710,13 @@ template SubgroupCheckG1(n, k){
     }
     
     // x has hamming weight 6 while x^2 has hamming weight 17 so better to do double-and-add on x twice
-    component xP = EllipticCurveScalarMultiply(n, k, b, x_abs, p); 
-    component x2P = EllipticCurveScalarMultiply(n, k, b, x_abs, p);
-    xP.inIsInfinity <== 0;
+    component xP = EllipticCurveScalarMultiplyUnequal(n, k, b, x_abs, p); 
+    component x2P = EllipticCurveScalarMultiplyUnequal(n, k, b, x_abs, p);
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
         xP.in[i][idx] <== in[i][idx];
 
-    x2P.inIsInfinity <== xP.isInfinity;
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
         x2P.in[i][idx] <== xP.out[i][idx];
-
-    // [x^2]P should not be O since phi(P) != O 
-    x2P.isInfinity === 0;
 
     // check -phi(P) == [x^2]P
     component is_eq = Fp2IsEqual(k); // using Fp2IsEqual to check two Fp points are equal

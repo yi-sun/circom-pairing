@@ -521,12 +521,13 @@ template EllipticCurveAddFp2(n, k, a2, b2, p){
 
 // Curve E2 : y^2 = x^3 + b
 // Inputs:
-//  in is 2 x 2 x k array where P = (x, y) is a point in E2(Fp2) 
+//  in = P is 2 x 2 x k array where P = (x, y) is a point in E2(Fp2) 
 //  inIsInfinity = 1 if P = O, else = 0
 // Output:
 //  out = [x]P is 2 x 2 x k array representing a point in E2(Fp2)
 //  isInfinity = 1 if [x]P = O, else = 0
 // Assume:
+//  E2 has no Fp2 points of order 2
 //  x in [0, 2^250) 
 //  `in` is point in E2 even if inIsInfinity = 1 just so nothing goes wrong
 //  E2(Fp2) has no points of order 2
@@ -601,6 +602,79 @@ template EllipticCurveScalarMultiplyFp2(n, k, b, x, p){
         out[i][j][idx] <== R[0][i][j][idx] + isInfinity * (in[i][j][idx] - R[0][i][j][idx]);
 }
 
+
+// Curve E2 : y^2 = x^3 + b
+// Inputs:
+//  in = P is 2 x 2 x k array where P = (x, y) is a point in E2(Fp2) 
+// Output:
+//  out = [x]P is 2 x 2 x k array representing a point in E2(Fp2)
+// Assume:
+//  E2 has no Fp2 points of order 2 
+//  x in [0, 2^250) 
+//  P has order > x, so in double-and-add loop we never hit point at infinity, and only add unequal is allowed: constraint will fail if add unequal fails 
+template EllipticCurveScalarMultiplyUnequalFp2(n, k, b, x, p){
+    signal input in[2][2][k];
+    signal output out[2][2][k];
+
+    var LOGK = log_ceil(k);
+        
+    var Bits[250]; 
+    var BitLength;
+    var SigBits=0;
+    for (var i = 0; i < 250; i++) {
+        Bits[i] = (x >> i) & 1;
+        if(Bits[i] == 1){
+            SigBits++;
+            BitLength = i + 1;
+        }
+    }
+
+    signal R[BitLength][2][2][k]; 
+    component Pdouble[BitLength];
+    component Padd[SigBits];
+    component add_exception[SigBits];
+    var curid=0;
+
+    for(var i=BitLength - 1; i>=0; i--){
+        if( i == BitLength - 1 ){
+            for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++){
+                R[i][j][l][idx] <== in[j][l][idx];
+            }
+        }else{
+            // Assuming E2 has no points of order 2, so double never fails 
+            // To remove this assumption, just add a check that Pdouble[i].y != 0
+            Pdouble[i] = EllipticCurveDoubleFp2(n, k, [0,0], b, p);  
+            for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
+                Pdouble[i].in[j][l][idx] <== R[i+1][j][l][idx]; 
+            
+            if(Bits[i] == 0){
+                for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
+                    R[i][j][l][idx] <== Pdouble[i].out[j][l][idx];
+            }else{
+                // Constrain Pdouble[i].x != P.x 
+                add_exception[curid] = Fp2IsEqual(k);
+                for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+                    add_exception[curid].a[j][idx] <== Pdouble[i].out[0][j][idx];
+                    add_exception[curid].b[j][idx] <== in[0][j][idx];
+                }
+                add_exception[curid] === 0;
+        
+                // Padd[curid] = Pdouble[i] + P 
+                Padd[curid] = EllipticCurveAddUnequalFp2(n, k, p); 
+                for(var j=0; j<2; j++)for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++){
+                    Padd[curid].a[j][l][idx] <== Pdouble[i].out[j][l][idx]; 
+                    Padd[curid].b[j][l][idx] <== in[j][l][idx];
+                }
+                for(var j=0; j<2; j++)for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++){
+                    R[i][j][l][idx] <== Padd[curid].out[j][l][idx];
+                }
+                curid++;
+            }
+        }
+    }
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        out[i][j][idx] <== R[0][i][j][idx];
+}
 
 
 // Inputs:

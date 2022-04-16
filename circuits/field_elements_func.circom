@@ -154,11 +154,11 @@ function get_signed_Fp2_carry_witness(n, k, m, a, p){
 }
 
 
-function get_fp2_sgn0(n, k, a, p){
-    var z = long_is_zero(k, a[1]);
-    var sgn0 = get_fp_sgn0(n, k, a[0], p);
-    var sgn1 = get_fp_sgn0(n, k, a[1], p);
-    return z * sgn0 + (1-z)*sgn1;
+function get_fp2_sgn0(k, a){
+    var z = long_is_zero(k, a[0]);
+    var sgn0 = a[0][0] % 2;
+    var sgn1 = a[1][0] % 2;
+    return sgn0 | (z & sgn1);
 }
 
 // helper function to precompute the product of two elements a, b in Fp2
