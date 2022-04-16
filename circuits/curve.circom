@@ -476,10 +476,7 @@ template EllipticCurveScalarMultiply(n, k, b, x, p){
 //  P has order > x so never hit point at infinity, and can always use add unequal: constraint assertion fails if add unequal fails 
 template EllipticCurveScalarMultiplyUnequal(n, k, b, x, p){
     signal input in[2][k];
-    signal input inIsInfinity;
-
     signal output out[2][k];
-    signal output isInfinity;
 
     var LOGK = log_ceil(k);
         
