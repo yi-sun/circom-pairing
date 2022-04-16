@@ -73,6 +73,6 @@ echo "DONE ($((end-start))s)"
 
 echo "****VERIFYING PROOF FOR SAMPLE INPUT****"
 start=`date +%s`
-npx snarkjs groth16 verify vkey.json public.json proof.json -v
+/data/node/out/Release/node /data/snarkjs/cli.js groth16 verify vkey.json public.json proof.json -v
 end=`date +%s`
 echo "DONE ($((end-start))s)"

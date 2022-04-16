@@ -657,7 +657,7 @@ template EllipticCurveScalarMultiplyUnequalFp2(n, k, b, x, p){
                     add_exception[curid].a[j][idx] <== Pdouble[i].out[0][j][idx];
                     add_exception[curid].b[j][idx] <== in[0][j][idx];
                 }
-                add_exception[curid] === 0;
+                add_exception[curid].out === 0;
         
                 // Padd[curid] = Pdouble[i] + P 
                 Padd[curid] = EllipticCurveAddUnequalFp2(n, k, p); 

@@ -520,7 +520,7 @@ template EllipticCurveScalarMultiplyUnequal(n, k, b, x, p){
                     add_exception[curid].in[0][idx] <== Pdouble[i].out[0][idx];
                     add_exception[curid].in[1][idx] <== in[0][idx];
                 }
-                add_exception[curid] === 0;
+                add_exception[curid].out === 0;
 
                 // Padd[curid] = Pdouble[i] + P 
                 Padd[curid] = EllipticCurveAddUnequal(n, k, p); 
