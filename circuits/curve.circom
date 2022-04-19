@@ -9,25 +9,6 @@ include "./fp2.circom";
 include "./fp12.circom";
 include "./bls12_381_func.circom";
 
-// taken from https://zkrepl.dev/?gist=1e0a28ec3cc4967dc0994e30d316a8af
-template IsArrayEqual(k){
-    signal input in[2][k];
-    signal output out;
-    component isEqual[k+1];
-    var sum = 0;
-    for(var i = 0; i < k; i++){
-        isEqual[i] = IsEqual();
-        isEqual[i].in[0] <== in[0][i];
-        isEqual[i].in[1] <== in[1][i];
-        sum = sum + isEqual[i].out;
-    }
-
-    isEqual[k] = IsEqual();
-    isEqual[k].in[0] <== sum;
-    isEqual[k].in[1] <== k;
-    out <== isEqual[k].out;
-}
-
 // in[i] = (x_i, y_i) 
 // Implements constraint: (y_1 + y_3) * (x_2 - x_1) - (y_2 - y_1)*(x_1 - x_3) = 0 mod p
 // used to show (x1, y1), (x2, y2), (x3, -y3) are co-linear
@@ -243,9 +224,8 @@ template EllipticCurveAddUnequal(n, k, p) { // changing q's to p's for my sanity
     }
     // END OF CONSTRAINING y3
 
-    // check if out[][] has registers in [0, 2^n) and each out[i] is in [0, p)
-    // re-using Fp2 code by considering (x_3, y_3) as a 2d-vector over Fp
-    component range_check = CheckValidFp2(n, k, p);
+    // check if out[][] has registers in [0, 2^n) 
+    component range_check = RangeCheck2D(n, k);
     for(var j=0; j<2; j++)for(var i=0; i<k; i++)
         range_check.in[j][i] <== out[j][i];
 }
@@ -295,9 +275,8 @@ template EllipticCurveDouble(n, k, a, b, p) {
         out[0][i] <-- x3[i];
         out[1][i] <-- y3[i];
     }
-    // check if out[][] has registers in [0, 2^n) and each out[i] is in [0, p)
-    // re-using Fp2 code by considering (x_3, y_3) as a 2d-vector over Fp
-    component range_check = CheckValidFp2(n, k, p);
+    // check if out[][] has registers in [0, 2^n)
+    component range_check = RangeCheck2D(n, k);
     for(var j=0; j<2; j++)for(var i=0; i<k; i++)
         range_check.in[j][i] <== out[j][i];
 
@@ -311,7 +290,7 @@ template EllipticCurveDouble(n, k, a, b, p) {
     for(var j=0; j<2; j++)for(var i=0; i<k; i++)
         point_on_curve.in[j][i] <== out[j][i];
     
-    component x3_eq_x1 = IsArrayEqual(k);
+    component x3_eq_x1 = FpIsEqual(n, k, p);
     for(var i = 0; i < k; i++){
         x3_eq_x1.in[0][i] <== out[0][i];
         x3_eq_x1.in[1][i] <== in[0][i];
@@ -333,8 +312,8 @@ template EllipticCurveAdd(n, k, a1, b1, p){
     signal output out[2][k];
     signal output isInfinity;
 
-    component x_equal = IsArrayEqual(k);
-    component y_equal = IsArrayEqual(k);
+    component x_equal = FpIsZero(n, k, p);
+    component y_equal = FpIsZero(n, k, p);
 
     for(var idx=0; idx<k; idx++){
         x_equal.in[0][idx] <== a[0][idx];
@@ -512,12 +491,9 @@ template EllipticCurveScalarMultiplyUnequal(n, k, b, x, p){
                     R[i][j][idx] <== Pdouble[i].out[j][idx];
             }else{
                 // Constrain that Pdouble[i].x != P.x 
-                add_exception[curid] = IsArrayEqual(k);
-                for(var idx=0; idx<k; idx++){
-                    add_exception[curid].in[0][idx] <== Pdouble[i].out[0][idx];
-                    add_exception[curid].in[1][idx] <== in[0][idx];
-                }
-                add_exception[curid].out === 0;
+                add_exception[curid] = SignedCheckCarryModToZero(n, k, n+1, p);
+                for(var idx=0; idx<k; idx++)
+                    add_exception[curid].in[idx] <== Pdouble[i].out[0][idx] - in[0][idx];
 
                 // Padd[curid] = Pdouble[i] + P 
                 Padd[curid] = EllipticCurveAddUnequal(n, k, p); 
@@ -585,15 +561,6 @@ template SignedLineFunctionUnequalNoCarry(n, k, m_out){
         }else 
             out[i][j][idx] <== Xmult.out[i][j][idx] + Ymult.out[i][j][idx]; // register in [0, 4k*2^{2n+1} )
     }
-    /*component range_checks[6][4][2*k-1];
-    for (var outer = 0; outer < 6; outer ++) {
-        for (var i = 0; i < 2; i ++) {
-            for (var j = 0; j < 2*k-1; j ++) {
-                range_checks[outer][i][j] = Num2Bits(m_out);
-                range_checks[outer][i][j].in <== out[outer][i][j];
-            }
-        }
-    }*/
 }
 
 // Assuming curve is of form Y^2 = X^3 + b for now (a = 0) for better register bounds 
@@ -649,15 +616,6 @@ template SignedLineFunctionEqualNoCarry(n, k, m_out){
         else
             out[i][j][idx] <== Xmult.out[i][j][idx];
     }
-    /*component range_checks[6][4][3*k-2];
-    for (var outer = 0; outer < 6; outer ++) {
-        for (var i = 0; i < 2; i ++) {
-            for (var j = 0; j < 3*k-2; j ++) {
-                range_checks[outer][i][j] = Num2Bits(m_out);
-                range_checks[outer][i][j].in <== out[outer][i][j];
-            }
-        }
-    }*/
 }
 
 // Inputs:

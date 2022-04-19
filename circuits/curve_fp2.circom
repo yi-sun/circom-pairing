@@ -362,8 +362,8 @@ template EllipticCurveAddUnequalFp2(n, k, p) {
 
     // check if out[][] has registers in [0, 2^n)
     component range_check[2];
-    range_check[0] = CheckValidFp2(n, k, p);
-    range_check[1] = CheckValidFp2(n, k, p);
+    range_check[0] = RangeCheck2D(n, k);
+    range_check[1] = RangeCheck2D(n, k);
     for(var j=0; j<2; j++)for(var i=0; i<k; i++) {
         range_check[0].in[j][i] <== out[0][j][i];
         range_check[1].in[j][i] <== out[1][j][i];
@@ -420,11 +420,10 @@ template EllipticCurveDoubleFp2(n, k, a, b, p) {
         out[1][0][i] <-- y3[0][i];
         out[1][1][i] <-- y3[1][i];
     }
-    // check if out[][] has registers in [0, 2^n) and each out[i] is in [0, p)
-    // re-using Fp2 code by considering (x_3, y_3) as a 2d-vector over Fp
+    // check if out[][] has registers in [0, 2^n)
     component range_check[2];
-    range_check[0] = CheckValidFp2(n, k, p);
-    range_check[1] = CheckValidFp2(n, k, p);
+    range_check[0] = RangeCheck2D(n, k);
+    range_check[1] = RangeCheck2D(n, k);
     for(var j=0; j<2; j++)for(var i=0; i<k; i++) {
         range_check[0].in[j][i] <== out[0][j][i];
         range_check[1].in[j][i] <== out[1][j][i];
@@ -444,12 +443,10 @@ template EllipticCurveDoubleFp2(n, k, a, b, p) {
         point_on_curve.in[j][1][i] <== out[j][1][i];
     }
     
-    component x3_eq_x1 = IsArrayEqual(2*k);
-    for(var i = 0; i < k; i++){
-        x3_eq_x1.in[0][i] <== out[0][0][i];
-        x3_eq_x1.in[1][i] <== in[0][0][i];
-        x3_eq_x1.in[0][i+k] <== out[0][1][i];
-        x3_eq_x1.in[1][i+k] <== in[0][1][i];
+    component x3_eq_x1 = Fp2IsEqual(n, k, p);
+    for(var j=0; j<2; j++)for(var i = 0; i < k; i++){
+        x3_eq_x1.a[j][i] <== out[0][j][i];
+        x3_eq_x1.b[j][i] <== in[0][j][i];
     }
     x3_eq_x1.out === 0;
 }
@@ -467,8 +464,8 @@ template EllipticCurveAddFp2(n, k, a2, b2, p){
     signal output out[2][2][k];
     signal output isInfinity;
 
-    component x_equal = Fp2IsEqual(k);
-    component y_equal = Fp2IsEqual(k);
+    component x_equal = Fp2IsEqual(n, k, p);
+    component y_equal = Fp2IsEqual(n, k, p);
 
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
         x_equal.a[i][idx] <== a[0][i][idx];
@@ -652,7 +649,7 @@ template EllipticCurveScalarMultiplyUnequalFp2(n, k, b, x, p){
                     R[i][j][l][idx] <== Pdouble[i].out[j][l][idx];
             }else{
                 // Constrain Pdouble[i].x != P.x 
-                add_exception[curid] = Fp2IsEqual(k);
+                add_exception[curid] = Fp2IsEqual(n, k, p);
                 for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
                     add_exception[curid].a[j][idx] <== Pdouble[i].out[0][j][idx];
                     add_exception[curid].b[j][idx] <== in[0][j][idx];

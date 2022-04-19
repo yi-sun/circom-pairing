@@ -82,7 +82,7 @@ template OptSimpleSWU2(n, k){
     }
 
     // Exception if X0_den = 0: 
-    component exception = Fp2IsZero(k);
+    component exception = Fp2IsZero(n, k, p);
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
         exception.in[i][idx] <== X0_den.out[i][idx];
     //isInfinity <== exception.out; 
@@ -319,7 +319,7 @@ template Iso3Map(n, k){
         for(var l=0; l<2; l++)for(var idx=0; idx<2*k-1; idx++)
             den[i].in[l][idx] <== x_frac[2*i+1][l][idx];
 
-        den_is_zero[i] = Fp2IsZero(k);
+        den_is_zero[i] = Fp2IsZero(n, k, p);
         for(var l=0; l<2; l++)for(var idx=0; idx<k; idx++)
             den_is_zero[i].in[l][idx] <== den[i].out[l][idx];
     }
@@ -649,7 +649,7 @@ template SubgroupCheckG2(n, k){
     // psi(P) == [x]P
     component is_eq[2];
     for(var i=0; i<2; i++){
-        is_eq[i] = Fp2IsEqual(k);
+        is_eq[i] = Fp2IsEqual(n, k, p);
         for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
             is_eq[i].a[j][idx] <== psiP.out[i][j][idx];
             is_eq[i].b[j][idx] <== xP.out[i][j][idx];
@@ -704,7 +704,7 @@ template SubgroupCheckG1(n, k){
         x2P.in[i][idx] <== xP.out[i][idx];
 
     // check -phi(P) == [x^2]P
-    component is_eq = Fp2IsEqual(k); // using Fp2IsEqual to check two Fp points are equal
+    component is_eq = Fp2IsEqual(n, k, p); // using Fp2IsEqual to check two Fp points are equal
     for(var idx=0; idx<k; idx++){
         is_eq.a[0][idx] <== phiPx.out[idx];
         is_eq.a[1][idx] <== phiPy_neg.out[idx];

@@ -749,7 +749,6 @@ template CheckCarryToZero(n, m, k) {
     
 }
 
-// generalization of secp prime trick according to https://discord.com/channels/913953234777931796/920131476333420634/947186676558606446
 // X = 2^n 
 // in has k + m registers 
 //      in[0] + in[1] * X + ... + in[k+m-1] * X^{k+m-1} 

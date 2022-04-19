@@ -154,17 +154,17 @@ template SignedFpCarryModP(n, k, overflow, p){
 
     var Xvar[2][50] = get_signed_Fp_carry_witness(n, k, m, in, p); 
     component X_range_checks[m];
-    //component range_checks[k]; 
-    component lt = BigLessThan(n, k);  // Note: BigLessThan also range checks
+    component range_checks[k]; 
+    //component lt = BigLessThan(n, k); 
 
     for(var i=0; i<k; i++){
         out[i] <-- Xvar[1][i];
-        //range_checks[i] = Num2Bits(n); 
-        //range_checks[i].in <== out[i];
-        lt.a[i] <== out[i];
-        lt.b[i] <== p[i];
+        range_checks[i] = Num2Bits(n); 
+        range_checks[i].in <== out[i];
+        //lt.a[i] <== out[i];
+        //lt.b[i] <== p[i];
     }
-    lt.out === 1;
+    //lt.out === 1;
     
     for(var i=0; i<m; i++){
         X[i] <-- Xvar[0][i];
@@ -234,3 +234,47 @@ template FpSgn0(k){
     in[0] === 2 * div + out;
 }
 
+template FpIsZero(n, k, p){
+    signal input in[k];
+    signal output out;
+
+    // check that in < p 
+    component lt = BigLessThan(n, k);
+    component isZero = BigIsZero(k);
+    for(var i = 0; i < k; i++) {
+        lt.a[i] <== in[i];
+        lt.b[i] <== p[i];
+
+        isZero.in[i] <== in[i];
+    }
+    out <== isZero.out;
+}
+
+template FpIsEqual(n, k, p){
+    signal input in[2][k];
+    signal output out;
+
+    // check in[i] < p
+    component lt[2];
+    for(var i = 0; i < 2; i++){
+        lt[i] = BigLessThan(n, k);
+        for(var idx=0; idx<k; idx++){
+            lt[i].a[idx] <== in[i][idx];
+            lt[i].b[idx] <== p[idx];
+        }
+    }
+
+    component isEqual[k+1];
+    var sum = 0;
+    for(var i = 0; i < k; i++){
+        isEqual[i] = IsEqual();
+        isEqual[i].in[0] <== in[0][i];
+        isEqual[i].in[1] <== in[1][i];
+        sum = sum + isEqual[i].out;
+    }
+
+    isEqual[k] = IsEqual();
+    isEqual[k].in[0] <== sum;
+    isEqual[k].in[1] <== k;
+    out <== isEqual[k].out;
+}

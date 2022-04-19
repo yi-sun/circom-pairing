@@ -155,9 +155,9 @@ template SignedFp2MultiplyNoCarryCompressThree(n, k, p, m_in, m_out){
         out[i][j] <== compress.out[i][j];
 }
 
-// check if in[0] + in[0]*u is a valid point of Fp2 with in[0],in[1] both with k registers in [0,2^n)
+// check if in[0], in[1] both have k registers in [0,2^n)
 // to save constraints, DO NOT CONSTRAIN in[i] < p
-template CheckValidFp2(n, k, p){
+template RangeCheck2D(n, k){
     signal input in[2][k];
     component range_checks[2][k];
     //component lt[2];
@@ -171,7 +171,7 @@ template CheckValidFp2(n, k, p){
             //lt[eps].b[i] <== p[i];
         }
         //lt[eps].out === 1;
-    }    
+    }
 }
 
 // solve for in = p * X + out
@@ -378,7 +378,7 @@ template SignedFp2Divide(n, k, overflowa, overflowb, p){
     for(var eps=0; eps<2; eps++)for(var i=0; i<k; i++)
         out[eps][i] <-- out_var[eps][i]; 
     
-    component check = CheckValidFp2(n, k, p);
+    component check = RangeCheck2D(n, k);
     for(var eps=0; eps<2; eps++)for(var i=0; i<k; i++)
         check.in[eps][i] <== out[eps][i];
     
@@ -492,36 +492,56 @@ template Fp2Sgn0(k){
     out <== sgn[0].out + sgn1 - sgn[0].out * sgn1; // sgn[0] || ( (in0 == 0 && sgn[1]) )
 }
 
-// assumes in[i] < p for i=0,1
-template Fp2IsZero(k){
+template Fp2IsZero(n, k, p){
     signal input in[2][k];
     signal output out;
 
+    // check that in[i] < p 
+    component lt[2];
+    
     component isZeros[2][k];
     var total = 2*k;
-    for(var j=0; j<2; j++)for(var i = 0; i < k; i++) {
-        isZeros[j][i] = IsZero();
-        isZeros[j][i].in <== in[j][i];
-        total -= isZeros[j][i].out;
+    for(var j=0; j<2; j++){
+        lt[j] = BigLessThan(n, k);
+        for(var i = 0; i < k; i++) {
+            lt[j].a[i] <== in[j][i];
+            lt[j].b[i] <== p[i];
+
+            isZeros[j][i] = IsZero();
+            isZeros[j][i].in <== in[j][i];
+            total -= isZeros[j][i].out;
+        }
     }
     component checkZero = IsZero();
     checkZero.in <== total;
     out <== checkZero.out;
 }
 
-// assumes a[i],b[i] < p for i=0,1
-template Fp2IsEqual(k){
+template Fp2IsEqual(n, k, p){
     signal input a[2][k];
     signal input b[2][k];
     signal output out;
 
+    // check that a[i], b[i] < p 
+    component lta[2];
+    component ltb[2];
     component isEquals[2][k];
     var total = 2*k;
-    for(var j=0; j<2; j++)for (var i = 0; i < k; i ++) {
-        isEquals[j][i] = IsEqual();
-        isEquals[j][i].in[0] <== a[j][i];
-        isEquals[j][i].in[1] <== b[j][i];
-        total -= isEquals[j][i].out;
+    for(var j=0; j<2; j++){
+        lta[j] = BigLessThan(n, k);
+        ltb[j] = BigLessThan(n, k);
+        for (var i = 0; i < k; i ++) {
+            lta[j].a[i] <== a[j][i]; 
+            lta[j].b[i] <== p[i]; 
+
+            ltb[j].a[i] <== b[j][i]; 
+            ltb[j].b[i] <== p[i]; 
+
+            isEquals[j][i] = IsEqual();
+            isEquals[j][i].in[0] <== a[j][i];
+            isEquals[j][i].in[1] <== b[j][i];
+            total -= isEquals[j][i].out;
+        }
     }
     component checkZero = IsZero();
     checkZero.in <== total;
