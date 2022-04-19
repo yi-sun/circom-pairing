@@ -208,7 +208,7 @@ function long_div(n, k, a, b) {
 // n bits per register
 // a has k + 1 registers
 // b has k registers
-// assumes leading digit of b is at least 2 ** (n - 1)
+// assumes leading digit of b is at least 2^(n - 1)
 // 0 <= a < (2**n) * b
 function short_div_norm(n, k, a, b) {
    var qhat = (a[k] * (1 << n) + a[k - 1]) \ b[k - 1];
@@ -233,7 +233,7 @@ function short_div_norm(n, k, a, b) {
 // a has k + 1 registers
 // b has k registers
 // assumes leading digit of b is non-zero
-// 0 <= a < (2**n) * b
+// 0 <= a < b * 2^n
 function short_div(n, k, a, b) {
     var scale = (1 << n) \ (1 + b[k - 1]);
     // k + 2 registers now
@@ -404,7 +404,6 @@ function prod2D(n, k, l, a, b) {
 }
 
 // Put all modular arithmetic, aka F_p field stuff, at the end
-// possibly split off into separate file if necessary
 
 function long_add_mod(n, k, a, b, p) {
     var sum[50] = long_add(n,k,a,b); 

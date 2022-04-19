@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PHASE1=../../circuits/pot25_final.ptau
+PHASE1=../../circuits/pot24_final.ptau
 BUILD_DIR=../../build/optimalate
 CIRCUIT_NAME=optimalate
 
@@ -21,7 +21,7 @@ echo $PWD
 echo "****COMPILING CIRCUIT****"
 start=`date +%s`
 #circom "$CIRCUIT_NAME".circom --O0 --c --output "$BUILD_DIR"
-circom "$CIRCUIT_NAME".circom --O1 --r1cs --sym --c --wasm --output "$BUILD_DIR"
+circom "$CIRCUIT_NAME".circom --O1 --r1cs --sym --c --output "$BUILD_DIR"
 end=`date +%s`
 echo "DONE ($((end-start))s)"
 
@@ -73,6 +73,6 @@ echo "DONE ($((end-start))s)"
 
 echo "****VERIFYING PROOF FOR SAMPLE INPUT****"
 start=`date +%s`
-npx snarkjs groth16 verify vkey.json public.json proof.json -v
+/data/node/out/Release/node /data/snarkjs/cli.js groth16 verify vkey.json public.json proof.json -v
 end=`date +%s`
 echo "DONE ($((end-start))s)"
