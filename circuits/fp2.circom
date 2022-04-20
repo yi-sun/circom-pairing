@@ -25,16 +25,19 @@ template Fp2Add(n, k, p) {
 }
 
 
-// p has k registers 
-// inputs: 
-//  a[2][ka] allow signed overflow
-//  b[2][kb] 
-// outputs:
-//  out[2][ka+kb-1] such that 
-//      (a0 + a1 u)*(b0 + b1 u) = out[0] + out[1] u  
-//      if each a[i][j], b[i][j] has abs value < B then out[i][j] has abs val < 2*k*B^2 
-//  out[i] has ka+kb-1 registers since that's output of BigMultShortLong
-// m_out is the expected max number of bits in the output registers
+/*
+p has k registers 
+Inputs: 
+    - a[2][ka] allow signed overflow
+    - b[2][kb] 
+Outputs:
+    - out[2][ka+kb-1] such that 
+        (a0 + a1 u)*(b0 + b1 u) = out[0] + out[1] u  
+Notes:
+    - if each a[i][j], b[i][j] has abs value < B then out[i][j] has abs val < 2*k*B^2 
+    - out[i] has ka+kb-1 registers since that's output of BigMultShortLong
+m_out is the expected max number of bits in the output registers
+*/
 template SignedFp2MultiplyNoCarryUnequal(n, ka, kb, m_out){
     signal input a[2][ka];
     signal input b[2][kb];
@@ -53,15 +56,6 @@ template SignedFp2MultiplyNoCarryUnequal(n, ka, kb, m_out){
         out[0][j] <== ab[0][0].out[j] - ab[1][1].out[j];
         out[1][j] <== ab[0][1].out[j] + ab[1][0].out[j];
     }
-    /*
-    component range_checks[2][ka+kb-1];
-    for (var i = 0; i < 2; i ++) {
-        for (var j = 0; j < ka+kb-1; j++) {
-            range_checks[i][j] = Num2Bits(m_out);
-            range_checks[i][j].in <== out[i][j];
-        }
-    }
-    */
 }
 
 template SignedFp2MultiplyNoCarry(n, k, m_out){
@@ -107,7 +101,7 @@ template Fp2Compress(n, k, m, p, m_out){
 template SignedFp2MultiplyNoCarryCompress(n, k, p, m_in, m_out){
     signal input a[2][k];
     signal input b[2][k];
-    signal output out[4][k];
+    signal output out[2][k];
     
     var LOGK1 = log_ceil(2*k);
     component ab = SignedFp2MultiplyNoCarry(n, k, 2*m_in + LOGK1);
@@ -130,7 +124,7 @@ template SignedFp2MultiplyNoCarryCompressThree(n, k, p, m_in, m_out){
     signal input a[2][k];
     signal input b[2][k];
     signal input c[2][k];
-    signal output out[4][k];
+    signal output out[2][k];
     
     var LOGK = log_ceil(k);
     component ab = SignedFp2MultiplyNoCarry(n, k, 2*m_in + LOGK + 1);
@@ -279,17 +273,13 @@ template Fp2Negate(n, k, p){
     signal input in[2][k]; 
     signal output out[2][k];
     
-    component neg0 = BigSub(n, k);
-    component neg1 = BigSub(n, k);
-    for(var i=0; i<k; i++){
-        neg0.a[i] <== p[i];
-        neg1.a[i] <== p[i];
-        neg0.b[i] <== in[0][i];
-        neg1.b[i] <== in[1][i];
-    }
-    for(var i=0; i<k; i++){
-        out[0][i] <== neg0.out[i];
-        out[1][i] <== neg1.out[i];
+    component neg[2];
+    for(var j=0; j<2; j++){
+        neg[j] = FpNegate(n, k, p);
+        for(var i=0; i<k; i++)
+            neg[j].in[i] <== in[j][i];
+        for(var i=0; i<k; i++)
+            out[j][i] <== neg[j].out[i];
     }
 }
 
@@ -435,10 +425,9 @@ template Fp2Conjugate(n, k, p){
     signal input in[2][k]; 
     signal output out[2][k];
     
-    component neg1 = BigSub(n, k);
+    component neg1 = FpNegate(n, k, p);
     for(var i=0; i<k; i++){
-        neg1.a[i] <== p[i];
-        neg1.b[i] <== in[1][i];
+        neg1.in[i] <== in[1][i];
     }
     for(var i=0; i<k; i++){
         out[0][i] <== in[0][i];
@@ -452,7 +441,7 @@ template Fp2FrobeniusMap(n, k, power, p){
     signal output out[2][k];
     
     var pow = power % 2;
-    component neg1 = BigSub(n,k);
+    component neg1 = FpNegate(n,k,p);
     if(pow == 0){
         for(var i=0; i<k; i++){
             out[0][i] <== in[0][i];
@@ -460,8 +449,7 @@ template Fp2FrobeniusMap(n, k, power, p){
         }
     }else{
         for(var i=0; i<k; i++){
-            neg1.a[i] <== p[i];
-            neg1.b[i] <== in[1][i];
+            neg1.in[i] in[1][i];
         }
         for(var i=0; i<k; i++){
             out[0][i] <== in[0][i];
@@ -473,13 +461,13 @@ template Fp2FrobeniusMap(n, k, power, p){
 // in = in0 + in1 * u, elt of Fp2
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-4.1
 // NOTE: different from Wahby-Boneh paper https://eprint.iacr.org/2019/403.pdf and python reference code: https://github.com/algorand/bls_sigs_ref/blob/master/python-impl/opt_swu_g2.py
-template Fp2Sgn0(k){
+template Fp2Sgn0(n, k, p){
     signal input in[2][k];
     signal output out;
 
     component sgn[2];
     for(var i=0; i<2; i++){
-        sgn[i] = FpSgn0(k);
+        sgn[i] = FpSgn0(n, k, p);
         for(var idx=0; idx<k; idx++)
             sgn[i].in[idx] <== in[i][idx];
     }
@@ -511,6 +499,7 @@ template Fp2IsZero(n, k, p){
             isZeros[j][i].in <== in[j][i];
             total -= isZeros[j][i].out;
         }
+        lt[j].out === 1;
     }
     component checkZero = IsZero();
     checkZero.in <== total;
@@ -542,6 +531,8 @@ template Fp2IsEqual(n, k, p){
             isEquals[j][i].in[1] <== b[j][i];
             total -= isEquals[j][i].out;
         }
+        lta[j].out === 1;
+        ltb[j].out === 1;
     }
     component checkZero = IsZero();
     checkZero.in <== total;

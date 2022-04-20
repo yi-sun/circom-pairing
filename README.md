@@ -1,6 +1,16 @@
 # zkPairing
 
-TODO: add table of contents with links
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [Project overview](#project-overview)
+- [Setup](#setup)
+- [Building keys and witness generation files](#building-keys-and-witness-generation-files)
+- [Benchmarks](#benchmarks)
+- [Testing](#testing)
+- [Acknowledgments](#acknowledgments)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Project overview
 

@@ -249,17 +249,6 @@ template SignedFp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
             out[i][1][j] <== X[i][1][j];
         }
     }
-    
-    /*
-    component range_checks[l][2][ka+kb-1];
-    for (var outer = 0; outer < l; outer ++) {
-        for (var i = 0; i < 2; i ++) {
-            for (var j = 0; j < ka+kb-1; j ++) {
-                range_checks[outer][i][j] = Num2Bits(m_out);
-                range_checks[outer][i][j].in <== out[outer][i][j];
-            }
-        }
-    }*/
 }
 
 template SignedFp12MultiplyNoCarry(n, k, m_out){
@@ -324,7 +313,7 @@ template SignedFp12MultiplyNoCarryCompress(n, k, p, m_in, m_out) {
             out[i][j][idx] <== reduce.out[i][j][idx];
 }
 
-// solve for: in0 - in2 = X * p + out
+// solve for: in = X * p + out
 // X has Ceil( overflow / n ) registers, lying in [-2^n, 2^n)
 // assume in has registers in [0, 2^overflow)
 template SignedFp12CarryModP(n, k, overflow, p) {

@@ -112,13 +112,13 @@ template FpMultiply(n, k, p) {
 // in[i] in (-2^overflow, 2^overflow) 
 // assume registers of X have abs value < 2^{overflow - n - log(min(k,m)) - 1} 
 // assume overflow - 1 >= n 
-// ^ this is not asserted or checked anywhere! 
 template CheckCarryModP(n, k, m, overflow, p){
     signal input in[k]; 
     signal input X[m];
     signal input Y[k];
 
     assert( overflow < 251 );
+    assert( n <= overflow - 1);
     component pX;
     component carry_check;
 
@@ -189,7 +189,7 @@ template SignedFpCarryModP(n, k, overflow, p){
 // X has registers lying in [-2^n, 2^n) 
 // X has at most Ceil( overflow / n ) registers 
 
-// save BigLessThan on Y compared to CarryModP
+// save range check on Y compared to SignedFpCarryModP
 template SignedCheckCarryModToZero(n, k, overflow, p){
     signal input in[k]; 
     var m = (overflow + n - 1) \ n; 
@@ -219,11 +219,20 @@ template SignedCheckCarryModToZero(n, k, overflow, p){
 // in has k registers, elt of Fp
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-4.1
 // return in % 2
+// This requires `in` to be the unique element < p. 
 // NOTE: different from Wahby-Boneh paper https://eprint.iacr.org/2019/403.pdf and python reference code: https://github.com/algorand/bls_sigs_ref/blob/master/python-impl/opt_swu_g2.py
-template FpSgn0(k){
+template FpSgn0(n, k, p){
     signal input in[k];
     signal output out;
 
+    // constrain in < p
+    component lt = BigLessThan(n, k);
+    for(var i=0; i<k; i++){
+        lt.a[i] <== in[i];
+        lt.b[i] <== p[i];
+    }
+    lt.out === 1;
+    
     // note we only need in[0] ! 
     var r = in[0] % 2;
     var q = (in[0] - r) / 2; 
@@ -247,6 +256,7 @@ template FpIsZero(n, k, p){
 
         isZero.in[i] <== in[i];
     }
+    lt.out === 1;
     out <== isZero.out;
 }
 
@@ -262,6 +272,7 @@ template FpIsEqual(n, k, p){
             lt[i].a[idx] <== in[i][idx];
             lt[i].b[idx] <== p[idx];
         }
+        lt[i].out === 1;
     }
 
     component isEqual[k+1];

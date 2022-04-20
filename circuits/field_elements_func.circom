@@ -1,11 +1,7 @@
 pragma circom 2.0.3;
 
-function get_fp_sgn0(n, k, a, p){
-    var p1[50] = p; 
-    p1[0]--;
-    var p_half[2][50] = long_div2(n, 1, k-1, p1, [2]);
-
-    return long_gt(n, k, a, p_half[0]); 
+function get_fp_sgn0(a){
+    return a[0] % 2; 
 }
 
 // n bits per register
@@ -80,8 +76,8 @@ function find_Fp_inverse(n, k, num, p) {
     return ret;
 }
 
-// a[k] registers can overflow - let's say in [0, B) 
-//  assume actual value of a in  2^{k+m} 
+// a[k] registers can overflow
+//  assume actual value of a < 2^{n*(k+m)} 
 // p[k] registers in [0, 2^n)
 // out[2][k] solving
 //      a = p * out[0] + out[1] with out[1] in [0,p) 

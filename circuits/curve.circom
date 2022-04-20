@@ -51,7 +51,7 @@ template PointOnCurve(n, k, a, b, p){
     signal input in[2][k]; 
 
     var LOGK = log_ceil(k);
-    var LOGK2 = log_ceil( (2*k-1)*k*k*2 );
+    var LOGK2 = log_ceil( (2*k-1)*(k*k+1) );
     assert(4*n + LOGK2 < 251);
 
     // compute x^3, y^2 
@@ -70,7 +70,7 @@ template PointOnCurve(n, k, a, b, p){
     for(var i=0; i<k; i++)
         x_cu.b[i] <== in[0][i];
 
-    // x_cu + a x + b has 3k-2 registers < k^2 * 2^{3n} + 2^{2n} + 2^n < 2^{3n + 2LOGK + 1} 
+    // x_cu + a x + b has 3k-2 positive registers < k^2 * 2^{3n} + 2^{2n} + 2^n < (k^2 + 1) * 2^{3n} 
     component cu_red = PrimeReduce(n, k, 2*k-2, p, 4*n + 3*LOGK + 1);
     for(var i=0; i<3*k-2; i++){
         if(i == 0)
@@ -82,11 +82,12 @@ template PointOnCurve(n, k, a, b, p){
                 cu_red.in[i] <== x_cu.out[i];
         }
     }
-    // cu_red has k registers < (2k-1)*2^{4n + 2LOGK + 1} < 2^{4n + 3LOGK + 2}
+    // cu_red has k registers < (k^2 + 1)*(2k-1)*2^{4n}
 
-    component y_sq_red = PrimeReduce(n, k, k-1, p, 4*n + 3*LOGK + 2);
+    component y_sq_red = PrimeReduce(n, k, k-1, p, 3*n + 2*LOGK + 1);
     for(var i=0; i<2*k-1; i++)
         y_sq_red.in[i] <== y_sq.out[i]; 
+    // y_sq_red has positive registers, so when we subtract from cu_red it doesn't increase absolute value
 
     component constraint = SignedCheckCarryModToZero(n, k, 4*n + LOGK2, p);
     for(var i=0; i<k; i++){
@@ -104,17 +105,17 @@ template PointOnTangent(n, k, a, p){
     signal input in[2][2][k];
     
     var LOGK = log_ceil(k);
-    var LOGK3 = log_ceil((2*k-1)*7*k*k);
+    var LOGK3 = log_ceil((3*k+1)*(2*k-1));
     assert(4*n + LOGK3 < 251);
     component x_sq = BigMultShortLong(n, k, 2*n + LOGK); // 2k-1 registers < k*2^{2n}) 
     for(var i=0; i<k; i++){
         x_sq.a[i] <== in[0][0][i];
         x_sq.b[i] <== in[0][0][i];
     }
-    component right = BigMultShortLongUnequal(n, 2*k-1, k, 3*n + 2*LOGK + 3); // 3k-2 registers < 2*3*k^2*2^{3n} 
+    component right = BigMultShortLongUnequal(n, 2*k-1, k, 3*n + 2*LOGK + 3); // 3k-2 registers < (3*k+1)*k*2^{3n} 
     for(var i=0; i<2*k-1; i++){
         if(i == 0)
-            right.a[i] <== 3 * x_sq.out[i] + a; // registers in [0, 3*k*2^{2n} + 2^n )  
+            right.a[i] <== 3 * x_sq.out[i] + a; // registers in [0, 3*k*2^{2n} + 2^n = (3k+2^{-n})*2^{2n})  
         else
             right.a[i] <== 3 * x_sq.out[i]; 
     }
@@ -122,7 +123,7 @@ template PointOnTangent(n, k, a, p){
         right.b[i] <== in[0][0][i] - in[1][0][i]; 
     }
     
-    component left = BigMultShortLong(n, k, 2*n + 2 + LOGK); // 2k-1 registers in [0, k * 2^{2n+2})
+    component left = BigMultShortLong(n, k, 2*n + 2 + LOGK); // 2k-1 registers in [0, 4k * 2^{2n})
     for(var i=0; i<k; i++){
         left.a[i] <== 2*in[0][1][i];
         left.b[i] <== in[0][1][i] + in[1][1][i];  
@@ -136,8 +137,8 @@ template PointOnTangent(n, k, a, p){
         else
             diff_red.in[i] <== right.out[i];
     }
-    // inputs of diff_red has registers < 6*k^2*2^{3n} + k*2^{2n+2} < 7*k^2*2^{3n} 
-    // diff_red.out has registers < (2k-1)*7*k^2 * 2^{4n}
+    // inputs of diff_red has registers < (3k+2^{-n})k*2^{3n} + 4k*2^{2n} < (3k^2 + 1)*2^{3n} assuming 5k <= 2^n 
+    // diff_red.out has registers < (3k+1)*(2k-1) * 2^{4n}
     component constraint = SignedCheckCarryModToZero(n, k, 4*n + LOGK3, p);
     for(var i=0; i<k; i++)
         constraint.in[i] <== diff_red.out[i];
@@ -157,14 +158,14 @@ template PointOnTangent(n, k, a, p){
 // these equations are equivalent to:
 //  (x_1 + x_2 + x_3)*(x_2 - x_1)^2 = (y_2 - y_1)^2 mod p
 //  (y_1 + y_3)*(x_2 - x_1) = (y_2 - y_1)*(x_1 - x_3) mod p
-template EllipticCurveAddUnequal(n, k, p) { // changing q's to p's for my sanity
+template EllipticCurveAddUnequal(n, k, p) { 
     signal input a[2][k];
     signal input b[2][k];
 
     signal output out[2][k];
 
     var LOGK = log_ceil(k);
-    var LOGK3 = log_ceil( (12*k+1)*k*(2*k-1)); 
+    var LOGK3 = log_ceil( (3*k*k+1)*(2*k-1) ); 
     assert(4*n + LOGK3 < 251);
 
     // precompute lambda and x_3 and then y_3
@@ -185,8 +186,8 @@ template EllipticCurveAddUnequal(n, k, p) { // changing q's to p's for my sanity
     
     // constrain x_3 by CUBIC (x_1 + x_2 + x_3) * (x_2 - x_1)^2 - (y_2 - y_1)^2 = 0 mod p
     
-    component dx_sq = BigMultShortLong(n, k, 2*n+LOGK+2); // 2k-1 registers < 4k*2^{2n} 
-    component dy_sq = BigMultShortLong(n, k, 2*n+LOGK+2); // 2k-1 registers < 4k*2^{2n}
+    component dx_sq = BigMultShortLong(n, k, 2*n+LOGK+2); // 2k-1 registers abs val < k*2^{2n} 
+    component dy_sq = BigMultShortLong(n, k, 2*n+LOGK+2); // 2k-1 registers < k*2^{2n}
     for(var i = 0; i < k; i++){
         dx_sq.a[i] <== b[0][i] - a[0][i];
         dx_sq.b[i] <== b[0][i] - a[0][i];
@@ -196,7 +197,7 @@ template EllipticCurveAddUnequal(n, k, p) { // changing q's to p's for my sanity
     } 
 
     // x_1 + x_2 + x_3 has registers in [0, 3*2^n) 
-    component cubic = BigMultShortLongUnequal(n, k, 2*k-1, 3*n+4+2*LOGK); // 3k-2 registers < 3*4 * k^2 * 2^{3n} ) 
+    component cubic = BigMultShortLongUnequal(n, k, 2*k-1, 3*n+4+2*LOGK); // 3k-2 registers < 3 * k^2 * 2^{3n} ) 
     for(var i=0; i<k; i++)
         cubic.a[i] <== a[0][i] + b[0][i] + out[0][i]; 
     for(var i=0; i<2*k-1; i++){
@@ -205,10 +206,10 @@ template EllipticCurveAddUnequal(n, k, p) { // changing q's to p's for my sanity
 
     component cubic_red = PrimeReduce(n, k, 2*k-2, p, 4*n + LOGK3);
     for(var i=0; i<2*k-1; i++)
-        cubic_red.in[i] <== cubic.out[i] - dy_sq.out[i]; // registers in < 12*k^2*2^{3n} + 4k*2^{2n} < (12k+1)k * 2^{3n} )
+        cubic_red.in[i] <== cubic.out[i] - dy_sq.out[i]; // registers abs val < 3k^2*2^{3n} + k*2^{2n} < (3k^2+1)2^{3n}
     for(var i=2*k-1; i<3*k-2; i++)
         cubic_red.in[i] <== cubic.out[i]; 
-    // cubic_red has k registers < (2k-1) (12k+1)k * 2^{4n}
+    // cubic_red has k registers < (3k^2+1)(2k-1) * 2^{4n}
     
     component cubic_mod = SignedCheckCarryModToZero(n, k, 4*n + LOGK3, p);
     for(var i=0; i<k; i++)
@@ -247,7 +248,7 @@ template EllipticCurveAddUnequal(n, k, p) { // changing q's to p's for my sanity
 
 // We precompute (x_3, y_3) and then constrain by showing that:
 // * (x_3, y_3) is a valid point on the curve 
-// * the slope (y_3 - y_1)/(x_3 - x_1) equals 
+// * (x_3, y_3) is on the tangent line to E at (x_1, y_1) 
 // * x_1 != x_3 
 template EllipticCurveDouble(n, k, a, b, p) {
     signal input in[2][k];
@@ -522,7 +523,7 @@ template EllipticCurveScalarMultiplyUnequal(n, k, b, x, p){
 //  (y_1 - y_2) X + (x_2 - x_1) Y + (x_1 y_2 - x_2 y_1)
 // We evaluate out without carries
 // If all registers of P, Q are in [0, 2^n),
-// Then all registers of out have abs val < 6k * 2^{2n} )
+// Then all registers of out have abs val < 3k * 2^{2n} )
 // m_out is the expected max number of bits in the output registers
 template SignedLineFunctionUnequalNoCarry(n, k, m_out){
     signal input P[2][2][k];
@@ -531,7 +532,7 @@ template SignedLineFunctionUnequalNoCarry(n, k, m_out){
 
     // (y_1 - y_2) X
     var LOGK = log_ceil(k);
-    component Xmult = SignedFp12ScalarMultiplyNoCarry(n, k, 2*n + LOGK); // registers in [0, 2k*2^{2n} )
+    component Xmult = SignedFp12ScalarMultiplyNoCarry(n, k, 2*n + LOGK); // registers in [0, k*2^{2n} )
     // (x_2 - x_1) Y
     component Ymult = SignedFp12ScalarMultiplyNoCarry(n, k, 2*n + LOGK);
     for(var i=0; i<k; i++){
@@ -557,9 +558,9 @@ template SignedLineFunctionUnequalNoCarry(n, k, m_out){
     
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<2*k-1; idx++){
         if( i==0 && j==0 ){
-            out[i][j][idx] <== Xmult.out[i][j][idx] + Ymult.out[i][j][idx] + x1y2.out[idx] - x2y1.out[idx]; // register < 6k*2^{2n} 
+            out[i][j][idx] <== Xmult.out[i][j][idx] + Ymult.out[i][j][idx] + x1y2.out[idx] - x2y1.out[idx]; // register < 3k*2^{2n} 
         }else 
-            out[i][j][idx] <== Xmult.out[i][j][idx] + Ymult.out[i][j][idx]; // register in [0, 4k*2^{2n+1} )
+            out[i][j][idx] <== Xmult.out[i][j][idx] + Ymult.out[i][j][idx]; // register in [0, 2k*2^{2n} )
     }
 }
 
@@ -571,8 +572,8 @@ template SignedLineFunctionUnequalNoCarry(n, k, m_out){
 //  out is 6 x 2 x (3k-2) array representing element of Fp12 equal to:
 //  3 x^2 (-X + x) + 2 y (Y - y)
 // We evaluate out without carries, with signs
-// If P, Q have registers in [0, 2^n) 
-// Then out has registers in [0, 6k^2*2^{3n} + 4k*2^{2n} < (6k + 4/2^n )*k*2^{3n})
+// If P, Q have registers in [0, B) 
+// Then out has registers with abs val < 3k^2*B^3 + 2k*B^2 < (3k^2 + 2k/B)*B^3)
 // m_out is the expected max number of bits in the output registers
 template SignedLineFunctionEqualNoCarry(n, k, m_out){
     signal input P[2][k]; 
@@ -587,7 +588,7 @@ template SignedLineFunctionEqualNoCarry(n, k, m_out){
     } 
     
     // 3 x^2 (-X + x)
-    component Xmult = SignedFp12ScalarMultiplyNoCarryUnequal(n, 2*k-1, k, 3*n + 2*LOGK + 2); // 3k-2 registers < 6 * k^2 * 2^{3n})
+    component Xmult = SignedFp12ScalarMultiplyNoCarryUnequal(n, 2*k-1, k, 3*n + 2*LOGK + 2); // 3k-2 registers < 3 * k^2 * 2^{3n})
     for(var idx=0; idx<2*k-1; idx++){
         Xmult.a[idx] <== x_sq3.out[idx];
     }
@@ -599,7 +600,7 @@ template SignedLineFunctionEqualNoCarry(n, k, m_out){
     }
 
     // 2 y (Y-y)
-    component Ymult = SignedFp12ScalarMultiplyNoCarry(n, k, 2*n + LOGK + 1); // 2k-1 registers < 4k*2^{2n} 
+    component Ymult = SignedFp12ScalarMultiplyNoCarry(n, k, 2*n + LOGK + 1); // 2k-1 registers < 2k*2^{2n} 
     for(var idx=0; idx < k; idx++){
         Ymult.a[idx] <== 2*P[1][idx];
     }
@@ -630,8 +631,8 @@ template LineFunctionUnequal(n, k, q) {
     signal input Q[2][6][2][k];
 
     signal output out[6][2][k];
-    var LOGK1 = log_ceil(6*k);
-    var LOGK2 = log_ceil(6*k*k);
+    var LOGK1 = log_ceil(3*k);
+    var LOGK2 = log_ceil(3*k*k);
 
     component nocarry = SignedLineFunctionUnequalNoCarry(n, k, 2 * n + LOGK1);
     for (var i = 0; i < 2; i++)for(var j = 0; j < 2; j++) {
@@ -660,7 +661,7 @@ template LineFunctionUnequal(n, k, q) {
         }	
     }
 
-    // max overflow register size is 3 * k * 2^{3n + log(k)}
+    // max overflow register size is 3 * k^2 * 2^{3n}
     component carry = SignedFp12CarryModP(n, k, 3 * n + LOGK2, q);
     for (var i = 0; i < 6; i++) {
         for (var j = 0; j < 2; j++) {
@@ -693,7 +694,7 @@ template LineFunctionEqual(n, k, q) {
 
     signal output out[6][2][k];
 
-    var LOGK2 = log_ceil((6*k+1)*k);
+    var LOGK2 = log_ceil((3*k+1)*k);
     component nocarry = SignedLineFunctionEqualNoCarry(n, k, 3*n + LOGK2);
     for (var i = 0; i < 2; i++) {
         for (var idx = 0; idx < k; idx++) {
@@ -711,7 +712,7 @@ template LineFunctionEqual(n, k, q) {
         }
     }
     
-    var LOGK3 = log_ceil((2*k-1)*(6*k+1)*k);
+    var LOGK3 = log_ceil((2*k-1)*(3*k*k+1));
     component reduce[6][4]; 
     for (var i = 0; i < 6; i++) {
         for (var j = 0; j < 2; j++) {
@@ -725,7 +726,7 @@ template LineFunctionEqual(n, k, q) {
         }	
     }
 
-    // max overflow register size is (2k - 1) * (6k+1)* k * 2^{4n}
+    // max overflow register size is (2k - 1) * (3k^2+1) * 2^{4n} assuming 2k<=2^n
     component carry = SignedFp12CarryModP(n, k, 4 * n + LOGK3, q);
     for (var i = 0; i < 6; i++) {
         for (var j = 0; j < 2; j++) {
@@ -766,13 +767,13 @@ template Fp12MultiplyWithLineUnequal(n, k, kg, overflowg, q){
     var LOGK3 = log_ceil( 6*k * min(kg, 2*k-1) * 6 * (2+XI0) * (k + kg - 1) );
     assert( overflowg + 3*n + LOGK3 < 251 );
 
-    component line = SignedLineFunctionUnequalNoCarry(n, k, 2*n + LOGK1); // 6 x 2 x 2k - 1 registers in [0, 6k 2^{2n})
+    component line = SignedLineFunctionUnequalNoCarry(n, k, 2*n + LOGK1); // 6 x 2 x 2k - 1 registers abs val < 3k 2^{2n}
     for(var l=0; l<2; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         line.P[l][j][idx] <== P[l][j][idx];
     for(var l=0; l<2; l++)for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         line.Q[l][i][j][idx] <== Q[l][i][j][idx];
     
-    component mult = SignedFp12MultiplyNoCarryUnequal(n, kg, 2*k - 1, overflowg + 2*n + LOGK2); // 6 x 2 x (2k + kg - 2) registers < 6k * min(kg, 2k - 1) * 6 * (2+XI0)* 2^{overflowg + 2n} )
+    component mult = SignedFp12MultiplyNoCarryUnequal(n, kg, 2*k - 1, overflowg + 2*n + LOGK2); // 6 x 2 x (2k + kg - 2) registers < 3k * min(kg, 2k - 1) * 6 * (2+XI0)* 2^{overflowg + 2n} )
     
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<kg; idx++)
         mult.a[i][j][idx] <== g[i][j][idx];
@@ -780,7 +781,7 @@ template Fp12MultiplyWithLineUnequal(n, k, kg, overflowg, q){
         mult.b[i][j][idx] <== line.out[i][j][idx];
 
 
-    component reduce = Fp12Compress(n, k, k + kg - 2, q, overflowg + 3*n + LOGK3); // 6 x 2 x k registers in [0, 6 k * min(kg, 2k - 1) * 6*(2+XI0) * (k + kg - 1) *  2^{overflowg + 3n} )
+    component reduce = Fp12Compress(n, k, k + kg - 2, q, overflowg + 3*n + LOGK3); // 6 x 2 x k registers in [0, 3 k * min(kg, 2k - 1) * 6*(2+XI0) * (k + kg - 1) *  2^{overflowg + 3n} )
     for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<2*k + kg - 2; idx++)
         reduce.in[i][j][idx] <== mult.out[i][j][idx];
     
