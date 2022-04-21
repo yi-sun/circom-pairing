@@ -492,9 +492,12 @@ template EllipticCurveScalarMultiplyUnequal(n, k, b, x, p){
                     R[i][j][idx] <== Pdouble[i].out[j][idx];
             }else{
                 // Constrain that Pdouble[i].x != P.x 
-                add_exception[curid] = SignedCheckCarryModToZero(n, k, n+1, p);
-                for(var idx=0; idx<k; idx++)
-                    add_exception[curid].in[idx] <== Pdouble[i].out[0][idx] - in[0][idx];
+                add_exception[curid] = FpIsEqual(n, k, p);
+                for(var idx=0; idx<k; idx++){
+                    add_exception[curid].in[0][idx] <== Pdouble[i].out[0][idx];
+                    add_exception[curid].in[1][idx] <== in[0][idx];
+                }
+                add_exception[curid].out === 0;
 
                 // Padd[curid] = Pdouble[i] + P 
                 Padd[curid] = EllipticCurveAddUnequal(n, k, p); 
