@@ -1,0 +1,20 @@
+{
+  "slot": 3644983,
+  "proposerIndex": 569,
+  "parentRoot": "0x727cf42aadd38c3abd2390aa50d525ada7512156211e2c7c5f8db1adc70c15bb",
+  "stateRoot": "0x29bf1fb943fbabf2ce590d11fe4640287963344741953db677acd38f976e0cff",
+  "body": {
+    "randaoReveal": "0x852bc2f8fd34de89c4dc670b688d799c22dbe43cfd241c58c815c6aa827e616c81c3a315cfd89fc607420d7016010cd507b5f18a0ffddede4df09b2510d0487e1e0001da75505d83933d8b51b334a6924913cd66851f79a72273e68ac27a40ac",
+    "eth1Data": {
+      "depositRoot": "0x7534780cb83e84dff021470f5ae259e3279a2902ca7cfb70bc86450f0633186c",
+      "depositCount": "371608",
+      "blockHash": "0x5c2a7aef000ad23138502a0ad279aebafa7b798e9e59d1e461ade0908d235097"
+    },
+    "graffiti": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "proposerSlashings": [],
+    "attesterSlashings": [],
+    "attestations": [],
+    "deposits": [],
+    "voluntaryExits": []
+  }
+}
