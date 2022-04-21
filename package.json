@@ -22,14 +22,16 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
+        "@chainsafe/lodestar-types": "^0.34.4",
+        "@chainsafe/ssz": "^0.9.1",
         "@noble/bls12-381": "^1.2.0",
         "@noble/secp256k1": "^1.5.5",
         "circomlib": "^2.0.2",
         "snarkjs": "^0.4.10"
     },
     "devDependencies": {
-        "@noble/secp256k1": "^1.5.5",
         "@noble/bls12-381": "^1.2.0",
+        "@noble/secp256k1": "^1.5.5",
         "@types/chai": "^4.3.0",
         "@types/expect": "^24.3.0",
         "@types/mocha": "^9.0.0",

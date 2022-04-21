@@ -1,4 +1,5 @@
 //const bls = require("@noble/bls12-381");
+import { phase0, ssz } from "@chainsafe/lodestar-types";
 import {
   Fp,
   Fp2,
@@ -12,6 +13,8 @@ import {
   verify,
 } from "./index";
 import { map_to_curve_simple_swu_9mod16, isogenyMapG2 } from "./math";
+import beacon_block from "./BeaconBlock.json";
+
 const hashToField = utils.hashToField;
 
 type BigintTuple = [bigint, bigint];
@@ -59,15 +62,19 @@ function stringToBytes(str: string) {
   return bytes;
 }
 
-function hexToBytes(hex: string): Uint8Array {
+function hexToBytes(hex: string, endian: string = "big"): Uint8Array {
   if (typeof hex !== "string") {
     throw new TypeError("hexToBytes: expected string, got " + typeof hex);
   }
+  hex = formatHex(hex);
   if (hex.length % 2)
     throw new Error("hexToBytes: received invalid unpadded hex");
   const array = new Uint8Array(hex.length / 2);
   for (let i = 0; i < array.length; i++) {
-    const j = i * 2;
+    let j = 0;
+    if (endian === "big") j = i * 2;
+    else j = (array.length - 1 - i) * 2;
+
     const hexByte = hex.slice(j, j + 2);
     if (hexByte.length !== 2) throw new Error("Invalid byte sequence");
     const byte = Number.parseInt(hexByte, 16);
@@ -184,4 +191,78 @@ async function test(message: string) {
   );
 }
 
-test("abc");
+//test("abc");
+
+function formatHex(str: string): string {
+  if (str.startsWith("0x")) {
+    str = str.slice(2);
+  }
+  return str;
+}
+async function verify_block_signature() {
+  // example beacon chain block: https://beaconcha.in/block/3644983
+  let publicKeyHex: string =
+    "0x932b42ad9a01e2c489958bb212af2dc016f02dd2750980f618420b6f8fccb469de8bc63c0b594f06464a3f09169a8825";
+  publicKeyHex = formatHex(publicKeyHex);
+  const publicKey: PointG1 = PointG1.fromHex(formatHex(publicKeyHex));
+
+  let signatureHex: string =
+    "0x8530f2e4403406b78ddfd3a94bf2085ce325e17c7eadf57d01311f11518c11621b764c8281618197077568dbb8ae7cea19bac59893c09c107581d9dc88aa461fe1e631f2b2ee3b3eec0b12ee97d6437ac2fca5d3e40474b87d72a301fe59974b";
+  signatureHex = formatHex(signatureHex);
+  const signature: PointG2 = PointG2.fromSignature(signatureHex);
+  signature.assertValidity();
+
+  const BeaconBlock = ssz.phase0.BeaconBlock;
+  let block = BeaconBlock.defaultValue();
+  block.slot = beacon_block.slot;
+  block.proposerIndex = beacon_block.proposerIndex;
+  block.parentRoot = hexToBytes(beacon_block.parentRoot, "little");
+  block.stateRoot = hexToBytes(beacon_block.stateRoot, "little");
+  let body = beacon_block.body;
+  block.body = {
+    randaoReveal: hexToBytes(body.randaoReveal, "little"),
+    eth1Data: {
+      depositRoot: hexToBytes(body.eth1Data.depositRoot, "little"),
+      depositCount: Number(body.eth1Data.depositCount),
+      blockHash: hexToBytes(body.eth1Data.blockHash, "little"),
+    },
+    graffiti: hexToBytes(body.graffiti),
+    proposerSlashings: body.proposerSlashings,
+    attesterSlashings: body.attesterSlashings,
+    attestations: body.attestations,
+    deposits: body.deposits,
+    voluntaryExits: body.voluntaryExits,
+  };
+  console.log(block);
+  let beacon_block_root = BeaconBlock.hashTreeRoot(block);
+  console.log(beacon_block_root[0]);
+
+  // see compute_domain and get_domain from beacon chain spec
+  const ForkData = ssz.phase0.ForkData;
+  let fork_data_root = ForkData.hashTreeRoot(ForkData.defaultValue());
+  let domain = new Uint8Array(32);
+  for (let i = 0; i < 4; i++) domain[i] = 0;
+  for (let i = 0; i < 28; i++) domain[i + 4] = fork_data_root[i];
+
+  // see compute_signing_root from beacon chain spec
+  const SigningData = ssz.phase0.SigningData;
+  let signing_data = SigningData.defaultValue();
+  signing_data.objectRoot = beacon_block_root;
+  signing_data.domain = domain;
+
+  // ssz uses little endian
+  const signing_root: Uint8Array = SigningData.hashTreeRoot(signing_data);
+
+  const msg = new Uint8Array(signing_root.length);
+  // convert to big endian
+  for (let i = 0; i < msg.length; i++)
+    msg[i] = signing_root[msg.length - 1 - i];
+  //console.log(msg);
+  // const Hm = await PointG2.hashToCurve(signing_root);
+  const isCorrect = await verify(signature, signing_root, publicKey);
+  console.log(isCorrect);
+  const isCorrect2 = await verify(signature, msg, publicKey);
+  console.log(isCorrect2);
+}
+
+verify_block_signature();

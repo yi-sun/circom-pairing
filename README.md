@@ -16,7 +16,7 @@
 
 This repository provides proof-of-concept implementations of elliptic curve pairings (in particular, the optimal Ate pairing and Tate pairing) for the BLS12-381 curve in circom. These implementations are for demonstration purposes only. These circuits are not audited, and this is not intended to be used as a library for production-grade applications.
 
-Circuits can be found in `circuits`. `scripts` contains various utility scripts (most importantly, a script for building a zkSNARK to verify BLS signatures). `test` contains some unit tests for the circuits, mostly for witness generation.
+Circuits can be found in the `circuits` directory. The `scripts` directory contains various utility scripts (most importantly, a script for building a zkSNARK to verify BLS signatures). `test` contains some unit tests for the circuits, mostly for witness generation.
 
 ## Setup
 
@@ -32,6 +32,8 @@ First, install [yarn](https://classic.yarnpkg.com/en/) and [circom](https://docs
 We provide the following circuits as examples:
 
 - `verify`: Prove that a BLS signature verification ran properly on a provided public key, signature, and message. The circuit verifies that the public key and signature are valid.
+- `subgroupcheckG1`:
+- `subgroupcheckG2`:
 - `optimalate`: Prove that the optimal Ate pairing is correctly computed on two elements in appropriate subgroups.
 - `tatepairing`: Prove that the Tate pairing is correctly computed on two elements in appropriate subgroups.
 
@@ -45,10 +47,10 @@ All benchmarks were run on a 32-core 3.1GHz, 256G RAM machine with 1TB hard driv
 
 |                                      | verify | optimalate | tatepairing |
 | ------------------------------------ | ------ | ---------- | ----------- |
-| Constraints                          | 18.6M  |
+| Constraints                          | 19.2M  |
 | Circuit compilation                  | 3.2h   |
 | Witness generation C++ compilation   | 2h     |
-| Witness generation                   | 2.7m   |
+| Witness generation                   | 2.6m   |
 | Trusted setup phase 2 key generation | 56m    |
 | Trusted setup phase 2 contribution   | 24m    |
 | Proving key size                     | 11G    |
