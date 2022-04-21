@@ -16,28 +16,28 @@ template PointOnLine(n, k, p) {
     signal input in[3][2][k]; 
 
     var LOGK = log_ceil(k);
-    var LOGK2 = log_ceil(8*k*k);
+    var LOGK2 = log_ceil(3*k*k);
     assert(3*n + LOGK2 < 251);
 
     // AKA check point on line 
-    component left = BigMultShortLong(n, k, 2*n + LOGK + 2); // 2k-1 registers in [0, 4k*2^{2n+1})
+    component left = BigMultShortLong(n, k, 2*n + LOGK + 1); // 2k-1 registers abs val < 2k*2^{2n}
     for(var i = 0; i < k; i++){
         left.a[i] <== in[0][1][i] + in[2][1][i];
         left.b[i] <== in[1][0][i] - in[0][0][i]; 
     }
 
-    component right = BigMultShortLong(n, k, 2*n + LOGK + 2); // 2k-1 registers in [0, 4k*2^{2n+1})
+    component right = BigMultShortLong(n, k, 2*n + LOGK); // 2k-1 registers abs val < k*2^{2n}
     for(var i = 0; i < k; i++){
         right.a[i] <== in[1][1][i] - in[0][1][i];
         right.b[i] <== in[0][0][i] - in[2][0][i];
     }
     
     component diff_red; 
-    diff_red = PrimeReduce(n, k, k-1, p, 3*n + 2*LOGK + 3);
+    diff_red = PrimeReduce(n, k, k-1, p, 3*n + LOGK2);
     for(var i=0; i<2*k-1; i++)
         diff_red.in[i] <== left.out[i] - right.out[i];  
 
-    // diff_red has k registers in [0, 8*k^2*2^{3n} )
+    // diff_red has k registers abs val < 3*k^2*2^{3n}
     component diff_mod = SignedCheckCarryModToZero(n, k, 3*n + LOGK2, p);
     for(var i=0; i<k; i++)
         diff_mod.in[i] <== diff_red.out[i]; 
@@ -105,7 +105,7 @@ template PointOnTangent(n, k, a, p){
     signal input in[2][2][k];
     
     var LOGK = log_ceil(k);
-    var LOGK3 = log_ceil((3*k+1)*(2*k-1));
+    var LOGK3 = log_ceil((3*k)*(2*k-1) + 1);
     assert(4*n + LOGK3 < 251);
     component x_sq = BigMultShortLong(n, k, 2*n + LOGK); // 2k-1 registers < k*2^{2n}) 
     for(var i=0; i<k; i++){
@@ -165,7 +165,7 @@ template EllipticCurveAddUnequal(n, k, p) {
     signal output out[2][k];
 
     var LOGK = log_ceil(k);
-    var LOGK3 = log_ceil( (3*k*k+1)*(2*k-1) ); 
+    var LOGK3 = log_ceil( (3*k*k)*(2*k-1) + 1 ); 
     assert(4*n + LOGK3 < 251);
 
     // precompute lambda and x_3 and then y_3
@@ -313,8 +313,8 @@ template EllipticCurveAdd(n, k, a1, b1, p){
     signal output out[2][k];
     signal output isInfinity;
 
-    component x_equal = FpIsZero(n, k, p);
-    component y_equal = FpIsZero(n, k, p);
+    component x_equal = FpIsEqual(n, k, p);
+    component y_equal = FpIsEqual(n, k, p);
 
     for(var idx=0; idx<k; idx++){
         x_equal.in[0][idx] <== a[0][idx];
@@ -712,7 +712,7 @@ template LineFunctionEqual(n, k, q) {
         }
     }
     
-    var LOGK3 = log_ceil((2*k-1)*(3*k*k+1));
+    var LOGK3 = log_ceil((2*k-1)*(3*k*k) + 1);
     component reduce[6][4]; 
     for (var i = 0; i < 6; i++) {
         for (var j = 0; j < 2; j++) {

@@ -107,11 +107,52 @@
   - [`EllipticCurveScalarMultiplyUnequal(n, k, b, x, p)`](#ellipticcurvescalarmultiplyunequaln-k-b-x-p)
   - [`SignedLineFunctionUnequalNoCarry(n, k, m_out)`](#signedlinefunctionunequalnocarryn-k-m_out)
   - [`SignedLineFunctionEqualNoCarry(n, k, m_out)`](#signedlinefunctionequalnocarryn-k-m_out)
-  - [`SignedLineFunctionUnequal(n, k, p)`](#signedlinefunctionunequaln-k-p)
-  - [`SignedLineFunctionEqual(n, k, p)`](#signedlinefunctionequaln-k-p)
+  - [`LineFunctionUnequal(n, k, p)`](#linefunctionunequaln-k-p)
+  - [`LineFunctionEqual(n, k, p)`](#linefunctionequaln-k-p)
   - [`Fp12MultplyWithLineUnequal(n, k, kg, overflowg, p)`](#fp12multplywithlineunequaln-k-kg-overflowg-p)
   - [`MillerLoop(n, k, b, x, p)`](#millerloopn-k-b-x-p)
   - [`BLSMillerLoop(n, k, p)`](#blsmillerloopn-k-p)
+- [Elliptic curve over `F_{p^2}` templates](#elliptic-curve-over-f_p%5E2-templates)
+  - [`PointOnLineFp2(n, k, p)`](#pointonlinefp2n-k-p)
+  - [`PointOnCurveFp2(n, k, a, b, p)`](#pointoncurvefp2n-k-a-b-p)
+  - [`EllipticCurveFunction(n, k, a, b, p)`](#ellipticcurvefunctionn-k-a-b-p)
+  - [`PointOnTangentFp2(n, k, a, p)`](#pointontangentfp2n-k-a-p)
+  - [`EllipticCurveAddUnequalFp2(n, k, p)`](#ellipticcurveaddunequalfp2n-k-p)
+  - [`EllipticCurveDoubleFp2(n, k, a, b, p)`](#ellipticcurvedoublefp2n-k-a-b-p)
+  - [`EllipticCurveAddFp2(n, k, p)`](#ellipticcurveaddfp2n-k-p)
+  - [`EllipticCurveScalarMultiplyFp2(n, k, b, x, p)`](#ellipticcurvescalarmultiplyfp2n-k-b-x-p)
+  - [`EllipticCurveScalarMultiplyUnequalFp2(n, k, b, x, p)`](#ellipticcurvescalarmultiplyunequalfp2n-k-b-x-p)
+  - [`SignedLineFunctionUnequalNoCarryFp2(n, k, m_out)`](#signedlinefunctionunequalnocarryfp2n-k-m_out)
+  - [`SignedLineFunctionEqualNoCarryFp2(n, k, m_out)`](#signedlinefunctionequalnocarryfp2n-k-m_out)
+  - [`LineFunctionUnequalFp2(n, k, p)`](#linefunctionunequalfp2n-k-p)
+  - [`LineFunctionEqualFp2(n, k, p)`](#linefunctionequalfp2n-k-p)
+  - [`Fp12MultplyWithLineUnequalFp2(n, k, kg, overflowg, p)`](#fp12multplywithlineunequalfp2n-k-kg-overflowg-p)
+  - [`MillerLoopFp2(n, k, b, x, p)`](#millerloopfp2n-k-b-x-p)
+  - [`MillerLoopFp2Two(n, k, b, x, p)`](#millerloopfp2twon-k-b-x-p)
+- [Final exponentiation templates](#final-exponentiation-templates)
+  - [`Fp12CyclotomicCompress(n, k)`](#fp12cyclotomiccompressn-k)
+  - [`Fp12CyclotomicDecompress(n, k, p)`](#fp12cyclotomicdecompressn-k-p)
+  - [`SignedFp12CyclotomicSquareNoCarry(n, k)`](#signedfp12cyclotomicsquarenocarryn-k)
+  - [`Fp12CyclotomicSquare(n, k, p)`](#fp12cyclotomicsquaren-k-p)
+  - [`Fp12CyclotomicExp(n, k, e, p)`](#fp12cyclotomicexpn-k-e-p)
+  - [`FinalExpHardPart(n, k, p)`](#finalexphardpartn-k-p)
+  - [`FinalExpEasyPart(n, k, p)`](#finalexpeasypartn-k-p)
+  - [`FinalExponentiate(n, k, p)`](#finalexponentiaten-k-p)
+- [BLS12-381 Map to G2 and subgroup checks](#bls12-381-map-to-g2-and-subgroup-checks)
+  - [`OptSimpleSWU2(n, k)`](#optsimpleswu2n-k)
+  - [`Iso3Map(n, k)`](#iso3mapn-k)
+  - [`EndomorphismPsi(n, k, p)`](#endomorphismpsin-k-p)
+  - [`EndomorphismPsi2(n, k, p)`](#endomorphismpsi2n-k-p)
+  - [`ClearCofactorG2(n, k)`](#clearcofactorg2n-k)
+  - [`MapToG2(n, k)`](#maptog2n-k)
+  - [`SubgroupCheckG2(n, k)`](#subgroupcheckg2n-k)
+  - [`SubgroupCheckG1(n, k)`](#subgroupcheckg1n-k)
+- [Pairing templates](#pairing-templates)
+  - [`BLSTatePairing(n, k, p)`](#blstatepairingn-k-p)
+  - [`BLSAtePairing(n, k, p)`](#blsatepairingn-k-p)
+- [BLS Signature templates](#bls-signature-templates)
+  - [`CoreVerifyPubKeyG1NoCheck(n, k)`](#coreverifypubkeyg1nocheckn-k)
+  - [`CoreVerifyPubkeyG1(n, k)`](#coreverifypubkeyg1n-k)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -138,6 +179,8 @@ over `F_{q^2}` (see below).
 For general implementations not particular to BLS12-381, we denote the prime by `p` below.
 
 ## Input format
+
+To format inputs correctly for our circuits, in `Python` one can use the functions in `python/field_helper.py` which are designed to work with [py_ecc](https://github.com/ethereum/py_ecc). In `Typescript` one can see `test/test.ts` for an example of how to format inputs compatibly with [@noble/bls12-381](https://www.npmjs.com/package/@noble/bls12-381).
 
 ### Proper BigInt representation
 
@@ -1361,7 +1404,7 @@ Output:
 
 `curve.circom` contains circuits for operations on `F_p` points of an elliptic curve. Most of the circuits work for an arbitrary elliptic curve `E` in short Weierstrass form `y^2 = x^3 + a x + b` where `a,b` are "short" integers, i.e., `< 2^n`. For optimization purposes and simplicity, a few circuits only work for curves of the form `y^2 = x^3 + b` (i.e., `a = 0`), but can be easily modified to work in the case `a != 0` if further need arises.
 
-See [Point in `E(F_p)`](#point-in-efp) for a reminder on how we represent points in `E(F_p)`. Unless otherwise specifics, all BigInts use `k` registers of bit size `n`. Unless explicitly stated, we do not constrain a point in `E(F_p)` to actually lie on the curve.
+See [Point in `E(F_p)`](#point-in-efp) for a reminder on how we represent points in `E(F_p)`. Unless otherwise specificied, all BigInts use `k` registers of bit size `n`. Unless explicitly stated, we do not constrain a point in `E(F_p)` to actually lie on the curve.
 
 ### `PointOnLine(n, k, p)`
 
@@ -1380,6 +1423,7 @@ Implementation:
 
 Assumption:
 
+- `in[0] != in[1]`
 - Requires `8k^2 * 2^{3n} < 2^251` to prevent overflow
 
 ### `PointOnCurve(n, k, a, b, p)`
@@ -1404,7 +1448,7 @@ Assumptions:
 
 ### `PointOnTangent(n, k, a, p)`
 
-Prove that a point `(x_1, y_1)` lies on the tangent line to curve `E : y^2 = x^3 + a x + b` at a point `(x_3, y_3)`. Does not check that `(x_3, y_3)` is on the curve. Note that the circuit does not require `b`.
+Prove that a point `(x_3, -y_3)` lies on the tangent line to curve `E : y^2 = x^3 + a x + b` at a point `(x_1, y_1)`. Does not check that `(x_1, y_1)` is on the curve. Note that the circuit does not require `b`.
 
 Input:
 
@@ -1418,8 +1462,9 @@ Implementation:
 Assumptions:
 
 - Curve parameter `0 <= a < 2^n`
-- Require `(3k^2 + 1)*(2k - 1) * 2^{4n} < 2^251` to prevent overflow.
-- `5k <= 2^n`
+- `in[0]` is on `E(F_p)`
+- Require `(3k^2(2k - 1) + 1) * 2^{4n} < 2^251` to prevent overflow.
+- `5k(2k - 1) <= 2^n`
 
 ### `EllipticCurveAddUnequal(n, k, p)`
 
@@ -1445,8 +1490,8 @@ Assumptions:
 
 - `a, b` are on `E(F_p)`
 - `x_1 != x_2`, i.e., `a != b` and `a != -b`.
-- Require `(3k^2+1)(2k-1) * 2^{4n} < 2^251` to prevent overflow.
-- `k <= 2^n`
+- Require `(3k^2(2k-1) + 1) * 2^{4n} < 2^251` to prevent overflow.
+- `k(2k-1) <= 2^n`
 
 ### `EllipticCurveDouble(n, k, a, b, p)`
 
@@ -1471,9 +1516,10 @@ Implementation:
 Assumptions:
 
 - Curve parameters `0 <= a, b < 2^n`
+- `in` lies on `E(F_p)`
 - `y_1 != 0`, i.e., `in` is not a point of order `2`. (Fact: BLS12-381 has no points of order `2`.)
-- Require `(3k^2 + 1)*(2k - 1) * 2^{4n} < 2^251` to prevent overflow.
-- `5k <= 2^n`
+- Require `(3k^2(2k - 1) + 1) * 2^{4n} < 2^251` to prevent overflow.
+- `5k(2k - 1) <= 2^n`
 
 ### `EllipticCurveAdd(n, k, p)`
 
@@ -1503,8 +1549,8 @@ Assumptions:
 
 - `a, b` are on `E(F_p)`
 - `E(F_p)` has no points of order `2`
-- Require `(3k^2 + 1)*(2k - 1) * 2^{4n} < 2^251` to prevent overflow.
-- `5k <= 2^n`
+- Require `(3k^2(2k - 1) + 1) * 2^{4n} < 2^251` to prevent overflow.
+- `5k(2k - 1) <= 2^n`
 
 ### `EllipticCurveScalarMultiply(n, k, b, x, p)`
 
@@ -1534,6 +1580,8 @@ Assumptions:
 - `0 <= x < 2^250`
 - `in` is point on `E(F_p)` even if `inIsInfinity == 1`
 - `E(F_p)` has no points of order `2`
+- Require `(3k^2(2k - 1) + 1) * 2^{4n} < 2^251` to prevent overflow.
+- `5k(2k - 1) <= 2^n`
 
 ### `EllipticCurveScalarMultiplyUnequal(n, k, b, x, p)`
 
@@ -1560,6 +1608,8 @@ Assumptions:
 - `0 <= x < 2^250`
 - `in` is point on `E(F_p)` of order `> x`
 - `E(F_p)` has no points of order `2`
+- Require `(3k^2(2k - 1) + 1) * 2^{4n} < 2^251` to prevent overflow.
+- `5k(2k - 1) <= 2^n`
 
 ### `SignedLineFunctionUnequalNoCarry(n, k, m_out)`
 
@@ -1612,7 +1662,7 @@ Assumptions:
 
 - `(3k^2 + 2k/B) * B^3 < 2^252`
 
-### `SignedLineFunctionUnequal(n, k, p)`
+### `LineFunctionUnequal(n, k, p)`
 
 Proves evaluation of a line through two **unequal** `E(F_p)` points at a `E(F_{p^12})` point.
 
@@ -1627,14 +1677,14 @@ Output:
 
 Implementation:
 
-- Calls `LineFunctionUnequalNoCarry`, then compresses using `Fp12Compress`, and finally carries using `SignedFp12CarryModP`
+- Calls `SignedLineFunctionUnequalNoCarry`, then compresses using `Fp12Compress`, and finally carries using `SignedFp12CarryModP`
 
 Assumptions:
 
 - `P[0] != P[1]`
 - Requires `3k^2 * 2^{3n} < 2^251` to prevent overflow.
 
-### `SignedLineFunctionEqual(n, k, p)`
+### `LineFunctionEqual(n, k, p)`
 
 Proves evaluation of a tangent line to curve `E : y^2 = x^3 + b` through an `E(F_p)` point `P` at a `E(F_{p^12})` point `Q`.
 
@@ -1645,7 +1695,7 @@ Inputs:
 
 Output:
 
-- `out`: `F_{p^12}` element
+- `out`: `F_{p^12}` element equal to `l_{P,P}(Q)`
 
 Implementation:
 
@@ -1653,8 +1703,8 @@ Implementation:
 
 Assumptions:
 
-- Requires `(3k^2 + 1) * (2k-1) * 2^{4n} < 2^251` to prevent overflow.
-- Assumes `2k <= 2^n`
+- Requires `(3k^2(2k-1) + 1) * 2^{4n} < 2^251` to prevent overflow.
+- Assumes `2k(2k - 1) <= 2^n`
 
 ### `Fp12MultplyWithLineUnequal(n, k, kg, overflowg, p)`
 
@@ -1712,6 +1762,7 @@ Assumptions:
 
 - `0 <= b < 2^n`
 - `0 <= x < 2^250`
+- `P` lies on `E(F_p)`
 - `P` has order `> x` and `P` is not point at infinity
 - Requires `(18k)^2 * (2k-1) * 2^{4n} < 2^251` to prevent overflow
 
@@ -1735,5 +1786,778 @@ Implementation:
 
 Assumptions:
 
+- `P` lies on `E(F_p)`
 - `P` has order `r` (but we do not constrain this) where `r` is prime
 - `P` is not point at infinity
+- Requires `(18k)^2 * (2k-1) * 2^{4n} < 2^251` to prevent overflow
+
+## Elliptic curve over `F_{p^2}` templates
+
+`curve_fp2.circom` contains circuits for operations on `F_{p^2}` points of an elliptic curve. These circuits are almost entirely parallel to those in `curve.circom` (see [Elliptic curve templates](#elliptic-curve-templates)).
+
+Most of the circuits work for an arbitrary elliptic curve `E_2` in short Weierstrass form `y^2 = x^3 + a x + b` where `a,b` are "short" `F_{p^2}` points (e.g., `a = a[0] + a[1] u` with `0 <= a[0], a[1] < 2^n`). For optimization purposes and simplicity, a few circuits only work for curves of the form `y^2 = x^3 + b` (i.e., `a = 0`), but can be easily modified to work in the case `a != 0` if further need arises.
+
+See [Point in `E_2(F_{p^2})`](#point-in-e2fp2) for a reminder on how we represent points in `E_2(F_{p^2})`. Unless otherwise specificied, all BigInts use `k` registers of bit size `n`. Unless explicitly stated, we do not constrain a point in `E_2(F_{p^2})` to actually lie on the curve.
+
+### `PointOnLineFp2(n, k, p)`
+
+Prove that three points `(x_0, y_0), (x_1, y_1), (x_2, -y_2)` are co-linear.
+
+Input:
+
+- `in`: length `3 x 2 x 2 x k` array with `in[i][j]` element of `F_{p^2}`
+
+Implementation:
+
+- Let `in[i] = (x_i, y_i)`.
+- Proves that `(y_0 + y_2) * (x_1 - x_0) - (y_1 - y_0) * (x_0 - x_2) == 0` in `F_{p^2}`.
+- `(y_0 + y_2) * (x_1 - x_0) - (y_1 - y_0) * (x_0 - x_2)` is computed "without carry" using `BigMultShortLong2D` and then compressed using `PrimeReduce`.
+- Use `SignedCheckCarryModToZero` to prove congruence to `0 (mod p)`.
+
+Assumption:
+
+- `in[0] != in[1]`
+- Requires `6k^2 * 2^{3n} < 2^251` to prevent overflow
+
+### `PointOnCurveFp2(n, k, a, b, p)`
+
+Prove that a point `(x,y)` lies on an elliptic curve `y^2 = x^3 + a x + b`.
+
+Parameters:
+
+- `a,b`: length `2` arrays
+
+Input:
+
+- `in`: length `2 x 2 x k` array representing two `F_{p^2}` elements
+
+Implementation:
+
+- Let `in = (x,y)`.
+- Proves that `x^3 + a x + b - y^2 == 0` in `F_{p^2}`.
+- Computes `x^3 + a x + b - y^2` without carries using `SignedFp2MultiplyNoCarryUnequal` and then compresses using `PrimeReduce`.
+- Use `SignedCheckCarryModToZero` to prove congruence to `0 (mod p)`.
+
+Assumptions:
+
+- Curve parameters `0 <= a[i],b[i] < 2^n` for `i=0,1`
+- Requires `((4k^2(2k-1) + 1) * 2^{4n} < 2^251` to prevent overflow.
+- `2k^2 + 2(2k-1) <= 2^n`
+
+### `EllipticCurveFunction(n, k, a, b, p)`
+
+Prove evaluation of `x^3 + a x + b` for input `x`.
+
+Parameters:
+
+- `a,b`: length `2` arrays
+
+Input:
+
+- `in`: `F_{p^2}` element
+
+Output:
+
+- `out`: `F_{p^2}` element equal to `in^3 + a * in + b`
+
+Assumptions:
+
+- Curve parameters `0 <= a[i],b[i] < 2^n` for `i=0,1`
+- Requires `(4k^2(2k-1) + 1) * 2^{4n} < 2^251` to prevent overflow.
+- `2k - 1 <= 2^n`
+
+### `PointOnTangentFp2(n, k, a, p)`
+
+Prove that a point `(x_3, -y_3)` lies on the tangent line to curve `E_2 : y^2 = x^3 + a x + b` at a point `(x_1, y_1)`. Does not check that `(x_1, y_1)` is on the curve. Note that the circuit does not require `b`.
+
+Parameter:
+
+- `a`: length `2` array
+
+Input:
+
+- `in`: length `2 x 2 x 2 x k` array representing four `F_{p^2}` elements
+
+Implementation:
+
+- Let `in[0] = (x_1, y_1)` and `in[1] = (x_3, y_3)`.
+- Proves that `2y_1 (y_1 + y_3) = (3 x_1^2 + a)(x_1 - x_3)` in `F_{p^2}`.
+
+Assumptions:
+
+- Curve parameters `0 <= a[0], a[1] < 2^n`
+- `in[0]` is on `E_2`
+- Require `(12k^2(2k - 1) + 1) * 2^{4n} < 2^251` to prevent overflow.
+- `12k(2k - 1) <= 2^n`
+
+### `EllipticCurveAddUnequalFp2(n, k, p)`
+
+Verify the computation of addition of two points `P1 + P2` on an elliptic curve `E_2 : y^2 = x^3 + a2 x + b2` assuming that `P1 != P2` and `P1 != -P2`. We do not verify these assumptions and do not check that `P1, P2` actually lie on the curve. Note that the circuit does not require knowledge of curve parameters `a2, b2`.
+
+Inputs:
+
+- `a`: point on `E_2(F_{p^2})`
+- `b`: point on `E_2(F_{p^2})`
+
+Output:
+
+- `out`: point on `E_2(F_{p^2})` equal to `a + b` using elliptic curve addition.
+
+Implementation:
+
+- Let `a = (x_1, y_1), b = (x_2, y_2), out = (x_3, y_3)`.
+- Precomputes witness for `out` and then proves that:
+- `(x_1 + x_2 + x_3)*(x_2 - x_1)^2 = (y_2 - y_1)^2` in `F_{p^2}`
+- `(y_1 + y_3)*(x_2 - x_1) = (y_2 - y_1)*(x_1 - x_3)` using `PointOnLineFp2`
+
+Assumptions:
+
+- `a, b` are on `E_2`
+- `x_1 != x_2`, i.e., `a != b` and `a != -b`.
+- Require `(12k^2(2k - 1) + 1) * 2^{4n} < 2^251` to prevent overflow.
+- `2k(2k - 1) <= 2^n`
+
+### `EllipticCurveDoubleFp2(n, k, a, b, p)`
+
+Verify the computation of doubling a point on the elliptic curve `E_2 : y^2 = x^3 + a x + b`. We do not check that the point actually lies on the curve.
+
+Parameters:
+
+- `a,b`: length `2` arrays
+
+Inputs:
+
+- `in`: point on `E_2(F_{p^2})`
+
+Output:
+
+- `out`: point on `E_2(F_{p^2})` equal to `2 * in` using elliptic curve doubling formula.
+
+Implementation:
+
+- Let `in = (x_1, y_1), out = (x_3, y_3)`.
+- Precomputes witness for `out` and then proves that:
+- `(x_3, y_3)` lies on `E_2` using `PointOnCurveFp2`
+- `(x_3, y_3)` is on the tangent line to `E_2` at `(x_1, y_1)` using `PointOnTangentFp2`
+- `x_1 != x_3`: the only points of intersection of the tangent line at `(x_1, y_1)` with curve `E_2` are `(x_1, y_1)` and `(x_3, y_3)`.
+
+Assumptions:
+
+- Curve parameters `0 <= a[i], b[i] < 2^n` for `i = 0,1`.
+- `in` lies on `E_2`
+- `y_1 != 0`, i.e., `in` is not a point of order `2`. (Fact: BLS12-381 twist `E_2` has no points of order `2`.)
+- Require `(12k^2(2k - 1) + 1) * 2^{4n} < 2^251` to prevent overflow.
+- `12k(2k - 1) <= 2^n`
+
+### `EllipticCurveAddFp2(n, k, p)`
+
+Verify the computation of addition of two points `P1 + P2` on an elliptic curve `E_2 : y^2 = x^3 + a2 x + b2` without any assumptions on `P1, P2`. Moreover, we allow `P1, P2` to be the point at infinity.
+
+We do not check that `P1, P2` actually lie on the curve. Due to the deterministic nature of `circom`, this circuit costs the sum of the constraints of `EllipticCurveAddUnequalFp2` and `EllipticCurveDoubleFp2`.
+
+Inputs:
+
+- `a`: point on `E_2(F_{p^2})`
+- `aIsInfinity`: `1` if we should interpret `a` as point at infinity; `0` otherwise
+- `b`: point on `E_2(F_{p^2})`
+- `bIsInfinity`: `1` if we should interpret `b` as point at infinity; `0` otherwise
+
+Output:
+
+- `out`: point on `E_2(F_{p^2})` equal to `a + b` using elliptic curve addition.
+- `isInfinity`: `1` if `a + b` is point at infinity; `0` otherwise
+- If `a,b` are on `E_2` (even if `aIsInfinity == 1`), then `out` is on `E_2` (even if `isInfinity == 1`)
+
+Implementation:
+
+- Proves computations of both `EllipticCurveAddUnequalFp2` and `EllipticCurveDoubleFp2`
+- Case analysis of `a = b`, `a = -b`, `a, b` equal point at infinity
+
+Assumptions:
+
+- `a, b` are on `E_2`
+- `E_2(F_{p^2})` has no points of order `2`
+- Require `(12k^2(2k - 1) + 1) * 2^{4n} < 2^251` to prevent overflow.
+- `12k(2k - 1) <= 2^n`
+
+### `EllipticCurveScalarMultiplyFp2(n, k, b, x, p)`
+
+Proves computation of scalar multiplication `[x]P` on elliptic curve of form `E_2 : y^2 = x^3 + b` using the double-and-add method.
+
+Parameter:
+
+- `b`: length `2` array
+- `x`: integer in `[0, 2^250)` to scalar multiply by
+
+Inputs:
+
+- `in`: point on `E_2(F_{p^2})`
+- `inIsInfinity`: `1` if `in` should be interpreted as point at infinity; `0` otherwise
+
+Outputs:
+
+- `out`: point on `E_2(F_{p^2})` equal to `[x]P` where `P = in`
+- `isInfinity`: `1` if `out` should be interpreted as point at infinity; `0` otherwise
+- Assuming `in` is a point on `E_2` (even when `inIsInfinity == 1`), `out` is a point on `E_2` (even when `isInfinity == 1`).
+- Require `(12k^2(2k - 1) + 1) * 2^{4n} < 2^251` to prevent overflow.
+- `12k(2k - 1) <= 2^n`
+
+Implementation:
+
+- Double-and-add method. Uses `EllipticCurveAddFp2` in the "add" part since we cannot guarantee we are adding two unequal points.
+
+Assumptions:
+
+- `0 <= x < 2^250`
+- `in` is point on `E_2` even if `inIsInfinity == 1`
+- `E_2(F_{p^2})` has no points of order `2`
+
+### `EllipticCurveScalarMultiplyUnequalFp2(n, k, b, x, p)`
+
+Proves computation of scalar multiplication `[x]P` on elliptic curve of form `E_2 : y^2 = x^3 + b` using the double-and-add method, assuming that `P` has order `> x` so we never arrive at the point at infinity and we are always adding unequal points.
+
+Parameter:
+
+- `b`: length `2` array
+- `x`: integer in `[0, 2^250)` to scalar multiply by
+
+Inputs:
+
+- `in`: point on `E_2(F_{p^2})`
+
+Outputs:
+
+- `out`: point on `E_2(F_{p^2})` equal to `[x]P` where `P = in`.
+
+Implementation:
+
+- Double-and-add method. Uses `EllipticCurveAddUnequalFp2` in the "add" part because if `P` has order `> x`, then `[i]P != [j]P` for any `0 < i,j <= x`.
+
+Assumptions:
+
+- `0 <= x < 2^250`
+- `in` is point on `E_2` of order `> x`
+- `E_2(F_{p^2})` has no points of order `2`
+- Require `(12k^2(2k - 1) + 1) * 2^{4n} < 2^251` to prevent overflow.
+- `12k(2k - 1) <= 2^n`
+
+### `SignedLineFunctionUnequalNoCarryFp2(n, k, m_out)`
+
+Proves evaluation of a line through two **unequal** `E_2(F_{p^2})` points at a `E(F_p)` point, evaluated without carries. To give this circuit meaning, we implicitly assume that `E_2` is a sextic twist of `E`, and we are embedding `E_2(F_{p^2})` into `E(F_{p^12})` using the **twist homomorphism** `Psi(x,y) = (x/w^2, y/w^3)`.
+
+Inputs:
+
+- `P`: two `E_2(F_{p^2})` points `P[0], P[1]`
+- `Q`: `E(F_p)` point
+
+Output:
+
+- `out`: an element in `F_{p^12}` with `out[i][j]` in [signed overflow representation](#signed-overflow-representation) with `2k-1` registers
+
+Implementation:
+
+- Let `P[0] = (x_1, y_1), P[1] = (x_2, y_2)` and `Q = (X, Y)`.
+- `out = w^3 (y_1 - y_2) X + w^4 (x_2 - x_1) Y + w (x_1 y_2 - x_2 y_1)`
+- We evaluate `out` using `SignedFp2MultiplyNoCarry` and optimize using the knowledge that `1, w, ..., w^5` is a `F_{p^2}`-basis for `F_{p^12}`.
+- If all input registers are in `[0, B)`, then output registers have absolute value `< 2k * B^2`
+
+Assumptions:
+
+- `P[0] != P[1]`
+- `2k * B^2 < 2^252`
+
+Parameter `m_out` is the expected max number of bits in the output registers.
+
+### `SignedLineFunctionEqualNoCarryFp2(n, k, m_out)`
+
+Proves evaluation of a tangent line to curve `E_2 : y^2 = x^3 + b` through an `E_2(F_{p^2})` point `P` at a `E(F_p)` point `Q`, evaluated without carries. To give this circuit meaning, we implicitly assume that `E_2` is a sextic twist of `E`, and we are embedding `E_2(F_{p^2})` into `E(F_{p^12})` using the **twist homomorphism** `Psi(x,y) = (x/w^2, y/w^3)`.
+
+Inputs:
+
+- `P`: `E_2(F_{p^2})` point
+- `Q`: `E(F_p)` point
+
+Output:
+
+- `out`: an element in `F_{p^12}` with `out[i][j]` in signed overflow representation with `3k-2` registers
+
+Implementation:
+
+- Let `P = (x, y)` and `Q = (X, Y)`.
+- `out = (3x^3 - 2y^2) + w^2 (-3 x^2 X) + w^3 (2 y Y)`
+- We evaluate `out` using `SignedFp2MultiplyNoCarryUnequal` and optimize using the knowledge that `1, w, ..., w^5` is a `F_{p^2}`-basis for `F_{p^12}`.
+- If all input registers are in `[0, B)`, then output registers have absolute value `< (12k^2 + 4k/B) * B^3`
+
+Assumptions:
+
+- `P` is on `E_2`
+- `(12k^2 + 4k/B) * B^3 < 2^252`
+
+### `LineFunctionUnequalFp2(n, k, p)`
+
+Proves evaluation of a line through two **unequal** `E_2(F_{p^2})` points at a `E(F_p)` point. To give this circuit meaning, we implicitly assume that `E_2` is a sextic twist of `E`, and we are embedding `E_2(F_{p^2})` into `E(F_{p^12})` using the **twist homomorphism** `Psi(x,y) = (x/w^2, y/w^3)`.
+
+Inputs:
+
+- `P`: two `E_2(F_{p^2})` points `P[0], P[1]`
+- `Q`: `E(F_p)` point
+
+Output:
+
+- `out`: `F_{p^12}` element equal to `l_{Psi(P[0]), Psi(P[1])}(Q)`
+
+Implementation:
+
+- Calls `SignedLineFunctionUnequalNoCarryFp2`, then compresses using `Fp12Compress`, and finally carries using `SignedFp12CarryModP`
+
+Assumptions:
+
+- `P[0] != P[1]`
+- Requires `2k^2 * 2^{3n} < 2^251` to prevent overflow.
+
+### `LineFunctionEqualFp2(n, k, p)`
+
+Proves evaluation of a tangent line to curve `E_2 : y^2 = x^3 + b` through an `E_2(F_{p^2})` point `P` at a `E(F_p)` point `Q`. To give this circuit meaning, we implicitly assume that `E_2` is a sextic twist of `E`, and we are embedding `E_2(F_{p^2})` into `E(F_{p^12})` using the **twist homomorphism** `Psi(x,y) = (x/w^2, y/w^3)`.
+
+Inputs:
+
+- `P`: `E_2(F_{p^2})` point
+- `Q`: `E(F_p)` point
+
+Output:
+
+- `out`: `F_{p^12}` element equal to `l_{Psi(P), Psi(P)}(Q)`
+
+Implementation:
+
+- Calls `SignedLineFunctionEqualNoCarryFp2`, then compresses using `Fp12Compress`, and finally carries using `SignedFp12CarryModP`
+
+Assumptions:
+
+- `P` is on `E_2`
+- Requires `(12k^2(2k - 1) + 1) * 2^{4n} < 2^251` to prevent overflow.
+- `4k(2k-1) <= 2^n`
+
+### `Fp12MultplyWithLineUnequalFp2(n, k, kg, overflowg, p)`
+
+Inputs:
+
+- `g`: element of `F_{p^12}` in signed overflow format with `kg` registers
+- `P`: two `E_2(F_{p^2})` points
+- `Q`: `E(F_p)` point
+
+Output:
+
+- `out`: `F_{p^12}` element equal to `g * l_{Psi(P[0]), Psi(P[1])}(Q)`
+
+Implementation:
+
+- Calls `SignedLineFunctionUnequalNoCarryFp2` to compute `l_{Psi(P[0]), Psi(P[1])}(Q)`
+- Calls `SignedFp12MultiplyNoCarryUnequal` to compute `g * l_{Psi(P[0]), Psi(P[1])}(Q)` **all without carries**
+- Compresses using `Fp12Compress` and finally carries **just once** using `SignedFp12CarryModP`
+
+Assumptions:
+
+- `P[0] != P[1]`
+- Requires `12k * min(kg, 2k-1) * 18 * (k + kg - 1) * 2^{overflowg + 3n} < 2^251` to prevent overflow. (In practice `kg = k` and `overflowg = n`.)
+
+The point is that `l_{Psi(P[0]), Psi(P[1])}(Q)` is quadratic, so we can squeeze in another multiplication before we need to carry. This is used in `MillerLoopFp2`.
+
+### `MillerLoopFp2(n, k, b, x, p)`
+
+Proves computation of Miller's algorithm on a curve of the form `y^2 = x^3 + b`. Used for the optimal Ate pairing. We assume that `E_2` is a sextic twist of `E`, and we are embedding `E_2(F_{p^2})` into `E(F_{p^12})` using the **twist homomorphism** `Psi(x,y) = (x/w^2, y/w^3)`.
+
+Parameters:
+
+- `b`: length `2` array
+- `x`: integer
+
+Inputs:
+
+- `P`: `E_2(F_{p^2})` point
+- `Q`: `E(F_p)` point
+
+Outputs:
+
+- `out`: `F_{p^12}` element
+- `xP`: `E(F_p)` point equal to `[x]P`
+
+Implementation:
+
+- `out = f_x(P, Q)` where `f_i(P,Q)` is defined recursively using Miller's algorithm:
+  - `f_0(P,Q) = 1`
+  - `f_{i+j}(P,Q) = f_i(P,Q) * f_j(P,Q) * l_{Psi([i]P), Psi([j]P)}(Q)`
+- `f_x(P, Q)` and `[x]P` are computed using the double-and-add method.
+
+Assumptions:
+
+- `0 <= b[0], b[1] < 2^n`
+- `0 <= x < 2^250`
+- `P` is on `E_2`
+- `P` has order `> x` and `P` is not point at infinity
+- Requires `(18k)^2 * (2k-1) * 2^{4n} < 2^251` to prevent overflow
+
+### `MillerLoopFp2Two(n, k, b, x, p)`
+
+Proves computation of running Miller's algorithm **twice** on a curve of the form `y^2 = x^3 + b`. Used for BLS signatures. We assume that `E_2` is a sextic twist of `E`, and we are embedding `E_2(F_{p^2})` into `E(F_{p^12})` using the **twist homomorphism** `Psi(x,y) = (x/w^2, y/w^3)`.
+
+Parameters:
+
+- `b`: length `2` array
+- `x`: integer
+
+Inputs:
+
+- `P`: two `E_2(F_{p^2})` points `P[0], P[1]`
+- `Q`: two `E(F_p)` points `Q[0], Q[1]`
+
+Outputs:
+
+- `out`: `F_{p^12}` element equal to `f_x(P[0], Q[0]) * f_x(P[1], Q[1])`
+
+Implementation:
+
+- `out = f_x(P[0], Q[0]) * f_x(P[1], Q[1])` where `f_i(P,Q)` is defined recursively using Miller's algorithm:
+  - `f_0(P,Q) = 1`
+  - `f_{i+j}(P,Q) = f_i(P,Q) * f_j(P,Q) * l_{Psi([i]P), Psi([j]P)}(Q)`
+- We use the double-and-add method with an optimization that we only need to keep track of the product `f_i(P[0], Q[0]) * f_i(P[1], Q[1])`. This means we only need to square once in `F_{p^12}` instead of twice.
+
+Assumptions:
+
+- `0 <= b[0], b[1] < 2^n`
+- `0 <= x < 2^250`
+- `P[0], P[1]` are on `E_2`
+- `P[i]` has order `> x` and `P[i]` is not point at infinity for `i = 0,1`.
+- Requires `(18k)^2 * (2k-1) * 2^{4n} < 2^251` to prevent overflow
+
+## Final exponentiation templates
+
+`final_exp.circom` contains circuits for exponentiating an `F_{p^12}` element to the `(p^12 - 1)/r` power, which is necessary for the Tate pairing and optimal Ate pairing. The exponentiation can be separated into two parts: an easy part utilizing Frobenius maps and a hard part.
+
+For the hard part we use the approach of [Hayashida-Hayasaka-Teruya](https://eprint.iacr.org/2020/875.pdf). The hard part involves exponentiating an element in the cyclotomic subgroup, and we optimize this by using the optimization for cyclotomic squaring of [Karabina](https://eprint.iacr.org/2010/542.pdf).
+
+The cyclotomic subgroup of `F_{p^12}` is defined as the subgroup of all elements `a` such that `a^{q^4 - q^2 + 1} = 1`, where `q^4 - q^2 + 1` is the 12th cyclotomic polynomial.
+
+### `Fp12CyclotomicCompress(n, k)`
+
+Theorem 3.1 of [Karabina](https://eprint.iacr.org/2010/542.pdf) shows that an element in the cyclotomic subgroup can be recovered (decompressed) from data in a compressed format. This circuit verifies the compression step.
+
+Input:
+
+- `in`: [`F_{p^12}` element](#fp12-element)
+
+Output:
+
+- `out`: four `F_{p^2}` elements
+
+Implementation:
+
+- Let `in = g0 + g2 w + g4 w^2 + g1 w^3 + g3 w^4 + g5 w^5` where `g_i` are `F_{p^2}` elements.
+- `out = [g2, g3, g4, g5]`
+
+Assumption:
+
+- `in` is in the cyclotomic subgroup
+
+### `Fp12CyclotomicDecompress(n, k, p)`
+
+This circuit verifies the decompression step mentioned above.
+
+Input:
+
+- `in`: four `F_{p^2}` elements
+
+Output:
+
+- `out`: `F_{p^12}` element
+
+Implementation:
+
+- Let `in = [g2, g3, g4, g5]`
+- If `g2 != 0`:
+  - `(g5^2 * (1+u) + 3 g4^2 - 2 g3)/(4g2)`
+  - `(2 g1^2 + g2 * g5 - 3 g3*g4) * (1+u) + 1`
+- If `g2 == 0`:
+  - `g1 = (2 g4 * g5)/g3`
+  - `g0 = (2 g1^2 - 3 g3 * g4) * (1+u) + 1`
+- Uses `SignedFp2Divide`
+- `out = [g0, g2, g4, g1, g3, g5]`
+
+Assumptions:
+
+- Require `(10k^2 + 1) * 2^{3n} < 2^250` to prevent overflow
+
+### `SignedFp12CyclotomicSquareNoCarry(n, k)`
+
+Theorem 3.2 of [Karabina](https://eprint.iacr.org/2010/542.pdf) gives a formula for how to square a cyclotomic element in its compressed form. This circuit verifies the computation where **no carries** are performed.
+
+Input:
+
+- `in`: four `F_{p^2}` elements
+
+Output:
+
+- `out`: four `F_{p^2}` elements with BigInts in signed overflow representation with `2k - 1` registers
+
+Implementation:
+
+- Let `c = 1 + u`
+- `h2 = 2(g2 + 3*c*B_45)`
+- `h3 = 3(A_45 - (c+1)B_45) - 2g3`
+- `h4 = 3(A_23 - (c+1)B_23) - 2g4`
+- `h5 = 2(g5 + 3B_23)`
+- `A_ij = (g_i + g_j)(g_i + c g_j)`
+- `B_ij = g_i g_j`
+- `out = [h2, h3, h4, h5]`
+- All operations are done without carrying.
+- If all input registers have absolute value `< B`, then output registers have absolute value `< (54k + 2/B) * B^2`
+
+Assumption:
+
+- `(54k + 2/B) * B^2 < 252`
+
+### `Fp12CyclotomicSquare(n, k, p)`
+
+Verifies computation of cyclotomic squaring in compressed form with carries.
+
+Input:
+
+- `in`: four `F_{p^2}` elements
+
+Output:
+
+- `out`: four `F_{p^2}` elements
+
+Implementation:
+
+- Calls `SignedFp12CyclotomicSquareNoCarry` and then four calls to `Fp2Compress` and `SignedFp2CarryModP`
+
+Assumption:
+
+- Requires `(54k^2 + 1) * 2^{3n} < 251` to prevent overflow.
+
+### `Fp12CyclotomicExp(n, k, e, p)`
+
+Circuit verifies computation of exponentiation of cyclotomic element to `e` power.
+
+Parameter:
+
+- `e`: positive integer
+
+Input:
+
+- `in`: `F_{p^12}` element
+
+Output:
+
+- `out`: `F_{p^12}` element equal to `in^e`
+
+Implementation:
+
+- We exponentiate using the square-and-multiply method.
+- Compress `in` at the beginning and compute squares in compressed format.
+- Decompress and multiply at the bits equal to `1` in `e`
+
+Assumptions:
+
+- `0 < e < BabyJubJubPrime`
+- `in` is in the cyclotomic subgroup
+- Require `(10k^2 + 1) * 2^{3n} < 2^250` to prevent overflow
+
+### `FinalExpHardPart(n, k, p)`
+
+This circuit is specialized to BLS12-381 as it uses the parameter `x` generating BLS curves. It uses the approach of [Hayashida-Hayasaka-Teruya](https://eprint.iacr.org/2020/875.pdf), top of p. 14.
+
+Input:
+
+- `in`: `F_{p^12}` element
+
+Output:
+
+- `out`: `F_{p^12}` element equal to `in^{(p^4 - p^2 + 1)/r}`
+
+Assumptions:
+
+- `0 < e < BabyJubJubPrime`
+- `in` is in the cyclotomic subgroup
+- Require `(10k^2 + 1) * 2^{3n} < 2^250` to prevent overflow
+
+### `FinalExpEasyPart(n, k, p)`
+
+Input:
+
+- `in`: `F_{p^12}` element
+
+Output:
+
+- `out`: `F_{p^12}` element equal to `in^{(p^6 - 1)(p^2+1)}`
+
+Implementation:
+
+- Uses `Fp12FrobeniusMap`
+
+Assumption:
+
+- `18k^2 * 2^{3n} < 2^251`
+
+### `FinalExponentiate(n, k, p)`
+
+This circuit is specialized to BLS12-381.
+
+Input:
+
+- `in`: `F_{p^12}` element
+
+Output:
+
+- `out`: `F_{p^12}` element equal to `in^{(p^12 - 1)/r}`
+
+Implementation:
+
+- Combines `FinalExpEasyPart` and `FinalExpHardPart`.
+
+Assumption:
+
+- `(10k^2 + 1) * 2^{3n} < 2^250`
+
+## BLS12-381 Map to G2 and subgroup checks
+
+`bls12_381_hash_to_G2.circom` contains circuits for proving computations that hash a message to the subgroup `G2` of `E_2(F_{p^2})`, the twist of BLS12-381. These are in accordance with the [IRTF Internet draft](https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-14#section-10). The implementation is rather technical so we refer to the code for details.
+
+`bls12_381_hash_to_G2.circom` also contains optimized circuits for proving that input elements lie in the subgroups `G1` of BLS12-381 `E(F_p)` and `G2` of `E_2(F_{p^2})` its twist. These use the method of endomorphisms.
+
+### `OptSimpleSWU2(n, k)`
+
+### `Iso3Map(n, k)`
+
+### `EndomorphismPsi(n, k, p)`
+
+### `EndomorphismPsi2(n, k, p)`
+
+### `ClearCofactorG2(n, k)`
+
+### `MapToG2(n, k)`
+
+Implements steps 2-6 of hash_to_curve as specified in https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-14#section-3 for BLS12-381.
+
+Input:
+
+- `in`: two `F_{p^2}` elements
+
+Output:
+
+- `out`: `E_2(F_{p^2})` point that lies in subgroup `G2`
+- `isInfinity`: `1` if `out` should be interpreted as point at infinity; `0` otherwise
+
+In practice `in = hash_to_field(msg, 2)` for an arbitrary-length byte string `msg`, in which case `out = hash_to_curve(msg)`.
+
+### `SubgroupCheckG2(n, k)`
+
+Input:
+
+- `in`: pair of `F_{p^2}` elements
+
+Implements:
+
+- Proves that `in` is a point on `E_2(F_{p^2})`, the twist of BLS12-381
+- Proves that `in` has order `r`, i.e., `in` is in subgroup `G2`
+
+### `SubgroupCheckG1(n, k)`
+
+Input:
+
+- `in`: pair of `F_p` elements
+
+Implements:
+
+- Proves that `in` is a point on BLS12-381 `E(F_p)`
+- Proves that `in` has order `r`, i.e., `in` is in subgroup `G1`
+
+## Pairing templates
+
+`pairing.circom` contains the circuits for the Tate pairing and optimal Ate pairing, specialized to BLS12-381.
+
+### `BLSTatePairing(n, k, p)`
+
+Input:
+
+- `P`: `E(F_p)` element
+- `Q`: `E(F_{p^12})` element
+
+Output:
+
+- `out`: `F_{p^12}` element equal to Tate pairing `e(P,Q)`
+
+Assumption:
+
+- `P` is on `E` and has order `r`
+- `Q` is on `E`
+
+### `BLSAtePairing(n, k, p)`
+
+Input:
+
+- `P`: `E_2(F_{p^2})` element where `E_2` is twist of BLS12-381
+- `Q`: `E(F_p)` element
+
+Output:
+
+- `out`: `F_{p^12}` element equal to optimal Ate pairing `e(P,Q)`
+
+Assumption:
+
+- `P` is on `E_2` and has order `r`
+- `Q` is on `E`
+
+## BLS Signature templates
+
+`bls_signature.circom` contains the circuits for BLS signature verification, specialized to BLS12-381.
+
+### `CoreVerifyPubKeyG1NoCheck(n, k)`
+
+Circuit to verify BLS signature where public key size is minimized (so public key is in subgroup `G1`) and we are given the hash `H(m)` of a message as a point in subgroup `G2`.
+
+Inputs:
+
+- `pubkey`: `E(F_p)` point
+- `signature`: `E_2(F_{p^2})` point
+- `Hm`: `E_2(F_{p^2})` point
+
+Output:
+
+- `out`: `1` if valid BLS signature; `0` otherwise
+
+Implementation:
+
+- Checks if `e(g1, signature) == e(pubkey, H(m))` by checking if `e(g1, signature) * e(pubkey, -H(m)) == 1` where `e(,)` is the optimal Ate pairing, `g1` is a fixed public generator of `G1`.
+- Computes `e(g1, signature) * e(pubkey, -H(m))` by calling `MillerLoopFp2Two` and then `FinalExponentiate`.
+
+Assumptions:
+
+- `pubkey` is on `E` and in subgroup `G1`
+- `signature` is on `E_2` and in subgroup `G2`
+- `Hm` is on `E_2` and in subgroup `G2`
+
+### `CoreVerifyPubkeyG1(n, k)`
+
+Circuit to verify BLS signature where public key size is minimized (so public key is in subgroup `G1`) and we are given a hashed message in the form of two `F_{p^2}` elements (in practice, `hash = hash_to_field(msg,2)`).
+
+Inputs:
+
+- `pubkey`: length `2 x k` array
+- `signature`: length `2 x 2 x k` array
+- `hash`: length `2 x 2 x k` array
+
+Implements:
+
+- Verifies that `pubkey`, `signature`, `hash` have entries in `[0, 2^n)`
+- Verifies that `pubkey` is point on `E(F_p)`
+  - Proves that each `F_p` coordinate is `< p`
+  - Proves that `pubkey` lies on `E`
+- Verifies that `pubkey` is in subgroup `G1`
+- Verifies that `signature` is point on `E_2(F_{p^2})`
+  - Proves that each `F_p` coordinate is `< p`
+  - Proves that `signature` lies on `E_2`
+- Verifies that `signature` is in subgroup `G2`
+- Verifies that `hash[i][j] < p` for `0 <= i,j < 2` so `hash` is a pair of `F_{p^2}` elements.
+- Verifies that `e(g1, signature) == e(pubkey, H(m))` where `H(m) = MapToG2(hash)`.

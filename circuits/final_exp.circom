@@ -44,8 +44,8 @@ template Fp12CyclotomicDecompress(n, k, p) {
 
     var XI0 = 1;
     var LOGK = log_ceil(k); 
-    var LOGK2 = log_ceil( ((1+XI0) * 8 * k + 1) * k );
-    var LOGK3 = log_ceil( ((1+XI0) * 6*k + 1) * k );
+    var LOGK2 = log_ceil( ((1+XI0)*2*k + 6*k )*k + 1);
+    var LOGK3 = log_ceil( (1+XI0) * 6*k*k + 1 );
     assert(3*n + LOGK2 < 250);
 
     var len = 2*k-1; // number of registers in output of Fp2MultiplyNoCarry
@@ -60,43 +60,38 @@ template Fp12CyclotomicDecompress(n, k, p) {
     }
 
     // detect if g2 is 0
-    component g2Zero[2];
-    for(var eps=0; eps<2; eps++){
-        g2Zero[eps] = BigIsZero(k);
-        for(var i=0; i<k; i++)
-            g2Zero[eps].in[i] <== in[0][eps][i];
+    component g2IsZero = Fp2IsZero(n, k, p);
+    for(var eps=0; eps<2; eps++)for(var i=0; i<k; i++){
+        g2IsZero.in[eps][i] <== in[0][eps][i];
     }
-    var total = 2 - g2Zero[0].out - g2Zero[1].out; 
-    component g2isZero = IsZero();
-    g2isZero.in <== total;
-
-
 
     // COMPUTATION OF g1 when g2 != 0:
-    component g5sq = SignedFp2MultiplyNoCarry(n, k, 2*n + 1 + LOGK); // overflow 2k * 2^{2n} <= 2^{2n+1+LOGK}
+    component g5sq = SignedFp2MultiplyNoCarry(n, k, 2*n + 1 + LOGK); // overflow < 2k * 2^{2n}
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
         g5sq.a[eps][i] <== in[3][eps][i];
         g5sq.b[eps][i] <== in[3][eps][i];
     }
-    // c = XI0 + u, g5^2 * c
-    var g5sqc[4][50] = signed_Fp2_mult_w6(len, g5sq.out, XI0); // overflow (1+XI)*2k*2^{2n}
-    component g4sq3 = SignedFp2MultiplyNoCarry(n, k, 2*n + 3 + LOGK); // overflow (1+XI)*6k*2^{2n}
+    // c = XI0 + u
+    // g5^2 * c
+    var g5sqc[4][50] = signed_Fp2_mult_w6(len, g5sq.out, XI0); // overflow < (1+XI0)*2k*2^{2n}
+    // 3 g4^2
+    component g4sq3 = SignedFp2MultiplyNoCarry(n, k, 2*n + 3 + LOGK); // overflow 6k*2^{2n}
 
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++){
         g4sq3.a[eps][i] <== 3*in[2][eps][i];
         g4sq3.b[eps][i] <== in[2][eps][i];
     }
-    signal g1num[2][len];   // g5^2 * (1+u) + 3 g4^2 - 2 g3
-                            // overflow ((1+XI0)*8k + 2/2^n)*2^{2n}
+    signal g1num[2][len];   // g5^2 * (XI0 + u) + 3 g4^2 - 2 g3
+                            // overflow ((1+XI0)*2k + 6k + 2/2^n)*2^{2n}
     for(var i=0; i<len; i++)for(var eps=0; eps<2; eps++){
         if(i < k)
             g1num[eps][i] <== g5sqc[eps][i] + g4sq3.out[eps][i] - 2*in[1][eps][i];
         else
             g1num[eps][i] <== g5sqc[eps][i] + g4sq3.out[eps][i];
     }
-    // overflow ((1+XI0)*8k + 2/2^n)*k *2^{2n}
 
     component g1numRed = Fp2Compress(n, k, k-1, p, 3*n + LOGK2);
+    // overflow < ((1+XI0)*2k + 6k + 2/2^n)*k *2^{3n}
     for(var i=0; i<2; i++)for(var j=0; j<2*k-1; j++)
         g1numRed.in[i][j] <== g1num[i][j];
     // compute g1numRed / 4g2
@@ -131,7 +126,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
     // END OF COMPUTATION OF g1 when g2 = 0.
 
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++)
-        out[3][eps][i] <== g1_1.out[eps][i] + g2isZero.out * (g1_0.out[eps][i] - g1_1.out[eps][i]);
+        out[3][eps][i] <== g1_1.out[eps][i] + g2IsZero.out * (g1_0.out[eps][i] - g1_1.out[eps][i]);
     
 
     // COMPUTATION OF g0 when g2 != 0:
@@ -159,17 +154,17 @@ template Fp12CyclotomicDecompress(n, k, p) {
         temp[i][j] = twog1sq.out[i][j] + g2g5.out[i][j] - threeg3g4.out[i][j];
     
     // (2 g1^2 + g2 g5 - 3 g3 g4)(1+u)
-    var tempc[2][50] = signed_Fp2_mult_w6(len, temp, XI0); // overflow (1+XI0)*6k * 2^{2n}
+    var tempc[2][50] = signed_Fp2_mult_w6(len, temp, XI0); // overflow abs val < (1+XI0)*6k * 2^{2n}
     // (2 g1^2 + g2 g5 - 3 g3 g4)(1+u) + 1 
     tempc[0][0]++;
     component compress01 = Fp2Compress(n, k, k-1, p, 3*n + LOGK3); 
     for(var i=0; i<2; i++)for(var j=0; j<2*k-1; j++)
         compress01.in[i][j] <== tempc[i][j];
-    // get tempc = p*X + Y 
+
     component carry_mod01 = SignedFp2CarryModP(n, k, 3*n + LOGK3, p);
     for(var i=0; i<2; i++)for(var j=0; j<k; j++)
         carry_mod01.in[i][j] <== compress01.out[i][j];
-    // g0_1 = Y 
+     
     signal g0_1[2][k]; 
     for(var i=0; i<2; i++)for(var j=0; j<k; j++)
         g0_1[i][j] <== carry_mod01.out[i][j]; 
@@ -200,7 +195,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
     // END OF COMPUTATION OF g0 when g2 = 0.    
         
     for(var i=0; i<k; i++)for(var eps=0; eps<2; eps++)
-        out[0][eps][i] <== g0_1[eps][i] + g2isZero.out * (g0_0[eps][i] - g0_1[eps][i]);
+        out[0][eps][i] <== g0_1[eps][i] + g2IsZero.out * (g0_0[eps][i] - g0_1[eps][i]);
 
 }
 
@@ -208,7 +203,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
 //  input[i][2] keeps track of positive and negatives 
 //  don't assume anything about overflow in registers in case we want to square twice before carry
 // output is C(g^2) = [h2, h3, h4, h5] computed using Theorem 3.2 of https://eprint.iacr.org/2010/542.pdf 
-//  c = 1 + u
+//  c = XI0 + u
 //  h2 = 2(g2 + 3*c*B_45) 
 //  h3 = 3(A_45 - (c+1)B_45) - 2g3
 //  h4 = 3(A_23 - (c+1)B_23) - 2g4
@@ -217,8 +212,7 @@ template Fp12CyclotomicDecompress(n, k, p) {
 //  B_ij = g_i g_j 
 
 // everything computed with no carries 
-// out[4][4][2*k-1] has registers with overflow in [0, ...) where we keep track of positives and negatives 
-//  If registers of in[] are in [0, 2^N), then registers of out[] have abs val < 12*(2+XI0)*k * 2^{2N} 
+// If registers of in[] are in [0, B), then registers of out[] have abs val < (18(XI0 + 2)k + 2/B )* B^2 
 template SignedFp12CyclotomicSquareNoCarry(n, k) {
     signal input in[4][2][k];
     signal output out[4][2][2*k-1];
@@ -276,7 +270,7 @@ template Fp12CyclotomicSquare(n, k, p) {
     signal output out[4][2][k];
 
     var XI0 = 1;
-    var LOGK2 = log_ceil(12*(2+XI0)*k *k); 
+    var LOGK2 = log_ceil(18*(2+XI0)*k *k + 1); 
     assert(3*n + LOGK2 < 251);
 
     component sq = SignedFp12CyclotomicSquareNoCarry(n, k);

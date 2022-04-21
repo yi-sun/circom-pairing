@@ -94,6 +94,18 @@ template CoreVerifyPubkeyG1(n, k){
         lt[8].a[idx] <== hash[1][0][idx];
         lt[9].a[idx] <== hash[1][1][idx];
     } 
+
+    // check all registers are in [0, 2^n)
+    component check[5]; 
+    for(var i=0; i<5; i++)
+        check[i] = RangeCheck2D(n, k); 
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
+        check[0].in[i][idx] <== pubkey[i][idx];
+        check[1].in[i][idx] <== signature[0][i][idx];
+        check[2].in[i][idx] <== signature[1][i][idx];
+        check[3].in[i][idx] <== hash[0][i][idx];
+        check[4].in[i][idx] <== hash[1][i][idx];
+    }
     
     component pubkey_valid = SubgroupCheckG1(n, k);
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)

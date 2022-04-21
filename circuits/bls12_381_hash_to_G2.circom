@@ -192,7 +192,7 @@ template OptSimpleSWU2(n, k){
         out[0][i][idx] <== isSquare * (X0.out[i][idx] - X1.out[i][idx]) + X1.out[i][idx];  
 
     // sgn0(t) 
-    component sgn_in = Fp2Sgn0(k);
+    component sgn_in = Fp2Sgn0(n, k, p);
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
         sgn_in.in[i][idx] <== in[i][idx];
 
@@ -218,7 +218,7 @@ template OptSimpleSWU2(n, k){
     }
 
     // sgn0(Y) == sgn0(t)
-    component sgn_Y = Fp2Sgn0(k);
+    component sgn_Y = Fp2Sgn0(n, k, p);
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
         sgn_Y.in[i][idx] <== out[1][i][idx];
 
@@ -669,6 +669,11 @@ template SubgroupCheckG1(n, k){
     var x_abs = get_BLS12_381_parameter();
     var b = 4;
 
+    component is_on_curve = PointOnCurve(n, k, 0, b, p);
+
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
+        is_on_curve.in[i][idx] <== in[i][idx];
+         
     var omega[k];
     // Third root of unity:
     // omega = 2^((p - 1) / 3)          # in GF(p)

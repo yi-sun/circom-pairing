@@ -449,7 +449,7 @@ template Fp2FrobeniusMap(n, k, power, p){
         }
     }else{
         for(var i=0; i<k; i++){
-            neg1.in[i] in[1][i];
+            neg1.in[i] <== in[1][i];
         }
         for(var i=0; i<k; i++){
             out[0][i] <== in[0][i];
