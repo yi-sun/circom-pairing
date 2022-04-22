@@ -47,16 +47,16 @@ All benchmarks were run on a 32-core 3.1GHz, 256G RAM machine with 1TB hard driv
 
 |                                      | verify | optimalate | tatepairing |
 | ------------------------------------ | ------ | ---------- | ----------- |
-| Constraints                          | 19.2M  |
-| Circuit compilation                  | 3.2h   |
-| Witness generation C++ compilation   | 2h     |
-| Witness generation                   | 2.6m   |
-| Trusted setup phase 2 key generation | 56m    |
-| Trusted setup phase 2 contribution   | 24m    |
-| Proving key size                     | 11G    |
-| Proving key verification             | 1.4h   |
-| Proving time (rapidsnark)            | 1.7m   |
-| Proof verification time              | 1s     |
+| Constraints                          | 19.2M  | 11.4 M     |
+| Circuit compilation                  | 3.2h   | 1.9h       |
+| Witness generation C++ compilation   | 2h     | 1.1h       |
+| Witness generation                   | 2.6m   | 1m         |
+| Trusted setup phase 2 key generation | 58m    | 32m        |
+| Trusted setup phase 2 contribution   | 25m    | 13.6m      |
+| Proving key size                     | 12G    | 6.5G       |
+| Proving key verification             | 1.5h   | 43m        |
+| Proving time (rapidsnark)            | 2m     | 52s        |
+| Proof verification time              | 1s     | 1s         |
 
 ## Testing
 

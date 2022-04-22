@@ -1,5 +1,6 @@
 //const bls = require("@noble/bls12-381");
-import { phase0, ssz } from "@chainsafe/lodestar-types";
+import { ContainerType, UintNumberType, ByteVectorType } from "@chainsafe/ssz";
+import { ssz } from "@chainsafe/lodestar-types";
 import {
   Fp,
   Fp2,
@@ -13,7 +14,8 @@ import {
   verify,
 } from "./index";
 import { map_to_curve_simple_swu_9mod16, isogenyMapG2 } from "./math";
-import beacon_block from "./BeaconBlock.json";
+import block_json from "./BeaconBlock.json";
+import { Bytes32 } from "@chainsafe/lodestar-types/lib/sszTypes";
 
 const hashToField = utils.hashToField;
 
@@ -199,12 +201,24 @@ function formatHex(str: string): string {
   }
   return str;
 }
+export const BeaconBlock = new ContainerType(
+  {
+    slot: new UintNumberType(8),
+    proposer_index: new UintNumberType(8),
+    parent_root: new ByteVectorType(32),
+    state_root: new ByteVectorType(32),
+    body_root: new ByteVectorType(32),
+  },
+  { typeName: "BeaconBlock", jsonCase: "eth2" }
+);
+// THIS DOESN'T WORK, block_root does not match hash_tree_root of block_body
 async function verify_block_signature() {
   // example beacon chain block: https://beaconcha.in/block/3644983
   let publicKeyHex: string =
     "0x932b42ad9a01e2c489958bb212af2dc016f02dd2750980f618420b6f8fccb469de8bc63c0b594f06464a3f09169a8825";
   publicKeyHex = formatHex(publicKeyHex);
   const publicKey: PointG1 = PointG1.fromHex(formatHex(publicKeyHex));
+  publicKey.assertValidity();
 
   let signatureHex: string =
     "0x8530f2e4403406b78ddfd3a94bf2085ce325e17c7eadf57d01311f11518c11621b764c8281618197077568dbb8ae7cea19bac59893c09c107581d9dc88aa461fe1e631f2b2ee3b3eec0b12ee97d6437ac2fca5d3e40474b87d72a301fe59974b";
@@ -212,37 +226,16 @@ async function verify_block_signature() {
   const signature: PointG2 = PointG2.fromSignature(signatureHex);
   signature.assertValidity();
 
-  const BeaconBlock = ssz.phase0.BeaconBlock;
-  let block = BeaconBlock.defaultValue();
-  block.slot = beacon_block.slot;
-  block.proposerIndex = beacon_block.proposerIndex;
-  block.parentRoot = hexToBytes(beacon_block.parentRoot, "little");
-  block.stateRoot = hexToBytes(beacon_block.stateRoot, "little");
-  let body = beacon_block.body;
-  block.body = {
-    randaoReveal: hexToBytes(body.randaoReveal, "little"),
-    eth1Data: {
-      depositRoot: hexToBytes(body.eth1Data.depositRoot, "little"),
-      depositCount: Number(body.eth1Data.depositCount),
-      blockHash: hexToBytes(body.eth1Data.blockHash, "little"),
-    },
-    graffiti: hexToBytes(body.graffiti),
-    proposerSlashings: body.proposerSlashings,
-    attesterSlashings: body.attesterSlashings,
-    attestations: body.attestations,
-    deposits: body.deposits,
-    voluntaryExits: body.voluntaryExits,
-  };
-  console.log(block);
+  let block = BeaconBlock.fromJson(block_json);
   let beacon_block_root = BeaconBlock.hashTreeRoot(block);
-  console.log(beacon_block_root[0]);
 
   // see compute_domain and get_domain from beacon chain spec
+  // NOTE: ethereum spec for ssz uses little endian for ByteVector while @chainsafe/ssz uses BitEndian
   const ForkData = ssz.phase0.ForkData;
   let fork_data_root = ForkData.hashTreeRoot(ForkData.defaultValue());
   let domain = new Uint8Array(32);
-  for (let i = 0; i < 4; i++) domain[i] = 0;
-  for (let i = 0; i < 28; i++) domain[i + 4] = fork_data_root[i];
+  for (let i = 0; i < 4; i++) domain[28 + i] = 0;
+  for (let i = 0; i < 28; i++) domain[i] = fork_data_root[i + 4];
 
   // see compute_signing_root from beacon chain spec
   const SigningData = ssz.phase0.SigningData;
@@ -250,16 +243,17 @@ async function verify_block_signature() {
   signing_data.objectRoot = beacon_block_root;
   signing_data.domain = domain;
 
-  // ssz uses little endian
+  // chainsafe uses big endian
   const signing_root: Uint8Array = SigningData.hashTreeRoot(signing_data);
+  console.log(signing_root);
 
-  const msg = new Uint8Array(signing_root.length);
-  // convert to big endian
+  let msg = new Uint8Array(signing_root.length);
+  // convert to little endian
   for (let i = 0; i < msg.length; i++)
     msg[i] = signing_root[msg.length - 1 - i];
   //console.log(msg);
   // const Hm = await PointG2.hashToCurve(signing_root);
-  const isCorrect = await verify(signature, signing_root, publicKey);
+  const isCorrect = await verify(signatureHex, signing_root, publicKeyHex);
   console.log(isCorrect);
   const isCorrect2 = await verify(signature, msg, publicKey);
   console.log(isCorrect2);
