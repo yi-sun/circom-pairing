@@ -1161,9 +1161,7 @@ export function map_to_curve_simple_swu_9mod16(
   let numerator = iso_3_b.multiply(ztzt.add(Fp2.ONE)); // b(Z * t² + Z² * t⁴ + 1)
 
   // Exceptional case
-  if (denominator.isZero()) {
-    denominator = iso_3_z.multiply(iso_3_a);
-  }
+  if (denominator.isZero()) denominator = iso_3_z.multiply(iso_3_a);
 
   // v = D³
   let v = denominator.pow(3n);

@@ -11,7 +11,7 @@
 // We are using Fp for private keys (shorter) and Fp2 for signatures (longer).
 // Some projects may prefer to swap this relation, it is not supported for now.
 
-import nodeCrypto from 'crypto';
+import nodeCrypto from "crypto";
 // prettier-ignore
 import {
   Fp, Fr, Fp2, Fp12, CURVE, ProjectivePoint,
@@ -42,7 +42,7 @@ const htfDefaults = {
   // DST: a domain separation tag
   // defined in section 2.2.5
   // Use utils.getDSTLabel(), utils.setDSTLabel(value)
-  DST: 'BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_',
+  DST: "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_",
   // p: the characteristic of F
   //    where F is a finite field of characteristic p and order q = p^m
   p: CURVE.P,
@@ -65,7 +65,7 @@ function isWithinCurveOrder(num: bigint): boolean {
 declare const self: Record<string, any> | undefined;
 const crypto: { node?: any; web?: any } = {
   node: nodeCrypto,
-  web: typeof self === 'object' && 'crypto' in self ? self.crypto : undefined,
+  web: typeof self === "object" && "crypto" in self ? self.crypto : undefined,
 };
 
 export const utils = {
@@ -81,10 +81,10 @@ export const utils = {
   hashToPrivateKey: (hash: Hex): Uint8Array => {
     hash = ensureBytes(hash);
     if (hash.length < 40 || hash.length > 1024)
-      throw new Error('Expected 40-1024 bytes of private key as per FIPS 186');
+      throw new Error("Expected 40-1024 bytes of private key as per FIPS 186");
     const num = mod(bytesToNumberBE(hash), CURVE.r);
     // This should never happen
-    if (num === 0n || num === 1n) throw new Error('Invalid private key');
+    if (num === 0n || num === 1n) throw new Error("Invalid private key");
     return numberTo32BytesBE(num);
   },
 
@@ -108,10 +108,12 @@ export const utils = {
 
   sha256: async (message: Uint8Array): Promise<Uint8Array> => {
     if (crypto.web) {
-      const buffer = await crypto.web.subtle.digest('SHA-256', message.buffer);
+      const buffer = await crypto.web.subtle.digest("SHA-256", message.buffer);
       return new Uint8Array(buffer);
     } else if (crypto.node) {
-      return Uint8Array.from(crypto.node.createHash('sha256').update(message).digest());
+      return Uint8Array.from(
+        crypto.node.createHash("sha256").update(message).digest()
+      );
     } else {
       throw new Error("The environment doesn't have sha256 function");
     }
@@ -122,22 +124,28 @@ export const utils = {
   },
   setDSTLabel(newLabel: string) {
     // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3.1
-    if (typeof newLabel !== 'string' || newLabel.length > 2048 || newLabel.length === 0) {
-      throw new TypeError('Invalid DST');
+    if (
+      typeof newLabel !== "string" ||
+      newLabel.length > 2048 ||
+      newLabel.length === 0
+    ) {
+      throw new TypeError("Invalid DST");
     }
     htfDefaults.DST = newLabel;
   },
 };
 
 function bytesToNumberBE(uint8a: Uint8Array): bigint {
-  if (!(uint8a instanceof Uint8Array)) throw new Error('Expected Uint8Array');
-  return BigInt('0x' + bytesToHex(Uint8Array.from(uint8a)));
+  if (!(uint8a instanceof Uint8Array)) throw new Error("Expected Uint8Array");
+  return BigInt("0x" + bytesToHex(Uint8Array.from(uint8a)));
 }
 
-const hexes = Array.from({ length: 256 }, (v, i) => i.toString(16).padStart(2, '0'));
+const hexes = Array.from({ length: 256 }, (v, i) =>
+  i.toString(16).padStart(2, "0")
+);
 function bytesToHex(uint8a: Uint8Array): string {
   // pre-caching chars could speed this up 6x.
-  let hex = '';
+  let hex = "";
   for (let i = 0; i < uint8a.length; i++) {
     hex += hexes[uint8a[i]];
   }
@@ -145,17 +153,19 @@ function bytesToHex(uint8a: Uint8Array): string {
 }
 
 function hexToBytes(hex: string): Uint8Array {
-  if (typeof hex !== 'string') {
-    throw new TypeError('hexToBytes: expected string, got ' + typeof hex);
+  if (typeof hex !== "string") {
+    throw new TypeError("hexToBytes: expected string, got " + typeof hex);
   }
-  if (hex.length % 2) throw new Error('hexToBytes: received invalid unpadded hex');
+  if (hex.length % 2)
+    throw new Error("hexToBytes: received invalid unpadded hex");
   const array = new Uint8Array(hex.length / 2);
   for (let i = 0; i < array.length; i++) {
     const j = i * 2;
     const hexByte = hex.slice(j, j + 2);
-    if (hexByte.length !== 2) throw new Error('Invalid byte sequence');
+    if (hexByte.length !== 2) throw new Error("Invalid byte sequence");
     const byte = Number.parseInt(hexByte, 16);
-    if (Number.isNaN(byte) || byte < 0) throw new Error('Invalid byte sequence');
+    if (Number.isNaN(byte) || byte < 0)
+      throw new Error("Invalid byte sequence");
     array[i] = byte;
   }
   return array;
@@ -163,14 +173,16 @@ function hexToBytes(hex: string): Uint8Array {
 
 function numberTo32BytesBE(num: bigint) {
   const length = 32;
-  const hex = num.toString(16).padStart(length * 2, '0');
+  const hex = num.toString(16).padStart(length * 2, "0");
   return hexToBytes(hex);
 }
 
 function toPaddedHex(num: bigint, padding: number) {
-  if (typeof num !== 'bigint' || num < 0n) throw new Error('Expected valid bigint');
-  if (typeof padding !== 'number') throw new TypeError('Expected valid padding');
-  return num.toString(16).padStart(padding * 2, '0');
+  if (typeof num !== "bigint" || num < 0n)
+    throw new Error("Expected valid bigint");
+  if (typeof padding !== "number")
+    throw new TypeError("Expected valid padding");
+  return num.toString(16).padStart(padding * 2, "0");
 }
 
 function ensureBytes(hex: string | Uint8Array): Uint8Array {
@@ -243,12 +255,14 @@ async function expand_message_xmd(
   const r_in_bytes = b_in_bytes * 2;
 
   const ell = Math.ceil(lenInBytes / b_in_bytes);
-  if (ell > 255) throw new Error('Invalid xmd length');
+  if (ell > 255) throw new Error("Invalid xmd length");
   const DST_prime = concatBytes(DST, i2osp(DST.length, 1));
   const Z_pad = i2osp(0, r_in_bytes);
   const l_i_b_str = i2osp(lenInBytes, 2);
   const b = new Array<Uint8Array>(ell);
-  const b_0 = await H(concatBytes(Z_pad, msg, l_i_b_str, i2osp(0, 1), DST_prime));
+  const b_0 = await H(
+    concatBytes(Z_pad, msg, l_i_b_str, i2osp(0, 1), DST_prime)
+  );
   b[0] = await H(concatBytes(b_0, i2osp(1, 1), DST_prime));
   for (let i = 1; i <= ell; i++) {
     const args = [strxor(b_0, b[i - 1]), i2osp(i + 1, 1), DST_prime];
@@ -265,7 +279,11 @@ async function expand_message_xmd(
 // count - the number of elements of F to output.
 // Outputs:
 // [u_0, ..., u_(count - 1)], a list of field elements.
-async function hash_to_field(msg: Uint8Array, count: number, options = {}): Promise<bigint[][]> {
+async function hash_to_field(
+  msg: Uint8Array,
+  count: number,
+  options = {}
+): Promise<bigint[][]> {
   // if options is provided but incomplete, fill any missing fields with the
   // value in hftDefaults (ie hash to G2).
   const htfOptions = { ...htfDefaults, ...options };
@@ -292,18 +310,23 @@ async function hash_to_field(msg: Uint8Array, count: number, options = {}): Prom
 
 function normalizePrivKey(key: PrivateKey): bigint {
   let int: bigint;
-  if (key instanceof Uint8Array && key.length === 32) int = bytesToNumberBE(key);
-  else if (typeof key === 'string' && key.length === 64) int = BigInt(`0x${key}`);
-  else if (typeof key === 'number' && key > 0 && Number.isSafeInteger(key)) int = BigInt(key);
-  else if (typeof key === 'bigint' && key > 0n) int = key;
-  else throw new TypeError('Expected valid private key');
+  if (key instanceof Uint8Array && key.length === 32)
+    int = bytesToNumberBE(key);
+  else if (typeof key === "string" && key.length === 64)
+    int = BigInt(`0x${key}`);
+  else if (typeof key === "number" && key > 0 && Number.isSafeInteger(key))
+    int = BigInt(key);
+  else if (typeof key === "bigint" && key > 0n) int = key;
+  else throw new TypeError("Expected valid private key");
   int = mod(int, CURVE.r);
-  if (!isWithinCurveOrder(int)) throw new Error('Private key must be 0 < key < CURVE.r');
+  if (!isWithinCurveOrder(int))
+    throw new Error("Private key must be 0 < key < CURVE.r");
   return int;
 }
 
 function assertType(item: any, type: any) {
-  if (!(item instanceof type)) throw new Error('Expected Fp* argument, not number/bigint');
+  if (!(item instanceof type))
+    throw new Error("Expected Fp* argument, not number/bigint");
 }
 
 // Point on G1 curve: (x, y)
@@ -333,7 +356,7 @@ export class PointG1 extends ProjectivePoint<Fp> {
       const x = new Fp(mod(compressedValue, POW_2_381));
       const right = x.pow(3n).add(new Fp(CURVE.b)); // y² = x³ + b
       let y = right.sqrt();
-      if (!y) throw new Error('Invalid compressed G1 point');
+      if (!y) throw new Error("Invalid compressed G1 point");
       const aflag = mod(compressedValue, POW_2_382) / POW_2_381;
       if ((y.value * 2n) / P !== aflag) y = y.negate();
       point = new PointG1(x, y);
@@ -344,7 +367,7 @@ export class PointG1 extends ProjectivePoint<Fp> {
       const y = bytesToNumberBE(bytes.slice(PUBLIC_KEY_LENGTH));
       point = new PointG1(new Fp(x), new Fp(y));
     } else {
-      throw new Error('Invalid point G1, expected 48/96 bytes');
+      throw new Error("Invalid point G1, expected 48/96 bytes");
     }
     point.assertValidity();
     return point;
@@ -374,22 +397,26 @@ export class PointG1 extends ProjectivePoint<Fp> {
     } else {
       if (this.isZero()) {
         // 2x PUBLIC_KEY_LENGTH
-        return '4'.padEnd(2 * 2 * PUBLIC_KEY_LENGTH, '0'); // bytes[0] |= 1 << 6;
+        return "4".padEnd(2 * 2 * PUBLIC_KEY_LENGTH, "0"); // bytes[0] |= 1 << 6;
       } else {
         const [x, y] = this.toAffine();
-        return toPaddedHex(x.value, PUBLIC_KEY_LENGTH) + toPaddedHex(y.value, PUBLIC_KEY_LENGTH);
+        return (
+          toPaddedHex(x.value, PUBLIC_KEY_LENGTH) +
+          toPaddedHex(y.value, PUBLIC_KEY_LENGTH)
+        );
       }
     }
   }
 
   assertValidity() {
     if (this.isZero()) return this;
-    if (!this.isOnCurve()) throw new Error('Invalid G1 point: not on curve Fp');
-    if (!this.isTorsionFree()) throw new Error('Invalid G1 point: must be of prime-order subgroup');
+    if (!this.isOnCurve()) throw new Error("Invalid G1 point: not on curve Fp");
+    if (!this.isTorsionFree())
+      throw new Error("Invalid G1 point: must be of prime-order subgroup");
     return this;
   }
 
-  [Symbol.for('nodejs.util.inspect.custom')]() {
+  [Symbol.for("nodejs.util.inspect.custom")]() {
     return this.toString();
   }
 
@@ -466,7 +493,11 @@ export class PointG1 extends ProjectivePoint<Fp> {
 // Point on G2 curve (complex numbers): (x₁, x₂+i), (y₁, y₂+i)
 // We add z because we work with projective coordinates instead of affine x-y: that's much faster.
 export class PointG2 extends ProjectivePoint<Fp2> {
-  static BASE = new PointG2(Fp2.fromBigTuple(CURVE.G2x), Fp2.fromBigTuple(CURVE.G2y), Fp2.ONE);
+  static BASE = new PointG2(
+    Fp2.fromBigTuple(CURVE.G2x),
+    Fp2.fromBigTuple(CURVE.G2y),
+    Fp2.ONE
+  );
   static ZERO = new PointG2(Fp2.ONE, Fp2.ONE, Fp2.ZERO);
 
   private _PPRECOMPUTES: [Fp2, Fp2, Fp2][] | undefined;
@@ -484,8 +515,12 @@ export class PointG2 extends ProjectivePoint<Fp2> {
     msg = ensureBytes(msg);
     const u = await hash_to_field(msg, 2);
     //console.log(`hash_to_curve(msg}) u0=${new Fp2(u[0])} u1=${new Fp2(u[1])}`);
-    const Q0 = new PointG2(...isogenyMapG2(map_to_curve_simple_swu_9mod16(u[0])));
-    const Q1 = new PointG2(...isogenyMapG2(map_to_curve_simple_swu_9mod16(u[1])));
+    const Q0 = new PointG2(
+      ...isogenyMapG2(map_to_curve_simple_swu_9mod16(u[0]))
+    );
+    const Q1 = new PointG2(
+      ...isogenyMapG2(map_to_curve_simple_swu_9mod16(u[1]))
+    );
     const R = Q0.add(Q1);
     const P = R.clearCofactor();
     //console.log(`hash_to_curve(msg) Q0=${Q0}, Q1=${Q1}, R=${R} P=${P}`);
@@ -498,7 +533,7 @@ export class PointG2 extends ProjectivePoint<Fp2> {
     const { P } = CURVE;
     const half = hex.length / 2;
     if (half !== 48 && half !== 96)
-      throw new Error('Invalid compressed signature length, must be 96 or 192');
+      throw new Error("Invalid compressed signature length, must be 96 or 192");
     const z1 = bytesToNumberBE(hex.slice(0, half));
     const z2 = bytesToNumberBE(hex.slice(half));
     // Indicates the infinity point
@@ -511,11 +546,11 @@ export class PointG2 extends ProjectivePoint<Fp2> {
     const y2 = x.pow(3n).add(Fp2.fromBigTuple(CURVE.b2)); // y² = x³ + 4
     // The slow part
     let y = y2.sqrt();
-    if (!y) throw new Error('Failed to find a square root');
+    if (!y) throw new Error("Failed to find a square root");
 
     // Choose the y whose leftmost bit of the imaginary part is equal to the a_flag1
     // If y1 happens to be zero, then use the bit of y0
-    const {re: y0, im: y1} = y.reim();
+    const { re: y0, im: y1 } = y.reim();
     const aflag1 = (z1 % POW_2_382) / POW_2_381;
     const isGreater = y1 > 0n && (y1 * 2n) / P !== aflag1;
     const isZero = y1 === 0n && (y0 * 2n) / P !== aflag1;
@@ -529,7 +564,7 @@ export class PointG2 extends ProjectivePoint<Fp2> {
     bytes = ensureBytes(bytes);
     let point;
     if (bytes.length === 96) {
-      throw new Error('Compressed format not supported yet.');
+      throw new Error("Compressed format not supported yet.");
     } else if (bytes.length === 192) {
       // Check if the infinity flag is set
       if ((bytes[0] & (1 << 6)) !== 0) {
@@ -537,13 +572,20 @@ export class PointG2 extends ProjectivePoint<Fp2> {
       }
 
       const x1 = bytesToNumberBE(bytes.slice(0, PUBLIC_KEY_LENGTH));
-      const x0 = bytesToNumberBE(bytes.slice(PUBLIC_KEY_LENGTH, 2 * PUBLIC_KEY_LENGTH));
-      const y1 = bytesToNumberBE(bytes.slice(2 * PUBLIC_KEY_LENGTH, 3 * PUBLIC_KEY_LENGTH));
+      const x0 = bytesToNumberBE(
+        bytes.slice(PUBLIC_KEY_LENGTH, 2 * PUBLIC_KEY_LENGTH)
+      );
+      const y1 = bytesToNumberBE(
+        bytes.slice(2 * PUBLIC_KEY_LENGTH, 3 * PUBLIC_KEY_LENGTH)
+      );
       const y0 = bytesToNumberBE(bytes.slice(3 * PUBLIC_KEY_LENGTH));
 
-      point = new PointG2(Fp2.fromBigTuple([x0, x1]), Fp2.fromBigTuple([y0, y1]));
+      point = new PointG2(
+        Fp2.fromBigTuple([x0, x1]),
+        Fp2.fromBigTuple([y0, y1])
+      );
     } else {
-      throw new Error('Invalid uncompressed point G2, expected 192 bytes');
+      throw new Error("Invalid uncompressed point G2, expected 192 bytes");
     }
 
     point.assertValidity();
@@ -557,15 +599,21 @@ export class PointG2 extends ProjectivePoint<Fp2> {
   toSignature() {
     if (this.equals(PointG2.ZERO)) {
       const sum = POW_2_383 + POW_2_382;
-      const h = toPaddedHex(sum, PUBLIC_KEY_LENGTH) + toPaddedHex(0n, PUBLIC_KEY_LENGTH);
+      const h =
+        toPaddedHex(sum, PUBLIC_KEY_LENGTH) +
+        toPaddedHex(0n, PUBLIC_KEY_LENGTH);
       return hexToBytes(h);
     }
-    const [{re: x0, im: x1}, {re: y0, im: y1}] = this.toAffine().map((a) => a.reim());
+    const [{ re: x0, im: x1 }, { re: y0, im: y1 }] = this.toAffine().map((a) =>
+      a.reim()
+    );
     const tmp = y1 > 0n ? y1 * 2n : y0 * 2n;
     const aflag1 = tmp / CURVE.P;
     const z1 = x1 + aflag1 * POW_2_381 + POW_2_383;
     const z2 = x0;
-    return hexToBytes(toPaddedHex(z1, PUBLIC_KEY_LENGTH) + toPaddedHex(z2, PUBLIC_KEY_LENGTH));
+    return hexToBytes(
+      toPaddedHex(z1, PUBLIC_KEY_LENGTH) + toPaddedHex(z2, PUBLIC_KEY_LENGTH)
+    );
   }
 
   toRawBytes(isCompressed = false) {
@@ -575,12 +623,14 @@ export class PointG2 extends ProjectivePoint<Fp2> {
   toHex(isCompressed = false) {
     this.assertValidity();
     if (isCompressed) {
-      throw new Error('Point compression has not yet been implemented');
+      throw new Error("Point compression has not yet been implemented");
     } else {
       if (this.equals(PointG2.ZERO)) {
-        return '4'.padEnd(2 * 4 * PUBLIC_KEY_LENGTH, '0'); // bytes[0] |= 1 << 6;
+        return "4".padEnd(2 * 4 * PUBLIC_KEY_LENGTH, "0"); // bytes[0] |= 1 << 6;
       }
-      const [{re: x0, im: x1}, {re: y0, im: y1}] = this.toAffine().map((a) => a.reim());
+      const [{ re: x0, im: x1 }, { re: y0, im: y1 }] = this.toAffine().map(
+        (a) => a.reim()
+      );
       return (
         toPaddedHex(x1, PUBLIC_KEY_LENGTH) +
         toPaddedHex(x0, PUBLIC_KEY_LENGTH) +
@@ -592,8 +642,10 @@ export class PointG2 extends ProjectivePoint<Fp2> {
 
   assertValidity() {
     if (this.isZero()) return this;
-    if (!this.isOnCurve()) throw new Error('Invalid G2 point: not on curve Fp2');
-    if (!this.isTorsionFree()) throw new Error('Invalid G2 point: must be of prime-order subgroup');
+    if (!this.isOnCurve())
+      throw new Error("Invalid G2 point: not on curve Fp2");
+    if (!this.isTorsionFree())
+      throw new Error("Invalid G2 point: must be of prime-order subgroup");
     return this;
   }
 
@@ -656,7 +708,7 @@ export class PointG2 extends ProjectivePoint<Fp2> {
   }
 
   // Improves introspection in node.js. Basically displays point's x, y.
-  [Symbol.for('nodejs.util.inspect.custom')]() {
+  [Symbol.for("nodejs.util.inspect.custom")]() {
     return this.toString();
   }
 
@@ -672,8 +724,13 @@ export class PointG2 extends ProjectivePoint<Fp2> {
 }
 
 // Calculates bilinear pairing
-export function pairing(P: PointG1, Q: PointG2, withFinalExponent: boolean = true): Fp12 {
-  if (P.isZero() || Q.isZero()) throw new Error('No pairings at point of Infinity');
+export function pairing(
+  P: PointG1,
+  Q: PointG2,
+  withFinalExponent: boolean = true
+): Fp12 {
+  if (P.isZero() || Q.isZero())
+    throw new Error("No pairings at point of Infinity");
   P.assertValidity();
   Q.assertValidity();
   // Performance: 9ms for millerLoop and ~14ms for exp.
@@ -701,9 +758,18 @@ export function getPublicKey(privateKey: PrivateKey): Uint8Array {
 
 // Executes `hashToCurve` on the message and then multiplies the result by private key.
 // S = pk x H(m)
-export async function sign(message: Hex, privateKey: PrivateKey): Promise<Uint8Array>;
-export async function sign(message: PointG2, privateKey: PrivateKey): Promise<PointG2>;
-export async function sign(message: G2Hex, privateKey: PrivateKey): Promise<Uint8Array | PointG2> {
+export async function sign(
+  message: Hex,
+  privateKey: PrivateKey
+): Promise<Uint8Array>;
+export async function sign(
+  message: PointG2,
+  privateKey: PrivateKey
+): Promise<PointG2>;
+export async function sign(
+  message: G2Hex,
+  privateKey: PrivateKey
+): Promise<Uint8Array | PointG2> {
   const msgPoint = await normP2Hash(message);
   msgPoint.assertValidity();
   const sigPoint = msgPoint.multiply(normalizePrivKey(privateKey));
@@ -713,7 +779,11 @@ export async function sign(message: G2Hex, privateKey: PrivateKey): Promise<Uint
 
 // Checks if pairing of public key & hash is equal to pairing of generator & signature.
 // e(P, H(m)) == e(G, S)
-export async function verify(signature: G2Hex, message: G2Hex, publicKey: G1Hex): Promise<boolean> {
+export async function verify(
+  signature: G2Hex,
+  message: G2Hex,
+  publicKey: G1Hex
+): Promise<boolean> {
   const P = normP1(publicKey);
   const Hm = await normP2Hash(message);
   const G = PointG1.BASE;
@@ -731,8 +801,10 @@ export async function verify(signature: G2Hex, message: G2Hex, publicKey: G1Hex)
 export function aggregatePublicKeys(publicKeys: Hex[]): Uint8Array;
 export function aggregatePublicKeys(publicKeys: PointG1[]): PointG1;
 export function aggregatePublicKeys(publicKeys: G1Hex[]): Uint8Array | PointG1 {
-  if (!publicKeys.length) throw new Error('Expected non-empty array');
-  const agg = publicKeys.map(normP1).reduce((sum, p) => sum.add(p), PointG1.ZERO);
+  if (!publicKeys.length) throw new Error("Expected non-empty array");
+  const agg = publicKeys
+    .map(normP1)
+    .reduce((sum, p) => sum.add(p), PointG1.ZERO);
   if (publicKeys[0] instanceof PointG1) return agg.assertValidity();
   return agg.toRawBytes(true);
 }
@@ -741,8 +813,10 @@ export function aggregatePublicKeys(publicKeys: G1Hex[]): Uint8Array | PointG1 {
 export function aggregateSignatures(signatures: Hex[]): Uint8Array;
 export function aggregateSignatures(signatures: PointG2[]): PointG2;
 export function aggregateSignatures(signatures: G2Hex[]): Uint8Array | PointG2 {
-  if (!signatures.length) throw new Error('Expected non-empty array');
-  const agg = signatures.map(normP2).reduce((sum, s) => sum.add(s), PointG2.ZERO);
+  if (!signatures.length) throw new Error("Expected non-empty array");
+  const agg = signatures
+    .map(normP2)
+    .reduce((sum, s) => sum.add(s), PointG2.ZERO);
   if (signatures[0] instanceof PointG2) return agg.assertValidity();
   return agg.toSignature();
 }
@@ -754,8 +828,9 @@ export async function verifyBatch(
   messages: G2Hex[],
   publicKeys: G1Hex[]
 ): Promise<boolean> {
-  if (!messages.length) throw new Error('Expected non-empty messages array');
-  if (publicKeys.length !== messages.length) throw new Error('Pubkey count should equal msg count');
+  if (!messages.length) throw new Error("Expected non-empty messages array");
+  if (publicKeys.length !== messages.length)
+    throw new Error("Pubkey count should equal msg count");
   const sig = normP2(signature);
   const nMessages = await Promise.all(messages.map(normP2Hash));
   const nPublicKeys = publicKeys.map(normP1);
@@ -764,7 +839,9 @@ export async function verifyBatch(
     for (const message of new Set(nMessages)) {
       const groupPublicKey = nMessages.reduce(
         (groupPublicKey, subMessage, i) =>
-          subMessage === message ? groupPublicKey.add(nPublicKeys[i]) : groupPublicKey,
+          subMessage === message
+            ? groupPublicKey.add(nPublicKeys[i])
+            : groupPublicKey,
         PointG1.ZERO
       );
       // const msg = message instanceof PointG2 ? message : await PointG2.hashToCurve(message);
