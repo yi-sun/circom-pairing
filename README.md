@@ -48,16 +48,16 @@ All benchmarks were run on a 32-core 3.1GHz, 256G RAM machine with 1TB hard driv
 
 |                                      | verify | optimalate | tatepairing | maptoG2 | subgroupcheckG1 | subgroupcheckG2 |
 | ------------------------------------ | ------ | ---------- | ----------- | ------- | --------------- | --------------- |
-| Constraints                          | 19.2M  | 11.4 M     | 24.7M       |         | 789K            | 819K            |
-| Circuit compilation                  | 3.2h   | 1.9h       | 4.2h        |         | 7.6m            | 8.5m            |
-| Witness generation C++ compilation   | 2h     | 1.1h       | 2.3h        |         | 4.2m            | 3.8m            |
-| Witness generation                   | 2.6m   | 1m         | 2.5m        |         | 23s             | 13s             |
-| Trusted setup phase 2 key generation | 58m    | 32m        | 1.6h        |         | 1.7m            | 1.9m            |
-| Trusted setup phase 2 contribution   | 25m    | 13.6m      | 29m         |         | 54s             | 55s             |
-| Proving key size                     | 12G    | 6.5G       | 15G         |         | 421M            | 445M            |
-| Proving key verification             | 1.5h   | 43m        | 2.5h        |         | 2m              | 2.3m            |
-| Proving time (rapidsnark)            | 2m     | 52s        | 2.1m        |         | 3s              | 3s              |
-| Proof verification time              | 1s     | 1s         | 2s          |         | 1s              | 1s              |
+| Constraints                          | 19.2M  | 11.4M      | 24.7M       | 2M      | 789K            | 819K            |
+| Circuit compilation                  | 3.2h   | 1.9h       | 4.2h        | 23m     | 7.6m            | 8.5m            |
+| Witness generation C++ compilation   | 2h     | 1.1h       | 2.3h        | 9.3m    | 4.2m            | 3.8m            |
+| Witness generation                   | 2.6m   | 1m         | 2.5m        | 33s     | 23s             | 13s             |
+| Trusted setup phase 2 key generation | 58m    | 32m        | 1.6h        | 4.5m    | 1.7m            | 1.9m            |
+| Trusted setup phase 2 contribution   | 25m    | 13.6m      | 29m         | 2.9m    | 54s             | 55s             |
+| Proving key size                     | 12G    | 6.5G       | 15G         | 1.2G    | 421M            | 445M            |
+| Proving key verification             | 1.5h   | 43m        | 2.5h        | 6.2m    | 2m              | 2.3m            |
+| Proving time (rapidsnark)            | 2m     | 52s        | 2.1m        | 6s      | 3s              | 3s              |
+| Proof verification time              | 1s     | 1s         | 2s          | 1s      | 1s              | 1s              |
 
 ## Testing
 
