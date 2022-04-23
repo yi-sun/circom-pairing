@@ -1,13 +1,5 @@
 //const bls = require("@noble/bls12-381");
-import { ContainerType, UintNumberType, ByteVectorType } from "@chainsafe/ssz";
-import { phase0, ssz } from "@chainsafe/lodestar-types";
-import {
-  createIBeaconConfig,
-  IBeaconConfig,
-  createIChainForkConfig,
-  IChainForkConfig,
-} from "@chainsafe/lodestar-config";
-import { config as chainConfig } from "@chainsafe/lodestar-config/default";
+import { ssz } from "@chainsafe/lodestar-types";
 import {
   Fp,
   Fp2,
@@ -21,7 +13,7 @@ import {
   verify,
 } from "./index";
 import { map_to_curve_simple_swu_9mod16, isogenyMapG2 } from "./math";
-import block_json from "./BeaconBlock.json";
+//import block_json from "./BeaconBlock3644983.json";
 
 const hashToField = utils.hashToField;
 
@@ -131,10 +123,10 @@ async function test(message: string) {
   let u = await hashToField(msg, 2);
 
   console.log(
-    "u[0] = " + u[0][0].toString(16) + "\n + I * " + u[0][1].toString(16)
+    "u[0] = 0x" + u[0][0].toString(16) + "\n + I * 0x" + u[0][1].toString(16)
   );
   console.log(
-    "u[1] = " + u[1][0].toString(16) + "\n + I * " + u[1][1].toString(16)
+    "u[1] = 0x" + u[1][0].toString(16) + "\n + I * 0x" + u[1][1].toString(16)
   );
 
   let u_array = [
@@ -221,10 +213,10 @@ async function test(message: string) {
   );
 }
 
-test("devconnect");
+//test("devconnect");
 
 export const DOMAIN_BEACON_PROPOSER = Uint8Array.from([0, 0, 0, 0]);
-export const BeaconBlock = new ContainerType(
+/*export const BeaconBlock = new ContainerType(
   {
     slot: new UintNumberType(8),
     proposer_index: new UintNumberType(8),
@@ -233,8 +225,9 @@ export const BeaconBlock = new ContainerType(
     body_root: new ByteVectorType(32),
   },
   { typeName: "BeaconBlock", jsonCase: "eth2" }
-);
-// THIS DOESN'T WORK, block_root does not match hash_tree_root of block_body
+);*/
+
+// takes beacon chain slot data and retrieves relevant inputs for signature verification
 async function verify_block_signature() {
   // example beacon chain block: https://beaconcha.in/block/3644983
   let publicKeyHex: string =
@@ -245,53 +238,101 @@ async function verify_block_signature() {
 
   let signatureHex: string =
     "0x8530f2e4403406b78ddfd3a94bf2085ce325e17c7eadf57d01311f11518c11621b764c8281618197077568dbb8ae7cea19bac59893c09c107581d9dc88aa461fe1e631f2b2ee3b3eec0b12ee97d6437ac2fca5d3e40474b87d72a301fe59974b";
+
   signatureHex = formatHex(signatureHex);
   const signature: PointG2 = PointG2.fromSignature(signatureHex);
   signature.assertValidity();
 
+  /* Downloaded entire block to confirm that "Block Root" really refers to the merkleization of entire block, not just the "Block Body", so this part is no longer neccessary 
+  const BeaconBlock = ssz.altair.BeaconBlock;
   let block = BeaconBlock.fromJson(block_json);
-  //console.log(block);
-  let beacon_block_root = BeaconBlock.hashTreeRoot(block);
-  console.log(bytesToHex(beacon_block_root));
+  let block_root = BeaconBlock.hashTreeRoot(block);
+  console.log(bytesToHex(block_root));
+  */
+  let block_root = hexToBytes(
+    "0xf91113e2837f5197ea2bd174f8c79ef31182940a6059e8a1a2d352a958281f27"
+  );
   // see compute_domain and get_domain from beacon chain spec
   // NOTE: ethereum spec for ssz uses little endian for ByteVector while @chainsafe/ssz uses big Endian
 
-  /*
-  const ForkData = ssz.phase0.ForkData;
-  let fork_data_root = ForkData.hashTreeRoot(ForkData.defaultValue());
-  let domain = new Uint8Array(32);
-  for (let i = 0; i < 4; i++) domain[28 + i] = 0;
-  for (let i = 0; i < 28; i++) domain[i] = fork_data_root[i + 4];
-  console.log(domain);
-  */
-  let genesisValidatorsRoot: Uint8Array = new Uint8Array();
-  const config: IBeaconConfig = createIBeaconConfig(
-    chainConfig,
-    genesisValidatorsRoot
+  // infura API call gives:
+  let genesisValidatorsRoot: Uint8Array = hexToBytes(
+    "0x4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95"
   );
 
-  const domain = config.getDomain(DOMAIN_BEACON_PROPOSER, block.slot);
-  console.log(domain);
+  const ForkData = ssz.phase0.ForkData;
+  let fork_data = ForkData.defaultValue();
+  fork_data.currentVersion = hexToBytes("0x01000000"); // altair
+  fork_data.genesisValidatorsRoot = genesisValidatorsRoot;
+  let fork_data_root = ForkData.hashTreeRoot(fork_data);
+  let domain = new Uint8Array(32);
+  for (let i = 0; i < 4; i++) domain[i] = DOMAIN_BEACON_PROPOSER[i];
+  for (let i = 0; i < 28; i++) domain[i + 4] = fork_data_root[i];
+  //console.log(bytesToHex(domain));
 
   // see compute_signing_root from beacon chain spec
   const SigningData = ssz.phase0.SigningData;
   let signing_data = SigningData.defaultValue();
-  signing_data.objectRoot = beacon_block_root;
+  signing_data.objectRoot = block_root;
   signing_data.domain = domain;
+  const signing_root = SigningData.hashTreeRoot(signing_data);
 
-  // chainsafe uses big endian
-  const signing_root: Uint8Array = SigningData.hashTreeRoot(signing_data);
-
-  let msg = new Uint8Array(signing_root.length);
-  // convert to little endian
-  for (let i = 0; i < msg.length; i++)
-    msg[i] = signing_root[msg.length - 1 - i];
   //console.log(msg);
-  const Hm = await PointG2.hashToCurve(signing_root);
+  //const Hm = await PointG2.hashToCurve(signing_root);
   const isCorrect = await verify(signature, signing_root, publicKey);
   console.log(isCorrect);
-  const isCorrect2 = await verify(signature, msg, publicKey);
-  console.log(isCorrect2);
+
+  // print input formats for web demo and circuit itself
+  console.log("publicKey:");
+  console.log("x = 0x" + publicKey.toAffine()[0].value.toString(16));
+  console.log("y = 0x" + publicKey.toAffine()[1].value.toString(16));
+  /*
+  console.log(
+    JSON.stringify([
+      bigint_to_array(55, 7, publicKey.toAffine()[0].value),
+      bigint_to_array(55, 7, publicKey.toAffine()[1].value),
+    ])
+  );
+  */
+
+  console.log("signature:");
+  console.log(
+    "x = 0x" +
+      signature.toAffine()[0].c0.value.toString(16) +
+      "\n + I * 0x" +
+      signature.toAffine()[0].c1.value.toString(16)
+  );
+  console.log(
+    "y = 0x" +
+      signature.toAffine()[1].c0.value.toString(16) +
+      "\n + I * 0x" +
+      signature.toAffine()[1].c1.value.toString(16)
+  );
+  /*
+  console.log(
+    JSON.stringify([
+      Fp2_to_array(55, 7, signature.toAffine()[0]),
+      Fp2_to_array(55, 7, signature.toAffine()[1]),
+    ])
+  );
+  */
+
+  let u = await hashToField(signing_root, 2);
+  console.log("message:");
+  console.log(
+    "x = 0x" + u[0][0].toString(16) + "\n + I * 0x" + u[0][1].toString(16)
+  );
+  console.log(
+    "y = 0x" + u[1][0].toString(16) + "\n + I * 0x" + u[1][1].toString(16)
+  );
+  /*
+  let u_array = [
+    Fp2_to_array(55, 7, Fp2.fromBigTuple(u[0])),
+    Fp2_to_array(55, 7, Fp2.fromBigTuple(u[1])),
+  ];
+  console.log("array : ");
+  console.log(JSON.stringify(u_array));
+  */
 }
 
-//verify_block_signature();
+verify_block_signature();
