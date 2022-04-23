@@ -1,8 +1,8 @@
 #!/bin/bash
 
 PHASE1=../../circuits/pot25_final.ptau
-BUILD_DIR=../../build/signature
 CIRCUIT_NAME=signature
+BUILD_DIR=../../build/"$CIRCUIT_NAME"
 
 if [ -f "$PHASE1" ]; then
     echo "Found Phase 1 ptau file"

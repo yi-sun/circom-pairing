@@ -24,20 +24,21 @@ First, install [yarn](https://classic.yarnpkg.com/en/) and [circom](https://docs
 
 - run `yarn install` in the root directory to install the dependencies (`snarkjs` and `circomlib`) in `yarn.lock`.
 - You'll need `circom` version `>= 2.0.3`.
-- If you want to build the `optimalate` circuit, you'll need to download a Powers of Tau file with `2^24` constraints and copy it into the circuits subdirectory of the project, with the name `pot24_final.ptau`. We do not provide such a file in this repo due to its large size. You can download and copy Powers of Tau files from the Hermez trusted setup from [this repository](https://github.com/iden3/snarkjs#7-prepare-phase-2).
-- If you want to build the `signature` and `tatepairing` circuits, you'll need a Powers of Tau file that can support at least `2^25` constraints (place it in the same directory as above with the same naming convention).
+- If you want to build the `optimalate`, `subgroupcheckG1`, `subgroupcheckG2` circuits, you'll need to download a Powers of Tau file with `2^24` constraints and copy it into the circuits subdirectory of the project, with the name `pot24_final.ptau`. We do not provide such a file in this repo due to its large size. You can download and copy Powers of Tau files from the Hermez trusted setup from [this repository](https://github.com/iden3/snarkjs#7-prepare-phase-2).
+- If you want to build the `verify` and `tatepairing` circuits, you'll need a Powers of Tau file that can support at least `2^25` constraints (place it in the same directory as above with the same naming convention).
 
 ## Building keys and witness generation files
 
 We provide the following circuits as examples:
 
 - `verify`: Prove that a BLS signature verification ran properly on a provided public key, signature, and message. The circuit verifies that the public key and signature are valid.
-- `subgroupcheckG1`:
-- `subgroupcheckG2`:
 - `optimalate`: Prove that the optimal Ate pairing is correctly computed on two elements in appropriate subgroups.
 - `tatepairing`: Prove that the Tate pairing is correctly computed on two elements in appropriate subgroups.
+- `subgroupcheckG1`: Prove that a public key is valid, i.e., lies in the subgroup `G1` of the curve.
+- `subgroupcheckG2`: Prove that a signature is valid, i.e., lies in the subgroup `G2` of the curve.
+- `maptoG2`: Given two `F_{p^2}` elements, prove that their mapping to the twisted curve and cofactor clearing to `G2` is correctly computed according to the [Internet Draft](https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-14).
 
-Run `yarn build:verify`, `yarn build:optimalate`, `yarn build:tatepairing` at the top level to compile each respective circuit and keys. See [documentation](docs/README.md) for input format.
+Run `yarn build:verify`, `yarn build:optimalate`, `yarn build:tatepairing`, etc. at the top level to compile each respective circuit and keys. See [documentation](docs/README.md) for input format.
 
 Note that `verify` and `tatepairing` are very large circuits so they require special hardware and setup to run: see [Best Practices for Large Circuits](https://hackmd.io/V-7Aal05Tiy-ozmzTGBYPA?view).
 
@@ -45,18 +46,18 @@ Note that `verify` and `tatepairing` are very large circuits so they require spe
 
 All benchmarks were run on a 32-core 3.1GHz, 256G RAM machine with 1TB hard drive (AWS r5.8xlarge instance). Constraints refer to non-linear constraints.
 
-|                                      | verify | optimalate | tatepairing |
-| ------------------------------------ | ------ | ---------- | ----------- |
-| Constraints                          | 19.2M  | 11.4 M     |
-| Circuit compilation                  | 3.2h   | 1.9h       |
-| Witness generation C++ compilation   | 2h     | 1.1h       |
-| Witness generation                   | 2.6m   | 1m         |
-| Trusted setup phase 2 key generation | 58m    | 32m        |
-| Trusted setup phase 2 contribution   | 25m    | 13.6m      |
-| Proving key size                     | 12G    | 6.5G       |
-| Proving key verification             | 1.5h   | 43m        |
-| Proving time (rapidsnark)            | 2m     | 52s        |
-| Proof verification time              | 1s     | 1s         |
+|                                      | verify | optimalate | tatepairing | maptoG2 | subgroupcheckG1 | subgroupcheckG2 |
+| ------------------------------------ | ------ | ---------- | ----------- | ------- | --------------- | --------------- |
+| Constraints                          | 19.2M  | 11.4 M     | 24.7M       |         | 789K            | 819K            |
+| Circuit compilation                  | 3.2h   | 1.9h       | 4.2h        |         | 7.6m            | 8.5m            |
+| Witness generation C++ compilation   | 2h     | 1.1h       | 2.3h        |         | 4.2m            | 3.8m            |
+| Witness generation                   | 2.6m   | 1m         | 2.5m        |         | 23s             | 13s             |
+| Trusted setup phase 2 key generation | 58m    | 32m        | 1.6h        |         | 1.7m            | 1.9m            |
+| Trusted setup phase 2 contribution   | 25m    | 13.6m      | 29m         |         | 54s             | 55s             |
+| Proving key size                     | 12G    | 6.5G       | 15G         |         | 421M            | 445M            |
+| Proving key verification             | 1.5h   | 43m        | 2.5h        |         | 2m              | 2.3m            |
+| Proving time (rapidsnark)            | 2m     | 52s        | 2.1m        |         | 3s              | 3s              |
+| Proof verification time              | 1s     | 1s         | 2s          |         | 1s              | 1s              |
 
 ## Testing
 

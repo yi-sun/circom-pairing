@@ -1,6 +1,13 @@
 //const bls = require("@noble/bls12-381");
 import { ContainerType, UintNumberType, ByteVectorType } from "@chainsafe/ssz";
-import { ssz } from "@chainsafe/lodestar-types";
+import { phase0, ssz } from "@chainsafe/lodestar-types";
+import {
+  createIBeaconConfig,
+  IBeaconConfig,
+  createIChainForkConfig,
+  IChainForkConfig,
+} from "@chainsafe/lodestar-config";
+import { config as chainConfig } from "@chainsafe/lodestar-config/default";
 import {
   Fp,
   Fp2,
@@ -15,7 +22,6 @@ import {
 } from "./index";
 import { map_to_curve_simple_swu_9mod16, isogenyMapG2 } from "./math";
 import block_json from "./BeaconBlock.json";
-import { Bytes32 } from "@chainsafe/lodestar-types/lib/sszTypes";
 
 const hashToField = utils.hashToField;
 
@@ -55,7 +61,15 @@ function Fp2_to_array(n: number, k: number, x: Fp2) {
   return [bigint_to_array(n, k, c0.value), bigint_to_array(n, k, c1.value)];
 }
 
+function formatHex(str: string): string {
+  if (str.startsWith("0x")) {
+    str = str.slice(2);
+  }
+  return str;
+}
+
 // UTF8 to ui8a
+// first 128 char agree with ASCII encoding
 function stringToBytes(str: string) {
   const bytes = new Uint8Array(str.length);
   for (let i = 0; i < str.length; i++) {
@@ -110,37 +124,35 @@ function bytesToHex(uint8a: Uint8Array): string {
   return hex;
 }
 
-function sgn0(x: Fp2) {
-  const { re: x0, im: x1 } = x.reim();
-  const sign_0 = x0 % 2n;
-  const zero_0 = x0 === 0n;
-  const sign_1 = x1 % 2n;
-  return BigInt(sign_0 || (zero_0 && sign_1));
-}
-
+// generate test input for bls signature verify
 async function test(message: string) {
   let msg = stringToBytes(message);
   //console.log(msg);
-
   let u = await hashToField(msg, 2);
+
+  console.log(
+    "u[0] = " + u[0][0].toString(16) + "\n + I * " + u[0][1].toString(16)
+  );
+  console.log(
+    "u[1] = " + u[1][0].toString(16) + "\n + I * " + u[1][1].toString(16)
+  );
+
   let u_array = [
     Fp2_to_array(55, 7, Fp2.fromBigTuple(u[0])),
     Fp2_to_array(55, 7, Fp2.fromBigTuple(u[1])),
   ];
-  //console.log("u : ");
-  //console.log(u);
   console.log("u_array : ");
   console.log(JSON.stringify(u_array));
 
   /*
   const Q0p = new PointG2(...map_to_curve_simple_swu_9mod16(u[0]));
   const Q1p = new PointG2(...map_to_curve_simple_swu_9mod16(u[1]));
-  console.log(sgn0(Fp2.fromBigTuple(u[1])));
-  console.log(sgn0(Q1p.toAffine()[1]));
   const Q0 = new PointG2(...isogenyMapG2(map_to_curve_simple_swu_9mod16(u[0])));
   const Q1 = new PointG2(...isogenyMapG2(map_to_curve_simple_swu_9mod16(u[1])));
   const R = Q0.add(Q1);
-  
+  const P = R.clearCofactor();
+  console.log(P.toAffine()[1].c0.value.toString(16));
+
   console.log("Q0:");
   console.log(Q0.toAffine());
   console.log(
@@ -160,6 +172,8 @@ async function test(message: string) {
   );*/
 
   let Hm = await PointG2.hashToCurve(msg);
+  console.log(Hm.toAffine()[0].c0.value.toString(16));
+
   console.log("MapToG2 out:");
   console.log(
     JSON.stringify([
@@ -177,6 +191,8 @@ async function test(message: string) {
   let publicKey = PointG1.fromHex(publicKeyHex);
 
   console.log("publicKey:");
+  console.log("x = 0x" + publicKey.toAffine()[0].value.toString(16));
+  console.log("y = 0x" + publicKey.toAffine()[1].value.toString(16));
   console.log(
     JSON.stringify([
       bigint_to_array(55, 7, publicKey.toAffine()[0].value),
@@ -186,6 +202,18 @@ async function test(message: string) {
 
   console.log("signature:");
   console.log(
+    "x = 0x" +
+      signature.toAffine()[0].c0.value.toString(16) +
+      "\n + I * 0x" +
+      signature.toAffine()[0].c1.value.toString(16)
+  );
+  console.log(
+    "y = 0x" +
+      signature.toAffine()[1].c0.value.toString(16) +
+      "\n + I * 0x" +
+      signature.toAffine()[1].c1.value.toString(16)
+  );
+  console.log(
     JSON.stringify([
       Fp2_to_array(55, 7, signature.toAffine()[0]),
       Fp2_to_array(55, 7, signature.toAffine()[1]),
@@ -193,14 +221,9 @@ async function test(message: string) {
   );
 }
 
-//test("abc");
+test("devconnect");
 
-function formatHex(str: string): string {
-  if (str.startsWith("0x")) {
-    str = str.slice(2);
-  }
-  return str;
-}
+export const DOMAIN_BEACON_PROPOSER = Uint8Array.from([0, 0, 0, 0]);
 export const BeaconBlock = new ContainerType(
   {
     slot: new UintNumberType(8),
@@ -227,15 +250,28 @@ async function verify_block_signature() {
   signature.assertValidity();
 
   let block = BeaconBlock.fromJson(block_json);
+  //console.log(block);
   let beacon_block_root = BeaconBlock.hashTreeRoot(block);
-
+  console.log(bytesToHex(beacon_block_root));
   // see compute_domain and get_domain from beacon chain spec
-  // NOTE: ethereum spec for ssz uses little endian for ByteVector while @chainsafe/ssz uses BitEndian
+  // NOTE: ethereum spec for ssz uses little endian for ByteVector while @chainsafe/ssz uses big Endian
+
+  /*
   const ForkData = ssz.phase0.ForkData;
   let fork_data_root = ForkData.hashTreeRoot(ForkData.defaultValue());
   let domain = new Uint8Array(32);
   for (let i = 0; i < 4; i++) domain[28 + i] = 0;
   for (let i = 0; i < 28; i++) domain[i] = fork_data_root[i + 4];
+  console.log(domain);
+  */
+  let genesisValidatorsRoot: Uint8Array = new Uint8Array();
+  const config: IBeaconConfig = createIBeaconConfig(
+    chainConfig,
+    genesisValidatorsRoot
+  );
+
+  const domain = config.getDomain(DOMAIN_BEACON_PROPOSER, block.slot);
+  console.log(domain);
 
   // see compute_signing_root from beacon chain spec
   const SigningData = ssz.phase0.SigningData;
@@ -245,18 +281,17 @@ async function verify_block_signature() {
 
   // chainsafe uses big endian
   const signing_root: Uint8Array = SigningData.hashTreeRoot(signing_data);
-  console.log(signing_root);
 
   let msg = new Uint8Array(signing_root.length);
   // convert to little endian
   for (let i = 0; i < msg.length; i++)
     msg[i] = signing_root[msg.length - 1 - i];
   //console.log(msg);
-  // const Hm = await PointG2.hashToCurve(signing_root);
-  const isCorrect = await verify(signatureHex, signing_root, publicKeyHex);
+  const Hm = await PointG2.hashToCurve(signing_root);
+  const isCorrect = await verify(signature, signing_root, publicKey);
   console.log(isCorrect);
   const isCorrect2 = await verify(signature, msg, publicKey);
   console.log(isCorrect2);
 }
 
-verify_block_signature();
+//verify_block_signature();

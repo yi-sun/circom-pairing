@@ -15,6 +15,7 @@
         "build:optimalate": "cd ./scripts/optimalate && ./build_optimalate.sh",
         "build:subgroupcheckG1": "cd ./scripts/subgroupcheckG1 && ./build_subgroupcheckG1.sh",
         "build:subgroupcheckG2": "cd ./scripts/subgroupcheckG2 && ./build_subgroupcheckG2.sh",
+        "build:maptoG2": "cd ./scripts/maptoG2 && ./build_maptoG2.sh",
         "build:verify": "cd ./scripts/signature && ./build_signature.sh",
         "test": "NODE_OPTIONS='--max-old-space-size=560000' mocha -r ts-node/register 'test/**/*.test.ts'"
     },
@@ -22,6 +23,7 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
+        "@chainsafe/lodestar-config": "^0.34.4",
         "@chainsafe/lodestar-types": "^0.34.4",
         "@chainsafe/ssz": "^0.9.1",
         "@noble/bls12-381": "^1.2.0",
