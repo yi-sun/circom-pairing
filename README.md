@@ -8,6 +8,7 @@
 - [Building keys and witness generation files](#building-keys-and-witness-generation-files)
 - [Benchmarks](#benchmarks)
 - [Testing](#testing)
+- [Demo](#demo)
 - [Acknowledgments](#acknowledgments)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -66,6 +67,10 @@ See the `/test` directory for examples of tests. The circuits to be tested shoul
 ## Documentation
 
 See [documentation](docs/README.md) for documentation of all circuits.
+
+## Demo
+
+See [here](https://zkxzk.xyz) for a demo of BLS signature verification inside a zk-SNARK. The frontend code for the demo can be found [here](https://github.com/vincenthuang75025/zkxzk), and the server code can be found [here](https://github.com/vincenthuang75025/zk-node-server-c). 
 
 ## Acknowledgments
 
