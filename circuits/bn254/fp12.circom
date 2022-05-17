@@ -1,17 +1,16 @@
 pragma circom 2.0.3;
 
-include "bigint.circom";
-include "field_elements_func.circom";
-include "fp.circom";
-include "fp2.circom";
+include "../bigint.circom";
+include "../fp.circom";
+include "../fp2.circom";
 include "fp12_func.circom";
-include "bls12_381_func.circom";
+include "bn254_func.circom";
 
 template Fp12FrobeniusMap(n, k, power){
     signal input in[6][2][k];
     signal output out[6][2][k];
 
-    var p[50] = get_BLS12_381_prime(n, k);
+    var p[50] = get_bn254_prime(n, k);
     var FP12_FROBENIUS_COEFFICIENTS[12][6][2][20] = get_Fp12_frobenius(n, k);
     var pow = power % 12;
  
@@ -204,7 +203,7 @@ template SignedFp12Fp2MultiplyNoCarryUnequal(n, ka, kb, m_out){
 // m_out is the expected max number of bits in the output registers
 template SignedFp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
     var l = 6;
-    var XI0 = 1;
+    var XI0 = 9;
     signal input a[l][2][ka];
     signal input b[l][2][kb];
     signal output out[l][2][ka + kb -1];
@@ -246,8 +245,8 @@ template SignedFp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
     // X[i+6][1] w^{i+6} = - X[i+6][1] * w^i       X[i+6][1] * XI0 * w^i * u 
     for (var i = 0; i < l; i++)for (var j = 0; j < ka + kb - 1; j++) {
         if (i < l - 1) {
-            out[i][0][j] <== X[i][0][j] + X[l + i][0][j]*XI0 - X[l + i][1][j];
-            out[i][1][j] <== X[i][1][j] + X[l + i][0][j]     + X[l + i][1][j];
+            out[i][0][j] <== X[i][0][j] + X[l + i][0][j] * XI0 - X[l + i][1][j];
+            out[i][1][j] <== X[i][1][j] + X[l + i][0][j] + X[l + i][1][j] * XI0;
         } else {
             out[i][0][j] <== X[i][0][j];
             out[i][1][j] <== X[i][1][j];
@@ -295,11 +294,11 @@ template Fp12Compress(n, k, m, p, m_out){
 // m_out is the expected max number of bits in the output registers
 template SignedFp12MultiplyNoCarryCompress(n, k, p, m_in, m_out) {
     var l = 6;
-    var XI0 = 1;
     signal input a[l][2][k];
     signal input b[l][2][k];
     signal output out[l][2][k];
 
+    var XI0 = 9;
     var LOGK1 = log_ceil(6*k*(2+XI0));
     component nocarry = SignedFp12MultiplyNoCarry(n, k, 2*m_in + LOGK1);
     for (var i = 0; i < l; i ++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){ 
@@ -308,11 +307,11 @@ template SignedFp12MultiplyNoCarryCompress(n, k, p, m_in, m_out) {
     }
 
     component reduce = Fp12Compress(n, k, k-1, p, m_out);
-    for (var i = 0; i < l; i++)for (var j = 0; j < 2; j++)
+    for (var i = 0; i < l; i++)for(var j = 0; j < 2; j++)
         for (var idx = 0; idx < 2 * k - 1; idx++) 
             reduce.in[i][j][idx] <== nocarry.out[i][j][idx];
 
-    for (var i = 0; i < l; i++)for (var j = 0; j < 2; j++)
+    for (var i = 0; i < l; i++)for(var j = 0; j < 2; j++)
         for (var idx = 0; idx < k; idx++) 
             out[i][j][idx] <== reduce.out[i][j][idx];
 }
@@ -347,7 +346,7 @@ template SignedFp12CarryModP(n, k, overflow, p) {
 // assumes p has k registers with kth register nonzero
 template Fp12Multiply(n, k, p) {
     var l = 6;
-    var XI0 = 1;
+    var XI0 = 9;
     signal input a[l][2][k];
     signal input b[l][2][k];
     
