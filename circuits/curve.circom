@@ -296,7 +296,7 @@ template EllipticCurveDouble(n, k, a, b, p) {
 
 // Fp curve y^2 = x^3 + a1*x + b1 
 // Assume curve has no Fp points of order 2, i.e., x^3 + a1*x + b1 has no Fp roots
-// Fact: ^ this is the case for BLS12-381 
+// Fact: ^ this is the case for BLS12-381 and BN254
 // If isInfinity = 1, replace `out` with `a` so if `a` was on curve, so is output
 template EllipticCurveAdd(n, k, a1, b1, p){
     signal input a[2][k];

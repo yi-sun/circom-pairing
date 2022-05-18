@@ -5,6 +5,11 @@ function get_bn254_parameter(){
     return 4965661367192848881;
 }
 
+function get_bn254_ate_loop_count(){
+    // 6 * get_bn254_parameter() + 2
+    return 29793968203157093288;
+}
+
 function get_bn254_prime(n, k){
     var p[50];
     assert( (n==51 && k==5) );
@@ -12,6 +17,20 @@ function get_bn254_prime(n, k){
         p = [154029749239111, 612489067865988, 1694766016103850, 22935798733632, 851317936231194];
     }
     return p;
+}
+
+function get_bn254_b(n, k){
+    // returns 3 / (9 + u) 
+    var b[2][50]; 
+    var xi[2][50];
+    for(var i=0; i<2; i++)for(var j=0; j<k; j++){
+        b[i][j] = 0;
+        xi[i][j] = 0;
+    }
+    b[0][0] = 3;
+    xi[0][0] = 9;
+    xi[1][0] = 1; 
+    return find_Fp2_product(n, k, b, find_Fp2_inverse(n, k, xi, p), p);
 }
 
 function get_Fp12_frobenius(n, k){
