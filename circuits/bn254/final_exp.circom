@@ -383,17 +383,17 @@ template BNFinalExpHardPart(n, k, p){
     // m = in 
 
     // m^x 
-    component mx = Fp12CyclotomicExp(n, k, x, p);
+    component mx = Fp12Exp(n, k, x, p);
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
         mx.in[id][eps][j] <== in[id][eps][j];
 
     // m^{x^2} = (m^x)^x 
-    component mx2 = Fp12CyclotomicExp(n, k, x, p);
+    component mx2 = Fp12Exp(n, k, x, p);
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
         mx2.in[id][eps][j] <== mx.out[id][eps][j];
 
     // m^{x^3} = (m^{x^2})^x 
-    component mx3 = Fp12CyclotomicExp(n, k, x, p);
+    component mx3 = Fp12Exp(n, k, x, p);
     for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
         mx3.in[id][eps][j] <== mx2.out[id][eps][j];
      
