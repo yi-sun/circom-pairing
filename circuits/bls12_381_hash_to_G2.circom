@@ -489,12 +489,13 @@ template ClearCofactorG2(n, k){
     
     // replace `in` with dummy_point if inIsInfinity = 1 to ensure P is on the curve 
     signal P[2][2][k];
-    component xP = EllipticCurveScalarMultiplyFp2(n, k, b, x_abs, p); 
+    component xP = EllipticCurveScalarMultiplyFp2(n, k, b, p); 
     component psiP = EndomorphismPsi(n, k, p);
     component neg_Py = Fp2Negate(n, k, p);
     component neg_psiPy = Fp2Negate(n, k, p);
     component doubP = EllipticCurveDoubleFp2(n, k, a, b, p);
      
+    xP.x <== x_abs;
     xP.inIsInfinity <== inIsInfinity; 
     for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
         P[i][j][idx] <== in[i][j][idx] + inIsInfinity * (dummy_point[i][j][idx] - in[i][j][idx]);
@@ -530,10 +531,11 @@ template ClearCofactorG2(n, k){
     add[1].aIsInfinity <== add[0].isInfinity;
     add[1].bIsInfinity <== inIsInfinity;
     
-    component xadd1 = EllipticCurveScalarMultiplyFp2(n, k, b, x_abs, p); 
+    component xadd1 = EllipticCurveScalarMultiplyFp2(n, k, b, p); 
     for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         xadd1.in[i][j][idx] <== add[1].out[i][j][idx];
     xadd1.inIsInfinity <== add[1].isInfinity; 
+    xadd1.x <== x_abs;
 
     for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
         add[2].a[i][j][idx] <== xadd1.out[i][j][idx];
@@ -634,7 +636,7 @@ template SubgroupCheckG2(n, k){
 
     component psiP = EndomorphismPsi(n, k, p); 
     component negP = Fp2Negate(n, k, p);
-    component xP = EllipticCurveScalarMultiplyUnequalFp2(n, k, [4, 4], x_abs, p); 
+    component xP = EllipticCurveScalarMultiplyUnequalFp2(n, k, [4, 4], p); 
 
     for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
         negP.in[j][idx] <== in[1][j][idx];
@@ -645,6 +647,7 @@ template SubgroupCheckG2(n, k){
         xP.in[0][j][idx] <== in[0][j][idx];
         xP.in[1][j][idx] <== negP.out[j][idx]; 
     }
+    xP.x <== x_abs;
     
     // psi(P) == [x]P
     component is_eq[2];
@@ -700,13 +703,15 @@ template SubgroupCheckG1(n, k){
     }
     
     // x has hamming weight 6 while x^2 has hamming weight 17 so better to do double-and-add on x twice
-    component xP = EllipticCurveScalarMultiplyUnequal(n, k, b, x_abs, p); 
-    component x2P = EllipticCurveScalarMultiplyUnequal(n, k, b, x_abs, p);
+    component xP = EllipticCurveScalarMultiplyUnequal(n, k, b, p); 
+    component x2P = EllipticCurveScalarMultiplyUnequal(n, k, b, p);
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
         xP.in[i][idx] <== in[i][idx];
+    xP.x <== x_abs;
 
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
         x2P.in[i][idx] <== xP.out[i][idx];
+    x2P.x <== x_abs;
 
     // check -phi(P) == [x^2]P
     component is_eq = Fp2IsEqual(n, k, p); // using Fp2IsEqual to check two Fp points are equal

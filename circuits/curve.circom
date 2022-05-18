@@ -369,9 +369,10 @@ template EllipticCurveAdd(n, k, a1, b1, p){
 //  x in [0, 2^250) 
 //  `in` is point in E even if inIsInfinity = 1 just so nothing goes wrong
 //  E(Fp) has no points of order 2
-template EllipticCurveScalarMultiply(n, k, b, x, p){
+template EllipticCurveScalarMultiply(n, k, b, p){
     signal input in[2][k];
     signal input inIsInfinity;
+    signal input x;
 
     signal output out[2][k];
     signal output isInfinity;
@@ -448,8 +449,9 @@ template EllipticCurveScalarMultiply(n, k, b, x, p){
 //  x in [0, 2^250) 
 //  E(Fp) has no points of order 2
 //  P has order > x so never hit point at infinity, and can always use add unequal: constraint assertion fails if add unequal fails 
-template EllipticCurveScalarMultiplyUnequal(n, k, b, x, p){
+template EllipticCurveScalarMultiplyUnequal(n, k, b, p){
     signal input in[2][k];
+    signal input x;
     signal output out[2][k];
 
     var LOGK = log_ceil(k);
