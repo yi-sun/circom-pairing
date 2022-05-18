@@ -6,6 +6,35 @@ include "../fp2.circom";
 include "fp12_func.circom";
 include "bn254_func.circom";
 
+// in = a + b w where a, b in Fp6 and w^6 = XI0 + u 
+// out = a - b w
+// Use case: If p = 3 (mod 4) and p = 1 (mod 6) then f^{p^6} = conjugate of f
+template Fp12Conjugate(n, k, p){
+    signal input in[6][2][k];
+    signal output out[6][2][k];
+    
+    // conjugate of (a_i + b_i u) w^i is (-1)^i * (a_i + b_i u) w^i
+    component neg[3][2];
+    for(var i=0; i<3; i++){
+        for(var j=0; j<k; j++){
+            out[2*i][0][j] <== in[2*i][0][j];
+            out[2*i][1][j] <== in[2*i][1][j];
+        }
+        
+        neg[i][0] = FpNegate(n, k, p);
+        neg[i][1] = FpNegate(n, k, p);
+        for(var j=0; j<k; j++){
+            neg[i][0].in[j] <== in[2*i+1][0][j];
+            neg[i][1].in[j] <== in[2*i+1][1][j];
+        }
+        for(var j=0; j<k; j++){
+            out[2*i+1][0][j] <== neg[i][0].out[j];
+            out[2*i+1][1][j] <== neg[i][1].out[j];
+        }
+    }
+}
+
+// Assumes: p = 3 (mod 4)
 template Fp12FrobeniusMap(n, k, power){
     signal input in[6][2][k];
     signal output out[6][2][k];
@@ -41,9 +70,9 @@ template Fp12FrobeniusMap(n, k, power){
             }
         }
     }else{
-        // apply Frob to coefficients first
+        // apply Frob to coefficients first: pow % 2 = 1 means this is conjugation
         for(var i=0; i<6; i++){
-            in_frob[i] = Fp2FrobeniusMap(n, k, pow, p); 
+            in_frob[i] = Fp2Conjugate(n, k, p); 
             for(var j=0; j<k; j++){
                 in_frob[i].in[0][j] <== in[i][0][j];
                 in_frob[i].in[1][j] <== in[i][1][j];
@@ -363,7 +392,7 @@ template Fp12Multiply(n, k, p) {
     }
     component carry_mod;
     carry_mod = SignedFp12CarryModP(n, k, 3*n + LOGK2, p);
-    for (var i = 0; i < l; i++)for (var j = 0; j < 2; j++)
+    for (var i = 0; i < l; i++)for(var j = 0; j < 2; j++)
         for (var idx = 0; idx < k; idx++)
 		    carry_mod.in[i][j][idx] <== no_carry.out[i][j][idx];
         
@@ -371,6 +400,43 @@ template Fp12Multiply(n, k, p) {
     for (var i = 0; i < l; i++)for (var j = 0; j < 2; j++)
         for (var idx = 0; idx < k; idx++)
             out[i][j][idx] <== carry_mod.out[i][j][idx];
+}
+
+template Fp12MultiplyThree(n, k, p) {
+    var l = 6;
+    var XI0 = 9;
+    signal input a[l][2][k];
+    signal input b[l][2][k];
+    signal input c[l][2][k];
+    signal output out[l][2][k];
+
+    var LOGK2 = log_ceil(6*k*(2+XI0)); 
+    var LOGK3 = log_ceil(36*k*k*(2*k-1)*(2+XI0)*(2+XI0) ); 
+
+    component ab = SignedFp12MultiplyNoCarry(n, k, 2*n + LOGK2); 
+    for(var i=0; i<l; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        ab.a[i][j][idx] <== a[i][j][idx];
+        ab.b[i][j][idx] <== b[i][j][idx];
+    }
+    component abc = SignedFp12MultiplyNoCarryUnequal(n, 2*k-1, k, 3*n + 2*LOGK2); 
+    for(var i=0; i<l; i++)for(var j=0; j<2; j++){
+        for(var idx=0; idx<2*k-1; idx++)
+            abc.a[i][j][idx] <== ab.out[i][j][idx]; 
+        for(var idx=0; idx<k; idx++)
+            abc.b[i][j][idx] <== c[i][j][idx];
+    }
+   
+    component compress = Fp12Compress(n, k, 2*k-2, p, 4*n + LOGK3); 
+    for(var i=0; i<l; i++)for(var j=0; j<2; j++)for(var idx=0; idx<3*k-2; idx++)
+        compress.in[i][j][idx] <== abc.out[i][j][idx];
+
+    component carry;
+    carry = SignedFp12CarryModP(n, k, 4*n + LOGK3, p);
+    for(var i=0; i<l; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        carry.in[i][j][idx] <== compress.out[i][j][idx];
+    
+    for(var i=0; i<l; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        out[i][j][idx] <== carry.out[i][j][idx];
 }
 
 // unoptimized squaring, just takes two elements of Fp12 and multiplies them
