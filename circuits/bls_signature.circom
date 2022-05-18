@@ -1,9 +1,7 @@
 pragma circom 2.0.3;
 
-include "bigint.circom";
-include "curve.circom";
 include "final_exp.circom";
-include "curve_fp2.circom";
+include "pairing.circom";
 include "bls12_381_func.circom";
 include "bls12_381_hash_to_G2.circom";
 
