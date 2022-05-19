@@ -20,6 +20,7 @@ function get_bn254_prime(n, k){
 }
 
 function get_bn254_b(n, k){
+    var p[50] = get_bn254_prime(n, k);
     // returns 3 / (9 + u) 
     var b[2][50]; 
     var xi[2][50];

@@ -241,6 +241,7 @@ function is_equal_Fp2(n, k, a, b){
 
 // a[2][k] elt in Fp2 
 // output multiplies by XI0 +u
+// multiplies register bounds by (XI0 + 1)
 function signed_Fp2_mult_w6(k, a, XI0){
     var out[2][50];
     for(var i=0; i<k; i++){
