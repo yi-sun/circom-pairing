@@ -359,17 +359,20 @@ template Fp12MultiplyWithLineUnequalFp2(n, k, kg, overflowg, q){
 // Assuming curve is of form Y^2 = X^3 + b for now (a = 0) for better register bounds 
 // b = [b0, b1] is 2 x k array representing Fp2 element
 // Inputs:
-//  P is 2 x 2 x k array where P = (x, y) is a point in E[r](Fq2) 
-//  Q is 2 x k array representing point (X, Y) in E(Fq) 
+//  P is 2 x 2 x k array where P = (x, y) is a point in E[r](Fp2) 
+//  Q is 2 x k array representing point (X, Y) in E(Fp) 
 // Output:
-//  out = f_x(P,Q) is 6 x 2 x k, where we start with f_0(P,Q) = in and use Miller's algorithm f_{i+j} = f_i * f_j * l_{i,j}(P,Q)
+//  out = f_loopCount(P,Q) * l_{[loopCount] P', Frob_p(P')}(Q) * l_{[loopCount] P' + Frob_p(P'), -Frob_p^2(P')}(Q) 
+//  - is 6 x 2 x k, where we start with f_0(P,Q) = in and use Miller's algorithm f_{i+j} = f_i * f_j * l_{i,j}(P,Q)
+//  - where P' = twist(P) in E(Fp12)
+//  - Frob_p(x,y) = (x^p, y^p)
 // Assume:
 //  r is prime (not a parameter in this template)
-//  loopCount in [0, 2^250) and loopCount < r 
-//  q has k registers in [0, 2^n)
-//  P != O so the order of P in E(Fq) is r, so [i]P != [j]P for i != j in Z/r 
-//  X^3 + b = 0 has no solution in Fq2, i.e., the y-coordinate of P cannot be 0.
-template MillerLoopFp2(n, k, b0, b1, loopCount, q){
+//  loopCount in [0, 2^250) and loopCount < r and loopCount < p
+//  p has k registers in [0, 2^n)
+//  P != O so the order of P in E(Fp) is r, so [i]P != [j]P for i != j in Z/r 
+//  X^3 + b = 0 has no solution in Fp2, i.e., the y-coordinate of P cannot be 0.
+template MillerLoopFp2(n, k, b0, b1, loopCount, p){
     signal input P[2][2][k]; 
     signal input Q[2][k];
 
@@ -424,7 +427,7 @@ template MillerLoopFp2(n, k, b0, b1, loopCount, q){
                 square[i].b[l][j][idx] <== f[i+1][l][j][idx];
             }
             
-            line[i] = LineFunctionEqualFp2(n, k, q); // 6 x 2 x k registers in [0, 2^n) 
+            line[i] = LineFunctionEqualFp2(n, k, p); // 6 x 2 x k registers in [0, 2^n) 
             for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
                 line[i].P[j][l][idx] <== R[i+1][j][l][idx];            
             for(var eps=0; eps<2; eps++)
@@ -438,15 +441,15 @@ template MillerLoopFp2(n, k, b0, b1, loopCount, q){
             for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
                 nocarry[i].b[l][j][idx] <== line[i].out[l][j][idx];
             
-            compress[i] = Fp12Compress(n, k, 2*k-2, q, 4*n + LOGK3); // 6 x 2 x k registers < (6 * (2+ XI0))^2 * k^2 * (2k-1) * 2^{4n} )
+            compress[i] = Fp12Compress(n, k, 2*k-2, p, 4*n + LOGK3); // 6 x 2 x k registers < (6 * (2+ XI0))^2 * k^2 * (2k-1) * 2^{4n} )
             for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<3*k-2; idx++)
                 compress[i].in[l][j][idx] <== nocarry[i].out[l][j][idx];
             
-            fdouble[i] = SignedFp12CarryModP(n, k, 4*n + LOGK3, q);
+            fdouble[i] = SignedFp12CarryModP(n, k, 4*n + LOGK3, p);
             for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
                 fdouble[i].in[l][j][idx] <== compress[i].out[l][j][idx]; 
             
-            Pdouble[i] = EllipticCurveDoubleFp2(n, k, [0,0], b0, b1, q);  
+            Pdouble[i] = EllipticCurveDoubleFp2(n, k, [0,0], b0, b1, p);  
             for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
                 Pdouble[i].in[j][l][idx] <== R[i+1][j][l][idx]; 
             
@@ -456,7 +459,7 @@ template MillerLoopFp2(n, k, b0, b1, loopCount, q){
                 for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++)
                     R[i][j][l][idx] <== Pdouble[i].out[j][l][idx];
             }else{
-                fadd[curid] = Fp12MultiplyWithLineUnequalFp2(n, k, k, n, q); 
+                fadd[curid] = Fp12MultiplyWithLineUnequalFp2(n, k, k, n, p); 
                 for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
                     fadd[curid].g[l][j][idx] <== fdouble[i].out[l][j][idx];
                 
@@ -471,7 +474,7 @@ template MillerLoopFp2(n, k, b0, b1, loopCount, q){
                     f[i][l][j][idx] <== fadd[curid].out[l][j][idx]; 
 
                 // Padd[curid] = Pdouble[i] + P 
-                Padd[curid] = EllipticCurveAddUnequalFp2(n, k, q); 
+                Padd[curid] = EllipticCurveAddUnequalFp2(n, k, p); 
                 for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)for(var l=0; l<2; l++){
                     Padd[curid].a[j][l][idx] <== Pdouble[i].out[j][l][idx];
                     Padd[curid].b[j][l][idx] <== P[j][l][idx];
@@ -484,8 +487,74 @@ template MillerLoopFp2(n, k, b0, b1, loopCount, q){
             }
         }
     }
-    for(var l=0; l<6; l++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
-        out[l][j][idx] <== f[0][l][j][idx];
+    // R[0] = f_loopCount(P, Q) 
+
+    // coeff[1][j] = (9+u)^{(p-1)/6 * j}
+    var coeff[12][6][2][20] = get_Fp12_frobenius(n, k);
+    // Frob_p( twist(P) ) = ( (w^2 x)^p, (w^3 y)^p ) = twist( coeff[1][2] * x^p, coeff[1][3] * y^p ) 
+    component frobP[2];
+    component twistedFrobP[2];
+    for(var i=0; i<2; i++){
+        frobP[i] = Fp2Conjugate(n, k, p); 
+        for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+            frobP[i].in[j][idx] <== P[i][j][idx];
+        twistedFrobP[i] = Fp2Multiply(n, k, p); 
+        for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+            twistedFrobP[i].a[j][idx] <== coeff[1][2+i][j][idx];
+            twistedFrobP[i].b[j][idx] <== frobP[i].out[j][idx];
+        } 
+    }
+    
+    // l_{[loopCount] P', Frob_p(P')}(Q) 
+    component line1 = LineFunctionUnequalFp2(n, k, p);
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        line1.P[0][i][j][idx] <== R[0][i][j][idx]; 
+        line1.P[1][i][j][idx] <== twistedFrobP[i].out[j][idx];
+    }
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
+        line1.Q[i][idx] <== Q[i][idx];
+
+    // l_{[loopCount] P' + Frob_p(P'), -Frob_p^2(P')}(Q) 
+    component line_add[2];
+    for(var i=0; i<2; i++){
+        line_add[i] = Fp2Add(n, k, p);
+        for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+            line_add[i].a[j][idx] <== R[0][i][j][idx]; 
+            line_add[i].b[j][idx] <== twistedFrobP[i].out[j][idx];
+        }
+    }
+    component negFrob2[2]; // real part 
+    component negTwistedFrob2P[2];
+    for(var i=0; i<2; i++){
+        negFrob2[i] = FpNegate(n, k, p);
+        for(var idx=0; idx<k; idx++)
+            negFrob2[i].in[idx] <== twistedFrobP[i].out[0][idx];
+        negTwistedFrob2P[i] = Fp2Multiply(n, k, p);
+        for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+            negTwistedFrob2P[i].a[j][idx] <== coeff[1][2+i][j][idx];
+            if(j==0)
+                negTwistedFrob2P[i].b[j][idx] <== negFrob2[i].out[idx];
+            else
+                negTwistedFrob2P[i].b[j][idx] <== twistedFrobP[i].out[j][idx];
+        } 
+    }
+    component line2 = LineFunctionUnequalFp2(n, k, p);
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        line2.P[0][i][j][idx] <== line_add[i].out[j][idx]; 
+        line2.P[1][i][j][idx] <== negTwistedFrob2P[i].out[j][idx];
+    }
+    for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)
+        line2.Q[i][idx] <== Q[i][idx];
+    
+    component res = Fp12MultiplyThree(n, k, p);
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        res.a[i][j][idx] <== f[0][i][j][idx];
+        res.b[i][j][idx] <== line1.out[i][j][idx];
+        res.c[i][j][idx] <== line2.out[i][j][idx];
+    }
+    
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        out[i][j][idx] <== res.out[i][j][idx];
 }
 
 
