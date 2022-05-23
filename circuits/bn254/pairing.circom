@@ -515,24 +515,27 @@ template MillerLoopFp2(n, k, b0, b1, loopCount, p){
         line1.Q[i][idx] <== Q[i][idx];
 
     // l_{[loopCount] P' + Frob_p(P'), -Frob_p^2(P')}(Q) 
-    component line_add[2];
-    for(var i=0; i<2; i++){
-        line_add[i] = Fp2Add(n, k, p);
-        for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-            line_add[i].a[j][idx] <== R[0][i][j][idx]; 
-            line_add[i].b[j][idx] <== twistedFrobP[i].out[j][idx];
-        }
+    component R_add = EllipticCurveAddUnequalFp2(n, k, p);
+    for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        R_add.a[i][j][idx] <== R[0][i][j][idx]; 
+        R_add.b[i][j][idx] <== twistedFrobP[i].out[j][idx];
     }
-    component negFrob2[2]; // real part 
+    // -Frob_p^2(P') = twist( coeff[1][2] * x1^p, coeff[1][3] * -y1^p ) where twistedFrobP.out = (x1, y1)
+    // x1^p is conjugation 
+    component negFrob2[2]; 
+    negFrob2[0] = FpNegate(n, k, p);
+    negFrob2[1] = FpNegate(n, k, p);
+    for(var idx=0; idx<k; idx++){
+        negFrob2[0].in[idx] <== twistedFrobP[0].out[1][idx];
+        negFrob2[1].in[idx] <== twistedFrobP[1].out[0][idx];
+    }
+
     component negTwistedFrob2P[2];
     for(var i=0; i<2; i++){
-        negFrob2[i] = FpNegate(n, k, p);
-        for(var idx=0; idx<k; idx++)
-            negFrob2[i].in[idx] <== twistedFrobP[i].out[0][idx];
         negTwistedFrob2P[i] = Fp2Multiply(n, k, p);
         for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
             negTwistedFrob2P[i].a[j][idx] <== coeff[1][2+i][j][idx];
-            if(j==0)
+            if( (i==0 && j==1) || (i==1 && j==0) )
                 negTwistedFrob2P[i].b[j][idx] <== negFrob2[i].out[idx];
             else
                 negTwistedFrob2P[i].b[j][idx] <== twistedFrobP[i].out[j][idx];
@@ -540,7 +543,7 @@ template MillerLoopFp2(n, k, b0, b1, loopCount, p){
     }
     component line2 = LineFunctionUnequalFp2(n, k, p);
     for(var i=0; i<2; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
-        line2.P[0][i][j][idx] <== line_add[i].out[j][idx]; 
+        line2.P[0][i][j][idx] <== R_add.out[i][j][idx]; 
         line2.P[1][i][j][idx] <== negTwistedFrob2P[i].out[j][idx];
     }
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++)

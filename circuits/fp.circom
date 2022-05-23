@@ -20,6 +20,7 @@ template FpAdd(n, k, p){
     component lt = BigLessThan(n, k+1);
     for (var i = 0; i < k; i++) {
         lt.a[i] <== add.out[i];
+        lt.b[i] <== p[i];
     }
     lt.a[k] <== add.out[k];
     lt.b[k] <== 0; 
@@ -27,7 +28,7 @@ template FpAdd(n, k, p){
     component sub = BigSub(n,k+1);
     for (var i = 0; i < k; i++) {
         sub.a[i] <== add.out[i];
-        sub.b[i] <== (1-lt.out) * p[i];
+        sub.b[i] <== p[i] - lt.out * p[i];
     }
     sub.a[k] <== add.out[k];
     sub.b[k] <== 0;
@@ -66,6 +67,7 @@ template FpSubtract(n, k, p){
 
 // Input: in <= p
 // Output: -in (mod p) = p - in if in != 0, else 0 
+// Constrains in <= p
 template FpNegate(n, k, p){
     signal input in[k];
     signal output out[k];
