@@ -528,10 +528,9 @@ template EllipticCurveAddFp2(n, k, a2, b2, p){
 //  x in [0, 2^250) 
 //  `in` is point in E2 even if inIsInfinity = 1 just so nothing goes wrong
 //  E2(Fp2) has no points of order 2
-template EllipticCurveScalarMultiplyFp2(n, k, b, p){
+template EllipticCurveScalarMultiplyFp2(n, k, b, x, p){
     signal input in[2][2][k];
     signal input inIsInfinity;
-    signal input x;
 
     signal output out[2][2][k];
     signal output isInfinity;
@@ -610,9 +609,8 @@ template EllipticCurveScalarMultiplyFp2(n, k, b, p){
 //  E2 has no Fp2 points of order 2 
 //  x in [0, 2^250) 
 //  P has order > x, so in double-and-add loop we never hit point at infinity, and only add unequal is allowed: constraint will fail if add unequal fails 
-template EllipticCurveScalarMultiplyUnequalFp2(n, k, b, p){
+template EllipticCurveScalarMultiplyUnequalFp2(n, k, b, x, p){
     signal input in[2][2][k];
-    signal input x;
     signal output out[2][2][k];
 
     var LOGK = log_ceil(k);
