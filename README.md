@@ -70,7 +70,7 @@ See [documentation](docs/README.md) for documentation of all circuits.
 
 ## Demo
 
-See [here](https://zkxzk.xyz) for a demo of BLS signature verification inside a zk-SNARK. The frontend code for the demo can be found [here](https://github.com/vincenthuang75025/zkxzk), and the server code can be found [here](https://github.com/vincenthuang75025/zk-node-server-c). 
+See [here](https://zkpairing.xyz) for a demo of BLS signature verification inside a zk-SNARK. The frontend code for the demo can be found [here](https://github.com/vincenthuang75025/zkxzk), and the server code can be found [here](https://github.com/vincenthuang75025/zk-node-server-c). 
 
 ## Acknowledgments
 
