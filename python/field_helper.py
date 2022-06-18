@@ -50,11 +50,11 @@ def printFQ2(X, n, k):
             print(",")
     print("]")
 
-def Fp12convert(X, n, k):
+def Fp12convert(X, n, k, xi=1):
     basis1 = X.coeffs
     ret = []
     for i in range(6):
-        fq2elt = FQ2([basis1[i].n, 0]) + FQ2([basis1[i+6].n, 0]) * FQ2([1,1])
+        fq2elt = FQ2([basis1[i].n, 0]) + FQ2([basis1[i+6].n, 0]) * FQ2([xi,1])
         ret.append([ numberToArray(fq2elt.coeffs[0].n, n, k) , numberToArray(fq2elt.coeffs[1].n, n, k) ])
     return ret
 
@@ -74,8 +74,8 @@ def convert_out_to_Fp12(out, n, k):
         coeff[i+6] = twelve[i][1]
     return FQ12(coeff)
 
-def printFQ12(X, n, k):
-    in62 = Fp12convert(X, n, k)
+def printFQ12(X, n, k, xi=1):
+    in62 = Fp12convert(X, n, k, xi)
     print("[")
     for i in range(len(in62)):
         print("[", end="")
@@ -95,10 +95,10 @@ def printFQ12(X, n, k):
             print(",")
     print("]")
 
-def print_fq12_frobenius_coeff(n, k):
+def print_fq12_frobenius_coeff(q, n, k, xi=1):
     gamma = [[0]*6]*12
     for j in range(12):
-        gamma[j] = [ FQ2([1,1]) ** ( (i*(q**j-1)//6) % (q**2-1) ) for i in range(6)]
+        gamma[j] = [ FQ2([xi,1]) ** ( (i*(q**j-1)//6) % (q**2-1) ) for i in range(6)]
     for j in range(12):
         for i in range(6):
             A, B = gamma[j][i].coeffs

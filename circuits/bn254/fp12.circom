@@ -1,17 +1,45 @@
 pragma circom 2.0.3;
 
-include "bigint.circom";
-include "field_elements_func.circom";
-include "fp.circom";
-include "fp2.circom";
+include "../bigint.circom";
+include "../fp.circom";
+include "../fp2.circom";
 include "fp12_func.circom";
-include "bls12_381_func.circom";
+include "bn254_func.circom";
 
+// in = a + b w where a, b in Fp6 and w^6 = XI0 + u 
+// out = a - b w
+// Use case: If p = 3 (mod 4) and p = 1 (mod 6) then f^{p^6} = conjugate of f
+template Fp12Conjugate(n, k, p){
+    signal input in[6][2][k];
+    signal output out[6][2][k];
+    
+    // conjugate of (a_i + b_i u) w^i is (-1)^i * (a_i + b_i u) w^i
+    component neg[3][2];
+    for(var i=0; i<3; i++){
+        for(var j=0; j<k; j++){
+            out[2*i][0][j] <== in[2*i][0][j];
+            out[2*i][1][j] <== in[2*i][1][j];
+        }
+        
+        neg[i][0] = FpNegate(n, k, p);
+        neg[i][1] = FpNegate(n, k, p);
+        for(var j=0; j<k; j++){
+            neg[i][0].in[j] <== in[2*i+1][0][j];
+            neg[i][1].in[j] <== in[2*i+1][1][j];
+        }
+        for(var j=0; j<k; j++){
+            out[2*i+1][0][j] <== neg[i][0].out[j];
+            out[2*i+1][1][j] <== neg[i][1].out[j];
+        }
+    }
+}
+
+// Assumes: p = 3 (mod 4)
 template Fp12FrobeniusMap(n, k, power){
     signal input in[6][2][k];
     signal output out[6][2][k];
 
-    var p[50] = get_BLS12_381_prime(n, k);
+    var p[50] = get_bn254_prime(n, k);
     var FP12_FROBENIUS_COEFFICIENTS[12][6][2][20] = get_Fp12_frobenius(n, k);
     var pow = power % 12;
  
@@ -42,9 +70,9 @@ template Fp12FrobeniusMap(n, k, power){
             }
         }
     }else{
-        // apply Frob to coefficients first
+        // apply Frob to coefficients first: pow % 2 = 1 means this is conjugation
         for(var i=0; i<6; i++){
-            in_frob[i] = Fp2FrobeniusMap(n, k, pow, p); 
+            in_frob[i] = Fp2Conjugate(n, k, p); 
             for(var j=0; j<k; j++){
                 in_frob[i].in[0][j] <== in[i][0][j];
                 in_frob[i].in[1][j] <== in[i][1][j];
@@ -204,7 +232,7 @@ template SignedFp12Fp2MultiplyNoCarryUnequal(n, ka, kb, m_out){
 // m_out is the expected max number of bits in the output registers
 template SignedFp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
     var l = 6;
-    var XI0 = 1;
+    var XI0 = 9;
     signal input a[l][2][ka];
     signal input b[l][2][kb];
     signal output out[l][2][ka + kb -1];
@@ -246,8 +274,8 @@ template SignedFp12MultiplyNoCarryUnequal(n, ka, kb, m_out){
     // X[i+6][1] w^{i+6} = - X[i+6][1] * w^i       X[i+6][1] * XI0 * w^i * u 
     for (var i = 0; i < l; i++)for (var j = 0; j < ka + kb - 1; j++) {
         if (i < l - 1) {
-            out[i][0][j] <== X[i][0][j] + X[l + i][0][j]*XI0 - X[l + i][1][j];
-            out[i][1][j] <== X[i][1][j] + X[l + i][0][j]     + X[l + i][1][j];
+            out[i][0][j] <== X[i][0][j] + X[l + i][0][j] * XI0 - X[l + i][1][j];
+            out[i][1][j] <== X[i][1][j] + X[l + i][0][j] + X[l + i][1][j] * XI0;
         } else {
             out[i][0][j] <== X[i][0][j];
             out[i][1][j] <== X[i][1][j];
@@ -295,11 +323,11 @@ template Fp12Compress(n, k, m, p, m_out){
 // m_out is the expected max number of bits in the output registers
 template SignedFp12MultiplyNoCarryCompress(n, k, p, m_in, m_out) {
     var l = 6;
-    var XI0 = 1;
     signal input a[l][2][k];
     signal input b[l][2][k];
     signal output out[l][2][k];
 
+    var XI0 = 9;
     var LOGK1 = log_ceil(6*k*(2+XI0));
     component nocarry = SignedFp12MultiplyNoCarry(n, k, 2*m_in + LOGK1);
     for (var i = 0; i < l; i ++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){ 
@@ -308,11 +336,11 @@ template SignedFp12MultiplyNoCarryCompress(n, k, p, m_in, m_out) {
     }
 
     component reduce = Fp12Compress(n, k, k-1, p, m_out);
-    for (var i = 0; i < l; i++)for (var j = 0; j < 2; j++)
+    for (var i = 0; i < l; i++)for(var j = 0; j < 2; j++)
         for (var idx = 0; idx < 2 * k - 1; idx++) 
             reduce.in[i][j][idx] <== nocarry.out[i][j][idx];
 
-    for (var i = 0; i < l; i++)for (var j = 0; j < 2; j++)
+    for (var i = 0; i < l; i++)for(var j = 0; j < 2; j++)
         for (var idx = 0; idx < k; idx++) 
             out[i][j][idx] <== reduce.out[i][j][idx];
 }
@@ -347,7 +375,7 @@ template SignedFp12CarryModP(n, k, overflow, p) {
 // assumes p has k registers with kth register nonzero
 template Fp12Multiply(n, k, p) {
     var l = 6;
-    var XI0 = 1;
+    var XI0 = 9;
     signal input a[l][2][k];
     signal input b[l][2][k];
     
@@ -364,7 +392,7 @@ template Fp12Multiply(n, k, p) {
     }
     component carry_mod;
     carry_mod = SignedFp12CarryModP(n, k, 3*n + LOGK2, p);
-    for (var i = 0; i < l; i++)for (var j = 0; j < 2; j++)
+    for (var i = 0; i < l; i++)for(var j = 0; j < 2; j++)
         for (var idx = 0; idx < k; idx++)
 		    carry_mod.in[i][j][idx] <== no_carry.out[i][j][idx];
         
@@ -372,6 +400,43 @@ template Fp12Multiply(n, k, p) {
     for (var i = 0; i < l; i++)for (var j = 0; j < 2; j++)
         for (var idx = 0; idx < k; idx++)
             out[i][j][idx] <== carry_mod.out[i][j][idx];
+}
+
+template Fp12MultiplyThree(n, k, p) {
+    var l = 6;
+    var XI0 = 9;
+    signal input a[l][2][k];
+    signal input b[l][2][k];
+    signal input c[l][2][k];
+    signal output out[l][2][k];
+
+    var LOGK1 = log_ceil(6*k*(2+XI0)); 
+    var LOGK3 = log_ceil(36*k*k*(2*k-1)*(2+XI0)*(2+XI0) ); 
+
+    component ab = SignedFp12MultiplyNoCarry(n, k, 2*n + LOGK1); 
+    for(var i=0; i<l; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+        ab.a[i][j][idx] <== a[i][j][idx];
+        ab.b[i][j][idx] <== b[i][j][idx];
+    }
+    component abc = SignedFp12MultiplyNoCarryUnequal(n, 2*k-1, k, 3*n + 2*LOGK1); 
+    for(var i=0; i<l; i++)for(var j=0; j<2; j++){
+        for(var idx=0; idx<2*k-1; idx++)
+            abc.a[i][j][idx] <== ab.out[i][j][idx]; 
+        for(var idx=0; idx<k; idx++)
+            abc.b[i][j][idx] <== c[i][j][idx];
+    }
+   
+    component compress = Fp12Compress(n, k, 2*k-2, p, 4*n + LOGK3); 
+    for(var i=0; i<l; i++)for(var j=0; j<2; j++)for(var idx=0; idx<3*k-2; idx++)
+        compress.in[i][j][idx] <== abc.out[i][j][idx];
+
+    component carry;
+    carry = SignedFp12CarryModP(n, k, 4*n + LOGK3, p);
+    for(var i=0; i<l; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        carry.in[i][j][idx] <== compress.out[i][j][idx];
+    
+    for(var i=0; i<l; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        out[i][j][idx] <== carry.out[i][j][idx];
 }
 
 // unoptimized squaring, just takes two elements of Fp12 and multiplies them
@@ -451,71 +516,84 @@ template Fp12Invert(n, k, p){
 // output is input raised to the e-th power
 // use the square and multiply method
 // assume 0 < e < 2^254
+// assume we can multiply 3 Fp12 elements before carry (aka can all Fp12MultiplyThree)
 template Fp12Exp(n, k, e, p) {
     assert( e > 0 );
 
     signal input in[6][2][k];
     signal output out[6][2][k];
 
+    var XI0 = 9;
+    var LOGK1 = log_ceil(6*k*(2+XI0)); 
+    var LOGK2 = log_ceil(6*k*k*(2+XI0)); 
+    var LOGK3 = log_ceil(36*k*k*(2*k-1)*(2+XI0)*(2+XI0) ); 
+
     var temp = e;
     var BITLENGTH;
+    var SIGBITS=0;
     for(var i=0; i<254; i++){
         if( temp != 0 )
             BITLENGTH = i; 
+        if( (temp & 1) == 1 ) 
+            SIGBITS++;
         temp = temp>>1;
     }
     BITLENGTH++;
-    component pow2[BITLENGTH]; // pow2[i] = in^{2^i} 
-    component mult[BITLENGTH];
+    component square[BITLENGTH]; // pow2[i] = in^{2^i} 
+    component mult[SIGBITS];
+    component compress[BITLENGTH];
+    component carry[BITLENGTH];
+    signal exp[BITLENGTH][6][2][k];
 
-    signal first[6][2][k];
     var curid = 0;
 
-    for(var i=0; i<BITLENGTH; i++){
+    for(var b=BITLENGTH-1; b>=0; b--){
         // compute pow2[i] = pow2[i-1]**2
-        if( i > 0 ){ // pow2[0] is never defined since there is no squaring involved
-            pow2[i] = Fp12Square(n, k, p);
-            for(var j=0; j<k; j++) pow2[i].p[j] <== p[j];
-            if( i == 1 ){
-                for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-                    pow2[i].in[id][eps][j] <== in[id][eps][j];
-            }else{
-                for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-                    pow2[i].in[id][eps][j] <== pow2[i-1].out[id][eps][j];
+        if( b == BITLENGTH - 1 ){ // pow2[0] is never defined since there is no squaring involved
+            for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+                exp[b][i][j][idx] <== in[i][j][idx];
+        }else{ 
+            // square
+            square[b] = SignedFp12MultiplyNoCarry(n, k, 2*n + LOGK1); 
+            for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++){
+                square[b].a[i][j][idx] <== exp[b+1][i][j][idx];
+                square[b].b[i][j][idx] <== exp[b+1][i][j][idx];
             }
-        }
-        if( ((e >> i) & 1) == 1 ){
-            if(curid == 0){ // this is the least significant bit
-                if( i == 0 ){
-                    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-                        first[id][eps][j] <== in[id][eps][j];
-                }else{
-                    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-                        first[id][eps][j] <== pow2[i].out[id][eps][j];
+
+            if( ((e >> b) & 1) == 0 ){
+                compress[b] = Fp12Compress(n, k, k-1, p, 3*n + LOGK2); 
+                for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<2*k-1; idx++)
+                    compress[b].in[i][j][idx] <== square[b].out[i][j][idx];
+
+                carry[b] = SignedFp12CarryModP(n, k, 3*n + LOGK2, p); 
+                for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+                    carry[b].in[i][j][idx] <== compress[b].out[i][j][idx];
+            }else{ 
+                // multiply square with `in`
+                mult[curid] = SignedFp12MultiplyNoCarryUnequal(n, 2*k-1, k, 3*n + 2*LOGK1); 
+                for(var i=0; i<6; i++)for(var j=0; j<2; j++){
+                    for(var idx=0; idx<2*k-1; idx++)
+                        mult[curid].a[i][j][idx] <== square[b].out[i][j][idx]; 
+                    for(var idx=0; idx<k; idx++)
+                        mult[curid].b[i][j][idx] <== in[i][j][idx];
                 }
-            }else{
-                // multiply what we already have with pow2[i]
-                mult[curid] = Fp12Multiply(n, k, p); 
-                for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-                    mult[curid].a[id][eps][j] <== pow2[i].out[id][eps][j];
-                if(curid == 1){
-                    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-                        mult[curid].b[id][eps][j] <== first[id][eps][j];
-                }else{
-                    for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-                        mult[curid].b[id][eps][j] <== mult[curid-1].out[id][eps][j];
-                }
-            } 
-            curid++; 
+                
+                compress[b] = Fp12Compress(n, k, 2*k-2, p, 4*n + LOGK3); 
+                for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<3*k-2; idx++)
+                    compress[b].in[i][j][idx] <== mult[curid].out[i][j][idx];
+
+                carry[b] = SignedFp12CarryModP(n, k, 4*n + LOGK3, p); 
+                for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+                    carry[b].in[i][j][idx] <== compress[b].out[i][j][idx];
+
+                curid++; 
+            }
+
+            for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+                exp[b][i][j][idx] <== carry[b].out[i][j][idx];                
         }
     }
-    curid--;
-    if(curid == 0){
-        for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-            out[id][eps][j] <== first[id][eps][j];
-    }else{
-        for(var id=0; id<6; id++)for(var eps=0; eps<2; eps++)for(var j=0; j<k; j++)
-            out[id][eps][j] <== mult[curid].out[id][eps][j];
-    }
+    for(var i=0; i<6; i++)for(var j=0; j<2; j++)for(var idx=0; idx<k; idx++)
+        out[i][j][idx] <== exp[0][i][j][idx];
 }
 

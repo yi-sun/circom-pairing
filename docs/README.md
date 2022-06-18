@@ -1,4 +1,4 @@
-# Documentation
+# zkPairing Circuits Documentation
 
 ## Table of Contents
 
