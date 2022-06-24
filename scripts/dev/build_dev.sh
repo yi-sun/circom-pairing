@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PHASE1=../../circuits/pot24_final.ptau
+PHASE1=../../circuits/pot20.ptau
 BUILD_DIR=../../build/dev
 CIRCUIT_NAME=dev
 
@@ -21,15 +21,25 @@ echo $PWD
 echo "****COMPILING CIRCUIT****"
 start=`date +%s`
 #circom "$CIRCUIT_NAME".circom --O1 --r1cs --wasm --sym --c --wat --output "$BUILD_DIR"
-circom "$CIRCUIT_NAME".circom --O1 --r1cs --wasm --sym --output "$BUILD_DIR"
+circom "$CIRCUIT_NAME".circom --O1 --c --sym --output "$BUILD_DIR"
 end=`date +%s`
 echo "DONE ($((end-start))s)"
 
-echo "****GENERATING WITNESS FOR SAMPLE INPUT****"
+echo "****COMPILING C++ WITNESS GENERATION CODE****"
 start=`date +%s`
-node "$BUILD_DIR"/"$CIRCUIT_NAME"_js/generate_witness.js "$BUILD_DIR"/"$CIRCUIT_NAME"_js/"$CIRCUIT_NAME".wasm input_"$CIRCUIT_NAME".json "$BUILD_DIR"/witness.wtns
+cd "$BUILD_DIR"/"$CIRCUIT_NAME"_cpp 
+make
 end=`date +%s`
 echo "DONE ($((end-start))s)"
+
+echo "****VERIFYING WITNESS****"
+start=`date +%s`
+./"$CIRCUIT_NAME" ../../../scripts/"$CIRCUIT_NAME"/input_"$CIRCUIT_NAME".json ../witness.wtns
+end=`date +%s`
+echo "DONE ($((end-start))s)"
+
+cd ..
+npx snarkjs wej witness.wtns witness.json
 
 echo "****GENERATING ZKEY 0****"
 start=`date +%s`
