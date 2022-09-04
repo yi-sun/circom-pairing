@@ -743,6 +743,8 @@ template CheckCarryToZero(n, m, k) {
     assert(k >= 2);
     
     var EPSILON = 1; // see below for why 1 is ok
+    // 253 < log_2(r) where F_r = bn254::ScalarField
+    var w = (253 - m - EPSILON) \ n;
     
     signal input in[k];
     
@@ -759,8 +761,11 @@ template CheckCarryToZero(n, m, k) {
             in[i] + carry[i-1] === carry[i] * (1<<n);
         }
         // checking carry is in the range of -2^(m-n-1+eps), 2^(m-n-1+eps)
-        carryRangeChecks[i].in <== carry[i] + ( 1<< (m + EPSILON - n - 1));
-        // carry[i] is bounded by 2^{m-1} * (2^{-n} + 2^{-2n} + ... ) = 2^{m-n-1} * ( 1/ (1-2^{-n})) < 2^{m-n} by geometric series 
+        // only need to do this every `w` indices 
+        if ( (i >= w && ((i-w) % (w+1) == 0)) || i == k - 2 ) { 
+            carryRangeChecks[i].in <== carry[i] + ( 1<< (m + EPSILON - n - 1));
+            // carry[i] is bounded by 2^{m-1} * (2^{-n} + 2^{-2n} + ... ) = 2^{m-n-1} * ( 1/ (1-2^{-n})) < 2^{m-n} by geometric series 
+        }
     }
     
     in[k-1] + carry[k-2] === 0;
