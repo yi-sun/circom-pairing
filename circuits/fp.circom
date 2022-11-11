@@ -207,6 +207,12 @@ template SignedCheckCarryModToZero(n, k, overflow, p){
         X_range_checks[i] = Num2Bits(n+1);
         X_range_checks[i].in <== X[i] + (1<<n); // X[i] should be between [-2^n, 2^n)
     }
+
+    signal remainder[50];
+    for (var i=0; i<k; i++) {
+        remainder[i] <-- Xvar[1][i];
+        remainder[i] === 0;
+    }
     
     component mod_check = CheckCarryModP(n, k, m, overflow, p);
     for(var i=0; i<k; i++){
