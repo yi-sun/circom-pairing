@@ -340,12 +340,16 @@ template EllipticCurveAdd(n, k, a1, b1, p){
         doub.in[i][idx] <== a[i][idx];
     }
     
-    // out = O iff ( a = O AND b = O ) OR ( x_equal AND NOT y_equal ) 
+    // out = O iff ( a = O AND b = O ) OR (a != 0 AND b != 0) AND ( x_equal AND NOT y_equal ) 
     signal ab0;
     ab0 <== aIsInfinity * bIsInfinity; 
+    signal ab_non0;
+    ab_non0 <== (1- aIsInfinity) * (1 - bIsInfinity);
     signal anegb;
     anegb <== x_equal.out - x_equal.out * y_equal.out; 
-    isInfinity <== ab0 + anegb - ab0 * anegb; // OR gate
+    signal inverse;
+    inverse <== ab_non0 * anegb;
+    isInfinity <== ab0 + inverse - ab0 * inverse; // OR gate
 
     signal tmp[3][2][k]; 
     for(var i=0; i<2; i++)for(var idx=0; idx<k; idx++){
