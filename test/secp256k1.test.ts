@@ -120,16 +120,23 @@ describe("Secp256k1PointOnCurve", function () {
         let y = test_case[1];
         let r = test_case[2];
 
-        var x_array: bigint[] = bigint_to_array(86, 3, x);
-        var y_array: bigint[] = bigint_to_array(86, 3, y);
+        var x_array: bigint[] = bigint_to_array(52, 5, x);
+        var y_array: bigint[] = bigint_to_array(52, 5, y);
 
         it('Testing x: ' + x + ' y: ' + y + " r: " + r,
                 async function() {
-                    let witness = await circuit.calculateWitness({
-                        "x": x_array, "y": y_array,
-                    });
-                    expect(witness[1]).to.equal(r);
-                    await circuit.checkConstraints(witness);
+                    if(r == 0n) {
+                         await circuit.calculateWitness({
+                                "in": [x_array, y_array],
+                        }).then(
+                            (result : any) => assert.fail("Point should not be on curve"), 
+                            (reject : any) => expect(reject.message).to.match(/Assert Failed/));
+                    } else {
+                        let witness = await circuit.calculateWitness({
+                            "in": [x_array, y_array],
+                        });
+                        await circuit.checkConstraints(witness);
+                    }
                 });
     }
 
