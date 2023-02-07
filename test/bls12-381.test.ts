@@ -32,7 +32,7 @@ describe("BLS12-381 AddUnequal", function () {
   let circuit: any;
   before(async function () {
     circuit = await wasm_tester(
-      path.join(__dirname, "circuits", "test_bls12-381_add_equal.circom")
+      path.join(__dirname, "circuits", "test_bls12-381_add.circom")
     );
   });
 
