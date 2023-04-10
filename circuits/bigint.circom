@@ -614,7 +614,8 @@ template BigAddModP(n, k){
     sub.a[k] <== add.out[k];
     sub.b[k] <== 0;
     
-    sub.out[k] === 0;
+    // the following constraint can be implied
+    // sub.out[k] === 0;
     for (var i = 0; i < k; i++) {
         out[i] <== sub.out[i];
     }
